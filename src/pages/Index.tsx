@@ -1,4 +1,5 @@
-import { Rocket, Sparkles } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Rocket, Sparkles, BarChart3 } from 'lucide-react'
 
 export default function Index() {
   return (
@@ -22,18 +23,23 @@ export default function Index() {
           </p>
         </div>
 
-        {/* Placeholder / Empty State Card */}
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 sm:p-10 text-center shadow-sm">
-          <div className="h-12 w-12 rounded-full bg-[#6C3EF5]/10 text-[#6C3EF5] flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="h-6 w-6" />
+        {/* Acesso ao painel */}
+        <div className="rounded-xl border border-gray-200 bg-white p-8 sm:p-10 text-center shadow-sm space-y-4">
+          <div className="h-12 w-12 rounded-full bg-[#6C3EF5]/10 text-[#6C3EF5] flex items-center justify-center mx-auto">
+            <BarChart3 className="h-6 w-6" />
           </div>
-          <h2 className="text-base font-semibold text-[#1F2937] mb-1">
-            Projeto iniciado com sucesso
-          </h2>
+          <h2 className="text-base font-semibold text-[#1F2937]">Painel consolidado disponível</h2>
           <p className="text-sm text-[#6B7280]">
-            Este é o espaço inicial reservado para o sistema. Defina seu produto, campanhas ou
-            estratégias nas próximas etapas.
+            Filtros por período, canal e objetivo — com dados demonstrativos identificados até a
+            conexão das fontes reais.
           </p>
+          <Link
+            to="/painel"
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-[#6C3EF5] to-[#A855F7] px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:opacity-90"
+          >
+            <Sparkles className="h-4 w-4" />
+            Abrir o painel
+          </Link>
         </div>
       </div>
     </div>

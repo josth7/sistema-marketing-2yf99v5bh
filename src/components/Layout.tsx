@@ -1,9 +1,5 @@
-/* Layout Component - A component that wraps the main content of the app
-   - Use this file to add a header, footer, or other elements that should be present on every page
-   - This component is used in the App.tsx file to wrap the main content of the app */
-
 import { Outlet } from 'react-router-dom'
-import { Rocket } from 'lucide-react'
+import { Rocket, BarChart3 } from 'lucide-react'
 
 export default function Layout() {
   const currentYear = new Date().getFullYear()
@@ -20,9 +16,18 @@ export default function Layout() {
             SISTEMA MARKETING
           </span>
         </div>
-        <div className="text-xs font-medium text-[#6B7280] bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
-          v1.0.0
-        </div>
+        <nav className="flex items-center gap-1">
+          <a
+            href="/painel"
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Painel
+          </a>
+          <div className="ml-2 text-xs font-medium text-[#6B7280] bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
+            v1.0.0
+          </div>
+        </nav>
       </header>
 
       {/* Main Content Area */}
