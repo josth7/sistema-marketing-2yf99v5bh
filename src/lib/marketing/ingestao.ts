@@ -41,6 +41,11 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** Normaliza a data do PocketBase ("2026-09-30 00:00:00.000Z") para yyyy-mm-dd. */
+function dataSegura(v: string): string {
+  return typeof v === 'string' && v.length >= 10 ? v.slice(0, 10) : ''
+}
+
 function objetivoSeguro(v: string): ObjetivoCampanha {
   const validos: ObjetivoCampanha[] = [
     'alcance',
@@ -68,8 +73,8 @@ export function paraRegistroMetricas(r: MetricaDiariaRecord): RegistroMetricas {
     campanhaId: r.campanha_id,
     campanhaNome: r.campanha_nome,
     objetivo: objetivoSeguro(r.objetivo),
-    periodoInicio: r.data,
-    periodoFim: r.data,
+    periodoInicio: dataSegura(r.data),
+    periodoFim: dataSegura(r.data),
     metricas: {
       alcance: num(r.alcance),
       impressoes: num(r.impressoes),
