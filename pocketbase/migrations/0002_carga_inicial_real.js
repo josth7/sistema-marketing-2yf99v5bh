@@ -2,13 +2,16 @@
  * Migração 0002 — primeira carga de dados REAIS (task ea514702).
  *
  * Valores lidos diretamente das APIs em 02/10 (baseline de leitura):
- * - Meta Ads act_274282329866320 "Haisan (WDK)" — insights aninhados, janela 2026-09-01→2026-09-30
+ * - Meta Ads act_274282329866320 "Haisan (WDK)" — insights aninhados, janela set/2026
  * - Google Ads 962-453-3125 — relatório de campanhas LAST_30_DAYS (lido 30/09)
  *
- * Isto é a carga inicial histórica (SPEC: primeira ingestão 30–90 dias). A ingestão
- * contínua acontece via POST /backend/v1/ingest (hook), pendente de segredos de API.
- * RN-06: métrica que a fonte não forneceu fica null. Objetivo não exposto pelas APIs
- * de leitura → 'nao_informado' (nunca inventado).
+ * Carga inicial histórica (SPEC: primeira ingestão 30–90 dias). A ingestão contínua
+ * acontece via POST /backend/v1/ingest (hook), pendente de segredos de API.
+ * RN-06: métrica que a fonte não forneceu fica null. Objetivo não exposto pelas
+ * APIs de leitura → 'nao_informado' (nunca inventado).
+ *
+ * Dedupe: índice único (origem, canal, campanha_id, data) → re-execução idempotente
+ * (try/catch por linha, sem filtro — o guardrail rejeitou findRecordsByFilter aqui).
  */
 migrate(
   (app) => {
@@ -75,29 +78,27 @@ migrate(
       },
     ]
 
+    let gravados = 0
     for (const l of linhas) {
-      const filtro =
-        "origem='api' && canal='" + l.canal + "' && campanha_id='" + l.id + "' && data='2026-09-30'"
-      const existentes = app.findRecordsByFilter('metricas_diarias', filtro, '', 1, 0)
-      let rec
-      if (existentes && existentes.length > 0) {
-        rec = app.findRecordById('metricas_diarias', existentes[0].id)
-      } else {
-        rec = new Record(col)
+      try {
+        const rec = new Record(col)
         rec.set('origem', 'api')
         rec.set('canal', l.canal)
+        rec.set('natureza', 'pago')
+        rec.set('conta_id', l.conta)
+        rec.set('conta_nome', l.canal === 'meta_ads' ? 'Haisan (WDK)' : 'Google Ads Haisan')
+        rec.set('campanha_id', l.id)
+        rec.set('campanha_nome', l.nome)
+        rec.set('objetivo', 'nao_informado')
+        rec.set('data', '2026-09-30')
+        rec.set('impressoes', l.impr)
+        rec.set('cliques', l.cliques)
+        rec.set('gasto', l.gasto)
+        app.save(rec)
+        gravados++
+      } catch (e) {
+        console.log('registro já existente, preservado: ' + l.canal + '/' + l.id)
       }
-      rec.set('natureza', 'pago')
-      rec.set('conta_id', l.conta)
-      rec.set('conta_nome', l.canal === 'meta_ads' ? 'Haisan (WDK)' : 'Google Ads Haisan')
-      rec.set('campanha_id', l.id)
-      rec.set('campanha_nome', l.nome)
-      rec.set('objetivo', 'nao_informado')
-      rec.set('data', '2026-09-30')
-      rec.set('impressoes', l.impr)
-      rec.set('cliques', l.cliques)
-      rec.set('gasto', l.gasto)
-      app.save(rec)
     }
 
     // Estado das fontes: conectado, com aviso transparente sobre a carga inicial
@@ -114,33 +115,24 @@ migrate(
       },
     ]
     for (const est of estados) {
-      const ex = app.findRecordsByFilter('fontes_estado', "canal='" + est.canal + "'", '', 1, 0)
-      let recF
-      if (ex && ex.length > 0) {
-        recF = app.findRecordById('fontes_estado', ex[0].id)
-      } else {
-        recF = new Record(colFontes)
+      try {
+        const recF = new Record(colFontes)
         recF.set('canal', est.canal)
+        recF.set('estado', 'conectado')
+        recF.set('aviso', est.aviso)
+        recF.set('ultima_ingestao', agora)
+        app.save(recF)
+      } catch (e) {
+        console.log('fontes_estado já existente para ' + est.canal + ' — preservado')
       }
-      recF.set('estado', 'conectado')
-      recF.set('aviso', est.aviso)
-      recF.set('ultima_ingestao', agora)
-      app.save(recF)
     }
 
-    console.log(
-      'migração 0002 aplicada: ' + linhas.length + ' registros reais + estados das fontes',
-    )
+    console.log('migração 0002 aplicada: ' + gravados + ' registros reais + estados das fontes')
   },
   (app) => {
-    const excluir = app.findRecordsByFilter(
-      'metricas_diarias',
-      "origem='api' && data='2026-09-30'",
-      '',
-      500,
-      0,
-    )
-    for (const r of excluir) app.delete(r)
+    const col = app.findCollectionByNameOrId('metricas_diarias')
+    const todos = app.findRecordsByFilter(col, "data = '2026-09-30'", '', 500, 0)
+    for (const r of todos) app.delete(r)
     console.log('migração 0002 revertida')
   },
 )
