@@ -75,7 +75,7 @@ export async function dispararIngestao(
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
   try {
-    const res = await fetch(`${baseUrl}/api/ingest?fonte=${fonte}`, {
+    const res = await fetch(`${baseUrl}/backend/v1/ingest?fonte=${fonte}`, {
       method: 'POST',
       signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json' },

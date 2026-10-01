@@ -19,7 +19,7 @@
 
 routerAdd(
   'POST',
-  '/api/ingest',
+  '/backend/v1/ingest',
   (e) => {
     const fonte = e.request.url.query().get('fonte') || ''
     if (fonte !== 'meta_ads' && fonte !== 'google_ads') {
