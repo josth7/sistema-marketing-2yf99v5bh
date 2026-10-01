@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T20:03:23.967Z",
+  "generatedAt": "2026-10-01T20:09:19.534Z",
   "collections": [
     {
       "name": "users",
@@ -54,26 +54,202 @@
       "type": "base",
       "apiRules": {
         "list": "",
-        "view": null,
+        "view": "",
         "create": null,
         "update": null,
         "delete": null
       },
-      "fields": [],
-      "indexes": []
+      "fields": [
+        {
+          "name": "origem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "canal",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "natureza",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conta_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conta_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "campanha_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "campanha_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "objetivo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "alcance",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "impressoes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliques",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gasto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultados",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpc",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpm",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ctr",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_metricas_unica ON metricas_diarias (origem, canal, campanha_id, data)"
+      ]
     },
     {
       "name": "fontes_estado",
       "type": "base",
       "apiRules": {
-        "list": null,
-        "view": null,
+        "list": "",
+        "view": "",
         "create": null,
         "update": null,
         "delete": null
       },
-      "fields": [],
-      "indexes": []
+      "fields": [
+        {
+          "name": "canal",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "conectado",
+            "nao_conectado",
+            "erro_autenticacao",
+            "sem_dados"
+          ]
+        },
+        {
+          "name": "aviso",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_ingestao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"
+      ]
     }
   ]
 }
