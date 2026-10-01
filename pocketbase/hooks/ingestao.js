@@ -1,20 +1,16 @@
 /**
  * Hooks do servidor (Skip Cloud) — job de ingestão (task ea514702).
  *
- * routerAdd registra:
- *   POST /api/ingest?fonte=meta_ads|google_ads  → executa a ingestão da fonte
+ * Rota: POST /backend/v1/ingest?fonte=meta_ads|google_ads
  *
  * Regras da SPEC:
- * - timeout/retry no adaptador (meta.ts); falha NUNCA zera nem apaga dados (RN-06/07).
- * - última ingestão preservada: fontes_estado só atualiza quando a leitura tem sucesso;
- *   em falha, grava o estado do erro mantendo ultima_ingestao anterior.
+ * - timeout/retry no adaptador; falha NUNCA zera nem apaga dados (RN-06/07).
+ * - última ingestão preservada: fontes_estado só avança em sucesso.
  * - dedupe por índice único (origem, canal, campanha_id, data) → upsert idempotente.
  * - token lido de $secrets — nunca hardcoded, nunca logado.
  *
- * IMPORTANTE (transparência): os hooks rodam no runtime do Skip Cloud. Este arquivo
- * declara o contrato; se o runtime do projeto ainda não carregar hooks de ingestão,
- * o endpoint responde 501 e o painel continua funcionando em modo demonstração
- * (CA-1-08) — a limitação fica visível, não escondida.
+ * IMPORTANTE (JSVM): toda a lógica fica INLINE no callback — PocketBase executa
+ * callbacks em VM separada, funções de top-level não são visíveis lá.
  */
 
 routerAdd(
@@ -48,8 +44,6 @@ routerAdd(
       }
     }
 
-    // A chamada HTTP externa + upsert acontecem aqui no runtime do servidor.
-    // Em runtime sem fetch externo habilitado, responde 501 sem alterar dados.
     if (typeof $http === 'undefined' || !$http || !$http.fetch) {
       return e.json(501, {
         ok: false,
@@ -58,27 +52,73 @@ routerAdd(
     }
 
     try {
-      let rows = []
+      // ---- extração INLINE (JSVM: sem funções de top-level) ----
+      let linhas = []
       if (fonte === 'meta_ads') {
         const res = $http.fetch(
-          `https://graph.facebook.com/v21.0/act_${conta}/ads?fields=id,name,insights{impressions,clicks,spend}&limit=100`,
+          'https://graph.facebook.com/v21.0/act_' +
+            conta +
+            '/ads?fields=id,name,insights{impressions,clicks,spend}&limit=100',
           { headers: { Authorization: 'Bearer ' + token } },
         )
         if (res.status() !== 200) {
-          // Falha: registra estado do erro, preserva última ingestão (RN-07)
-          atualizarEstadoFonte(
-            e,
-            fonte,
-            'erro_autenticacao',
-            'falha na leitura (HTTP ' + res.status() + ')',
-            false,
-          )
+          // RN-07: registra o erro, preserva última ingestão
+          try {
+            const colE = e.app.findCollectionByNameOrId('fontes_estado')
+            const exE = e.app.findRecordsByFilter(
+              'fontes_estado',
+              "canal='" + fonte + "'",
+              '',
+              1,
+              0,
+            )
+            let recE
+            if (exE && exE.length > 0) {
+              recE = e.app.findRecordById('fontes_estado', exE[0].id)
+            } else {
+              recE = new Record(colE)
+              recE.set('canal', fonte)
+            }
+            recE.set('estado', 'erro_autenticacao')
+            recE.set(
+              'aviso',
+              'falha na leitura (HTTP ' + res.status() + ') em ' + new Date().toISOString(),
+            )
+            e.app.save(recE)
+          } catch (errE) {
+            console.log('falha ao atualizar estado: ' + String(errE).slice(0, 120))
+          }
           return e.json(502, { ok: false, erro: 'Meta retornou HTTP ' + res.status(), ingested: 0 })
         }
         const json = JSON.parse(res.body())
-        rows = extrairLinhasMeta(json)
+        if (json && json.data) {
+          for (const ad of json.data) {
+            if (!ad || !ad.id) continue
+            const ins = ad.insights && ad.insights.data ? ad.insights.data : []
+            if (!ins.length) {
+              linhas.push({
+                campanhaId: ad.id,
+                campanhaNome: ad.name || '',
+                data: '',
+                impressoes: null,
+                cliques: null,
+                gasto: null,
+              })
+              continue
+            }
+            for (const i of ins) {
+              linhas.push({
+                campanhaId: ad.id,
+                campanhaNome: ad.name || '',
+                data: i.date_start || '',
+                impressoes: i.impressions !== undefined ? Number(i.impressions) : null,
+                cliques: i.clicks !== undefined ? Number(i.clicks) : null,
+                gasto: i.spend !== undefined ? Number(i.spend) : null,
+              })
+            }
+          }
+        }
       } else {
-        // Google Ads: leitura via relatório de campanhas (credencial de serviço no servidor)
         const res = $http.fetch(
           'https://googleads.googleapis.com/v21/customers/' +
             conta.replace(/-/g, '') +
@@ -97,39 +137,76 @@ routerAdd(
           },
         )
         if (res.status() !== 200) {
-          atualizarEstadoFonte(
-            e,
-            fonte,
-            'erro_api',
-            'falha na leitura (HTTP ' + res.status() + ')',
-            false,
-          )
+          try {
+            const colE = e.app.findCollectionByNameOrId('fontes_estado')
+            const exE = e.app.findRecordsByFilter(
+              'fontes_estado',
+              "canal='" + fonte + "'",
+              '',
+              1,
+              0,
+            )
+            let recE
+            if (exE && exE.length > 0) {
+              recE = e.app.findRecordById('fontes_estado', exE[0].id)
+            } else {
+              recE = new Record(colE)
+              recE.set('canal', fonte)
+            }
+            recE.set('estado', 'erro_api')
+            recE.set(
+              'aviso',
+              'falha na leitura (HTTP ' + res.status() + ') em ' + new Date().toISOString(),
+            )
+            e.app.save(recE)
+          } catch (errE) {
+            console.log('falha ao atualizar estado: ' + String(errE).slice(0, 120))
+          }
           return e.json(502, {
             ok: false,
             erro: 'Google retornou HTTP ' + res.status(),
             ingested: 0,
           })
         }
-        rows = extrairLinhasGoogle(res.body())
+        const json = JSON.parse(res.body())
+        const batches = Array.isArray(json) ? json : [json]
+        for (const batch of batches) {
+          if (!batch || !batch.results) continue
+          for (const r of batch.results) {
+            if (!r.campaign || r.campaign.id === undefined) continue
+            linhas.push({
+              campanhaId: String(r.campaign.id),
+              campanhaNome: r.campaign.name || '',
+              data: new Date().toISOString().slice(0, 10),
+              impressoes:
+                r.metrics && r.metrics.impressions !== undefined
+                  ? Number(r.metrics.impressions)
+                  : null,
+              cliques:
+                r.metrics && r.metrics.clicks !== undefined ? Number(r.metrics.clicks) : null,
+              gasto:
+                r.metrics && r.metrics.costMicros !== undefined
+                  ? Number(r.metrics.costMicros) / 1e6
+                  : null,
+            })
+          }
+        }
       }
 
-      // Upsert idempotente (índice único: origem, canal, campanha_id, data)
+      // ---- upsert idempotente (índice único: origem, canal, campanha_id, data) ----
       const col = e.app.findCollectionByNameOrId('metricas_diarias')
       let gravados = 0
-      const agora = new Date().toISOString()
-      for (const r of rows) {
+      for (const r of linhas) {
         if (!r.data) continue
-        const filtro = {
-          filter:
-            "origem='api' && canal='" +
-            fonte +
-            "' && campanha_id='" +
-            r.campanhaId +
-            "' && data='" +
-            r.data +
-            "'",
-        }
-        const existentes = e.app.findRecordsByFilter('metricas_diarias', filtro.filter, '', 1, 0)
+        const filtro =
+          "origem='api' && canal='" +
+          fonte +
+          "' && campanha_id='" +
+          r.campanhaId +
+          "' && data='" +
+          r.data +
+          "'"
+        const existentes = e.app.findRecordsByFilter('metricas_diarias', filtro, '', 1, 0)
         let rec
         if (existentes && existentes.length > 0) {
           rec = e.app.findRecordById('metricas_diarias', existentes[0].id)
@@ -142,7 +219,7 @@ routerAdd(
         rec.set('conta_id', conta)
         rec.set('campanha_id', r.campanhaId)
         rec.set('campanha_nome', r.campanhaNome)
-        rec.set('objetivo', r.objetivo || 'nao_informado')
+        rec.set('objetivo', 'nao_informado')
         rec.set('data', r.data)
         if (r.impressoes !== null) rec.set('impressoes', r.impressoes)
         if (r.cliques !== null) rec.set('cliques', r.cliques)
@@ -151,13 +228,28 @@ routerAdd(
         gravados++
       }
 
-      atualizarEstadoFonte(e, fonte, 'conectado', null, true)
-      console.log(
-        'ingestão ' + fonte + ': ' + gravados + ' registros (última ingestão ' + agora + ')',
-      )
+      // RN-07: última ingestão só avança em sucesso
+      try {
+        const colE = e.app.findCollectionByNameOrId('fontes_estado')
+        const exE = e.app.findRecordsByFilter('fontes_estado', "canal='" + fonte + "'", '', 1, 0)
+        let recE
+        if (exE && exE.length > 0) {
+          recE = e.app.findRecordById('fontes_estado', exE[0].id)
+        } else {
+          recE = new Record(colE)
+          recE.set('canal', fonte)
+        }
+        recE.set('estado', 'conectado')
+        recE.set('aviso', '')
+        recE.set('ultima_ingestao', new Date().toISOString())
+        e.app.save(recE)
+      } catch (errE) {
+        console.log('falha ao atualizar estado: ' + String(errE).slice(0, 120))
+      }
+
+      console.log('ingestão ' + fonte + ': ' + gravados + ' registros')
       return e.json(200, { ok: true, ingested: gravados, fonte: fonte })
     } catch (err) {
-      atualizarEstadoFonte(e, fonte, 'erro_api', 'exceção na ingestão', false)
       return e.json(500, {
         ok: false,
         erro: 'ingestão falhou; dados anteriores preservados',
@@ -165,89 +257,5 @@ routerAdd(
       })
     }
   },
-  null, // auth: endpoint interno chamado pelo painel autenticado
+  null,
 )
-
-function atualizarEstadoFonte(e, canal, estado, aviso, sucesso) {
-  try {
-    const col = e.app.findCollectionByNameOrId('fontes_estado')
-    const existentes = e.app.findRecordsByFilter('fontes_estado', "canal='" + canal + "'", '', 1, 0)
-    let rec
-    if (existentes && existentes.length > 0) {
-      rec = e.app.findRecordById('fontes_estado', existentes[0].id)
-    } else {
-      rec = new Record(col)
-      rec.set('canal', canal)
-    }
-    rec.set('estado', estado)
-    if (aviso) rec.set('aviso', aviso)
-    // RN-07: última ingestão só avança em sucesso — falha preserva a anterior
-    if (sucesso) rec.set('ultima_ingestao', new Date().toISOString())
-    e.app.save(rec)
-  } catch (err) {
-    console.log('falha ao atualizar fontes_estado: ' + String(err).slice(0, 120))
-  }
-}
-
-function extrairLinhasMeta(json) {
-  const linhas = []
-  if (!json || !json.data) return linhas
-  for (const ad of json.data) {
-    if (!ad || !ad.id) continue
-    const ins = ad.insights && ad.insights.data ? ad.insights.data : []
-    if (!ins.length) {
-      linhas.push({
-        campanhaId: ad.id,
-        campanhaNome: ad.name || '',
-        data: '',
-        impressoes: null,
-        cliques: null,
-        gasto: null,
-        objetivo: 'nao_informado',
-      })
-      continue
-    }
-    for (const i of ins) {
-      linhas.push({
-        campanhaId: ad.id,
-        campanhaNome: ad.name || '',
-        data: i.date_start || '',
-        impressoes: i.impressions !== undefined ? Number(i.impressions) : null,
-        cliques: i.clicks !== undefined ? Number(i.clicks) : null,
-        gasto: i.spend !== undefined ? Number(i.spend) : null,
-        objetivo: 'nao_informado',
-      })
-    }
-  }
-  return linhas
-}
-
-function extrairLinhasGoogle(body) {
-  const linhas = []
-  try {
-    const json = JSON.parse(body)
-    const batches = Array.isArray(json) ? json : [json]
-    for (const batch of batches) {
-      if (!batch || !batch.results) continue
-      for (const r of batch.results) {
-        if (!r.campaign || r.campaign.id === undefined) continue
-        linhas.push({
-          campanhaId: String(r.campaign.id),
-          campanhaNome: r.campaign.name || '',
-          data: new Date().toISOString().slice(0, 10),
-          impressoes:
-            r.metrics && r.metrics.impressions !== undefined ? Number(r.metrics.impressions) : null,
-          cliques: r.metrics && r.metrics.clicks !== undefined ? Number(r.metrics.clicks) : null,
-          gasto:
-            r.metrics && r.metrics.costMicros !== undefined
-              ? Number(r.metrics.costMicros) / 1e6
-              : null,
-          objetivo: 'nao_informado',
-        })
-      }
-    }
-  } catch (err) {
-    console.log('falha ao parsear resposta Google: ' + String(err).slice(0, 120))
-  }
-  return linhas
-}
