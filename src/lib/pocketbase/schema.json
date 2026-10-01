@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T19:59:53.486Z",
+  "generatedAt": "2026-10-01T20:03:23.967Z",
   "collections": [
     {
       "name": "users",
@@ -54,7 +54,7 @@
       "type": "base",
       "apiRules": {
         "list": "",
-        "view": "",
+        "view": null,
         "create": null,
         "update": null,
         "delete": null
@@ -66,8 +66,8 @@
       "name": "fontes_estado",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
+        "list": null,
+        "view": null,
         "create": null,
         "update": null,
         "delete": null
