@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T20:27:25.741Z",
+  "generatedAt": "2026-10-01T19:40:43.800Z",
   "collections": [
     {
       "name": "users",
@@ -29,20 +29,51 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
         "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
       ]
+    },
+    {
+      "name": "metricas_diarias",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [],
+      "indexes": []
+    },
+    {
+      "name": "fontes_estado",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [],
+      "indexes": []
     }
   ]
 }

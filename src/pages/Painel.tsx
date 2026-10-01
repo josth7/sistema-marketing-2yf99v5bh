@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,9 +9,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AlertTriangle, CheckCircle2, Database, Eye, Filter, Plug, Users } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Database,
+  Eye,
+  Filter,
+  Plug,
+  RefreshCw,
+  Users,
+} from 'lucide-react'
 import { estadosIniciais, datasetDemonstrativo, datasetReal } from '@/lib/marketing/fontes'
 import { construirVisao, periodosDisponiveis } from '@/lib/marketing/agregacao'
+import { carregarEstadoFontes, carregarMetricasReais } from '@/lib/marketing/ingestao'
+import type { FonteEstadoRecord } from '@/lib/marketing/ingestao'
 import {
   formatarInteiro,
   formatarMoeda,
@@ -79,13 +90,45 @@ function AvisoOrigem({ origem }: { origem: OrigemDados }) {
   )
 }
 
-function AvisosCanal() {
+function AvisosCanal({ estadosPb }: { estadosPb: Record<string, FonteEstadoRecord> }) {
   const estados = useMemo(() => estadosIniciais(), [])
   return (
     <div className="grid gap-2">
       {TODOS_CANAIS.map((canal) => {
-        const e = estados[canal]
-        if (e.estado === 'conectado') return null
+        // Estado real gravado pela ingestão tem prioridade sobre o default local.
+        const pb = estadosPb[canal]
+        const e = pb
+          ? {
+              canal,
+              natureza: 'pago' as const,
+              estado: pb.estado as
+                | 'conectado'
+                | 'nao_conectado'
+                | 'erro_autenticacao'
+                | 'sem_dados',
+              aviso: pb.aviso,
+              ultimaIngestao: pb.ultima_ingestao,
+            }
+          : estados[canal]
+        if (e.estado === 'conectado') {
+          const quando = e.ultimaIngestao ? new Date(e.ultimaIngestao).toLocaleString('pt-BR') : ''
+          return (
+            <div
+              key={canal}
+              className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"
+            >
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {canal === 'google_ads'
+                  ? 'Google Ads'
+                  : canal === 'meta_ads'
+                    ? 'Meta Ads'
+                    : 'Meta orgânico'}
+                : conectado{quando ? ` · última ingestão ${quando}` : ''}
+              </span>
+            </div>
+          )
+        }
         return (
           <div
             key={canal}
@@ -134,8 +177,30 @@ export default function PainelPage() {
   const [natureza, setNatureza] = useState<Natureza | 'ambos'>('ambos')
   const [objetivo, setObjetivo] = useState<ObjetivoCampanha | 'todos'>('todos')
   const [periodoIdx, setPeriodoIdx] = useState(0)
+  const [reais, setReais] = useState<ReturnType<typeof datasetReal>>([])
+  const [estadosFontes, setEstadosFontes] = useState<Record<string, FonteEstadoRecord>>({})
+  const [carregando, setCarregando] = useState(false)
+  const [erroReais, setErroReais] = useState<string | null>(null)
 
-  const dataset = usarDemo ? datasetDemonstrativo() : datasetReal()
+  const pbUrl = import.meta.env.VITE_POCKETBASE_URL ?? ''
+
+  // Carrega o dataset real (metricas_diarias) e o estado das fontes — task ea514702.
+  async function carregarReais() {
+    setCarregando(true)
+    setErroReais(null)
+    const { registros, erro } = await carregarMetricasReais(pbUrl)
+    setReais(registros)
+    setErroReais(erro)
+    setEstadosFontes(await carregarEstadoFontes(pbUrl))
+    setCarregando(false)
+  }
+
+  useEffect(() => {
+    if (!usarDemo) void carregarReais()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usarDemo])
+
+  const dataset = usarDemo ? datasetDemonstrativo() : reais
   const periodos = useMemo(() => periodosDisponiveis(dataset), [dataset])
   const periodo = periodos[Math.min(periodoIdx, Math.max(0, periodos.length - 1))]
 
@@ -180,7 +245,27 @@ export default function PainelPage() {
       </div>
 
       <AvisoOrigem origem={usarDemo ? 'demonstracao' : 'api'} />
-      <AvisosCanal />
+      <AvisosCanal estadosPb={estadosFontes} />
+      {!usarDemo && (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs text-gray-600">
+          <span>
+            {carregando
+              ? 'Carregando dados reais…'
+              : erroReais
+                ? `Falha ao carregar: ${erroReais} (dados anteriores preservados)`
+                : `${reais.length} registros carregados do PocketBase (origem api/csv)`}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void carregarReais()}
+            disabled={carregando}
+          >
+            <RefreshCw className={`mr-1 h-3.5 w-3.5 ${carregando ? 'animate-spin' : ''}`} />
+            Recarregar
+          </Button>
+        </div>
+      )}
 
       {/* Filtros */}
       <Card>
