@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T19:57:02.334Z",
+  "generatedAt": "2026-10-01T19:59:53.486Z",
   "collections": [
     {
       "name": "users",
@@ -53,8 +53,8 @@
       "name": "metricas_diarias",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "",
+        "view": "",
         "create": null,
         "update": null,
         "delete": null
@@ -66,8 +66,8 @@
       "name": "fontes_estado",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": null,
+        "list": "",
+        "view": "",
         "create": null,
         "update": null,
         "delete": null
