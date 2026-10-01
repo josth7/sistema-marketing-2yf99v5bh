@@ -92,7 +92,9 @@ function metricaPeriodo(
   fim: string,
   campo: 'gasto' | 'cliques' | 'impressoes' | 'resultados',
 ): number | null {
-  const noPeriodo = registros.filter((r) => r.periodoInicio >= inicio && r.periodoFim <= fim)
+  // Sobreposição de intervalo (não contenção estrita): um registro mensal
+  // (ex. 01/08–31/08) conta na janela 02/08–31/08 — granularidade do dado.
+  const noPeriodo = registros.filter((r) => r.periodoInicio <= fim && r.periodoFim >= inicio)
   return somar(noPeriodo.map((r) => r.metricas[campo]))
 }
 

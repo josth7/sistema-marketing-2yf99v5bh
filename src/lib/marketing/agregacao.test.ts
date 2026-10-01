@@ -169,6 +169,36 @@ console.log('RN-05 — origem preservada e isolada:')
   )
 }
 
+// ---------- REGRESSÃO comparativo: base mensal existente é usada (bug da janela) ----------
+console.log('REGRESSÃO — comparativo usa a base existente:')
+{
+  const registros = [
+    mk({
+      id: 'set',
+      periodoInicio: '2026-09-01',
+      periodoFim: '2026-09-30',
+      metricas: { ...mk({}).metricas, gasto: 1000 },
+    }),
+    mk({
+      id: 'ago',
+      periodoInicio: '2026-08-01',
+      periodoFim: '2026-08-31',
+      metricas: { ...mk({}).metricas, gasto: 800 },
+    }),
+  ]
+  const visao = construirVisao(registros, {
+    ...FILTROS_VAZIOS,
+    periodoInicio: '2026-09-01',
+    periodoFim: '2026-09-30',
+  })
+  prova(
+    'comparativo de gasto TEM base (agosto existe)',
+    visao.comparativo.gasto.semBaseDeComparacao === false,
+  )
+  prova('variação = +25%', visao.comparativo.gasto.variacaoPercentual === 25)
+  prova('anterior = 800', visao.comparativo.gasto.anterior === 800)
+}
+
 // ---------- REGRESSÃO parcial: Meta falho × Google real ----------
 console.log('REGRESSÃO — canal indisponível não zera o outro:')
 {
