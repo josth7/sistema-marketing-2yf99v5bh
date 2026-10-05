@@ -21,22 +21,59 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
 
   let token = ''
   let conta = ''
+  // Ordem de resolução do token (task 116061e0): 1) segredo direto do projeto;
+  // 2) conector da plataforma (SKIP_CONNECTORS_URL + SKIP_CONNECTORS_TOKEN, sistema).
+  // Nenhuma credencial no código/repo (D-02).
+  const conectorUrl = ($secrets.get('SKIP_CONNECTORS_URL') || '').replace(/\/$/, '')
+  const conectorToken = $secrets.get('SKIP_CONNECTORS_TOKEN') || ''
   if (fonte === 'meta_ads') {
     token = $secrets.get('META_ACCESS_TOKEN') || ''
     conta = $secrets.get('META_ACCOUNT_ID') || ''
+    if ((!token || !conta) && conectorUrl && conectorToken) {
+      try {
+        const r = $http.send({
+          url: conectorUrl + '/connector/meta_ads/token?account=' + conta,
+          method: 'GET',
+          headers: { Authorization: 'Bearer ' + conectorToken },
+          timeout: 15,
+        })
+        if (r.statusCode === 200 && r.json && r.json.token) {
+          token = r.json.token
+          if (!conta && r.json.account_id) conta = r.json.account_id
+        }
+      } catch (errC) {
+        console.log('conector meta_ads indisponível: ' + String(errC).slice(0, 120))
+      }
+    }
     if (!token || !conta) {
       return e.json(501, {
         ok: false,
-        erro: 'ingestão Meta não configurada: defina META_ACCESS_TOKEN e META_ACCOUNT_ID nos segredos do projeto',
+        erro: 'ingestão Meta não configurada: defina META_ACCESS_TOKEN e META_ACCOUNT_ID nos segredos do projeto (ou conecte a fonte no conector da plataforma)',
       })
     }
   } else {
     token = $secrets.get('GOOGLE_ADS_TOKEN') || ''
     conta = $secrets.get('GOOGLE_ADS_CUSTOMER_ID') || ''
+    if ((!token || !conta) && conectorUrl && conectorToken) {
+      try {
+        const r = $http.send({
+          url: conectorUrl + '/connector/google_ads/token?account=' + conta,
+          method: 'GET',
+          headers: { Authorization: 'Bearer ' + conectorToken },
+          timeout: 15,
+        })
+        if (r.statusCode === 200 && r.json && r.json.token) {
+          token = r.json.token
+          if (!conta && r.json.account_id) conta = r.json.account_id
+        }
+      } catch (errC) {
+        console.log('conector google_ads indisponível: ' + String(errC).slice(0, 120))
+      }
+    }
     if (!token || !conta) {
       return e.json(501, {
         ok: false,
-        erro: 'ingestão Google não configurada: defina GOOGLE_ADS_TOKEN e GOOGLE_ADS_CUSTOMER_ID nos segredos do projeto',
+        erro: 'ingestão Google não configurada: defina GOOGLE_ADS_TOKEN e GOOGLE_ADS_CUSTOMER_ID nos segredos do projeto (ou conecte a fonte no conector da plataforma)',
       })
     }
   }
