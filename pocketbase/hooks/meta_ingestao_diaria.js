@@ -107,19 +107,16 @@ cronAdd('meta_ingestao_diaria', '0 9 * * *', () => {
     let gravados = 0
     for (const r of linhas) {
       if (!r.data) continue
-      const filtro =
-        "origem='api' && canal='" +
-        fonte +
-        "' && campanha_id='" +
-        r.campanhaId +
-        "' && data='" +
-        r.data +
-        "'"
-      const existentes = $app.findRecordsByFilter(col, filtro, '', 1, 0)
-      let rec
-      if (existentes && existentes.length > 0) {
-        rec = $app.findRecordById(col, existentes[0].id)
-      } else {
+      const filtro = "origem='api' && canal='" + fonte + "' && campanha_id='" + r.campanhaId + "'"
+      const candidatos = $app.findRecordsByFilter(col, filtro, '', 50, 0)
+      let rec = null
+      for (const c of candidatos) {
+        if (String(c.get('data')).slice(0, 10) === r.data) {
+          rec = $app.findRecordById(col, c.id)
+          break
+        }
+      }
+      if (!rec) {
         rec = new Record(col)
         rec.set('origem', 'api')
         rec.set('canal', fonte)

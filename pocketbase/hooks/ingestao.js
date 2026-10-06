@@ -383,23 +383,23 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
     }
 
     // ---- upsert idempotente (índice único: origem, canal, campanha_id, data) ----
+    // findRecordsByFilter com data tipo date exige formato PB; para evitar
+    // divergência de formato, a busca do existente usa só os campos de texto e
+    // compara a data em JS (a janela de dedupe é pequena — ≤ 30 registros).
     const col = e.app.findCollectionByNameOrId('metricas_diarias')
     let gravados = 0
     for (const r of linhas) {
       if (!r.data) continue
-      const filtro =
-        "origem='api' && canal='" +
-        fonte +
-        "' && campanha_id='" +
-        r.campanhaId +
-        "' && data='" +
-        r.data +
-        "'"
-      const existentes = e.app.findRecordsByFilter(col, filtro, '', 1, 0)
-      let rec
-      if (existentes && existentes.length > 0) {
-        rec = e.app.findRecordById(col, existentes[0].id)
-      } else {
+      const filtro = "origem='api' && canal='" + fonte + "' && campanha_id='" + r.campanhaId + "'"
+      const candidatos = e.app.findRecordsByFilter(col, filtro, '', 50, 0)
+      let rec = null
+      for (const c of candidatos) {
+        if (String(c.get('data')).slice(0, 10) === r.data) {
+          rec = e.app.findRecordById(col, c.id)
+          break
+        }
+      }
+      if (!rec) {
         rec = new Record(col)
         rec.set('origem', 'api')
         rec.set('canal', fonte)
