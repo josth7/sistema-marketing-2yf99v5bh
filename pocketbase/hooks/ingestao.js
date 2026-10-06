@@ -324,7 +324,15 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
         avisoOrganico = 'orgânico indisponível nesta rodada (' + String(errOrg).slice(0, 80) + ')'
       }
     } else {
-      // ---- Google Ads via relatório (Composio/segredos) ----
+      // ---- Google Ads via relatório (segredos GOOGLE_ADS_*; guia 05_entregas/como-conectar-o-google-ao-sistema.md) ----
+      // Métricas POR DIA (segments.date) — mesmo padrão da Meta (time_increment=1),
+      // reprocesso dos últimos 7 dias (RN-10), upsert idempotente.
+      const diasG = []
+      for (let i = 7; i >= 0; i--) {
+        diasG.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10))
+      }
+      const sinceG = diasG[0]
+      const untilG = diasG[diasG.length - 1]
       const res = $http.send({
         url:
           'https://googleads.googleapis.com/v21/customers/' +
@@ -338,21 +346,38 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
         },
         body: JSON.stringify({
           query:
-            'SELECT campaign.id, campaign.name, campaign.status, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date DURING LAST_30_DAYS',
+            "SELECT campaign.id, campaign.name, campaign.status, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date BETWEEN '" +
+            sinceG +
+            "' AND '" +
+            untilG +
+            "' AND campaign.status IN ('ENABLED', 'PAUSED', 'REMOVED')",
         }),
         timeout: 30,
       })
       if (res.statusCode !== 200) {
+        const errG = res.json && (Array.isArray(res.json) ? res.json[0] : res.json)
+        const msgG =
+          errG && errG.error && errG.error.message ? String(errG.error.message).slice(0, 140) : ''
+        const estadoG =
+          res.statusCode === 401 || res.statusCode === 403 ? 'erro_autenticacao' : 'erro_api'
         gravarEstado(
           e.app,
           fonte,
-          'erro_api',
-          'falha na leitura (HTTP ' + res.statusCode + ') em ' + new Date().toISOString(),
+          estadoG,
+          'Google rejeitou a leitura (HTTP ' +
+            res.statusCode +
+            (msgG ? ': ' + msgG : '') +
+            ') em ' +
+            new Date().toISOString(),
           false,
         )
         return e.json(502, {
           ok: false,
-          erro: 'Google retornou HTTP ' + res.statusCode,
+          erro: 'Google retornou HTTP ' + res.statusCode + (msgG ? ': ' + msgG : ''),
+          acao:
+            res.statusCode === 401 || res.statusCode === 403
+              ? 'conferir o token no segredo GOOGLE_ADS_TOKEN (uma nova tentativa); persistindo, registrar e acionar consultoria'
+              : 'tentar no próximo ciclo; dados anteriores preservados',
           ingested: 0,
         })
       }
@@ -362,21 +387,33 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
         if (!batch || !batch.results) continue
         for (const r of batch.results) {
           if (!r.campaign || r.campaign.id === undefined) continue
+          // RN-06: dia sem métrica (>0) não vira registro — evita zero falso
+          const imprG =
+            r.metrics && r.metrics.impressions !== undefined ? Number(r.metrics.impressions) : null
+          const cliqG =
+            r.metrics && r.metrics.clicks !== undefined ? Number(r.metrics.clicks) : null
+          const gastoG =
+            r.metrics && r.metrics.costMicros !== undefined
+              ? Number(r.metrics.costMicros) / 1e6
+              : null
+          const resG =
+            r.metrics && r.metrics.conversions !== undefined ? Number(r.metrics.conversions) : null
+          if (
+            (imprG === null || imprG === 0) &&
+            (cliqG === null || cliqG === 0) &&
+            (gastoG === null || gastoG === 0)
+          )
+            continue
           linhas.push({
             campanhaId: String(r.campaign.id),
             campanhaNome: r.campaign.name || '',
             objetivo: 'nao_informado',
-            data: new Date().toISOString().slice(0, 10),
+            data: r.segments && r.segments.date ? r.segments.date : '',
             alcance: null,
-            impressoes:
-              r.metrics && r.metrics.impressions !== undefined
-                ? Number(r.metrics.impressions)
-                : null,
-            cliques: r.metrics && r.metrics.clicks !== undefined ? Number(r.metrics.clicks) : null,
-            gasto:
-              r.metrics && r.metrics.costMicros !== undefined
-                ? Number(r.metrics.costMicros) / 1e6
-                : null,
+            impressoes: imprG,
+            cliques: cliqG,
+            gasto: gastoG,
+            resultados: resG,
           })
         }
       }
@@ -415,6 +452,7 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
       if (r.impressoes !== null && r.impressoes !== undefined) rec.set('impressoes', r.impressoes)
       if (r.cliques !== null && r.cliques !== undefined) rec.set('cliques', r.cliques)
       if (r.gasto !== null && r.gasto !== undefined) rec.set('gasto', r.gasto)
+      if (r.resultados !== null && r.resultados !== undefined) rec.set('resultados', r.resultados)
       e.app.save(rec)
       gravados++
     }
