@@ -65,17 +65,9 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
         erro: 'ingestão Meta indisponível: cadastre META_ACCESS_TOKEN e META_ACCOUNT_ID (só números) no painel de segredos do Skip',
       })
     }
-  } else {
-    token = $secrets.get('GOOGLE_ADS_TOKEN') || ''
-    conta = $secrets.get('GOOGLE_ADS_CUSTOMER_ID') || ''
-    if (!token || !conta) {
-      gravarEstado(e.app, fonte, 'indisponivel', 'segredos GOOGLE_ADS_* não cadastrados', false)
-      return e.json(501, {
-        ok: false,
-        erro: 'ingestão Google não configurada: defina GOOGLE_ADS_TOKEN e GOOGLE_ADS_CUSTOMER_ID nos segredos do projeto (ou conecte a fonte no conector da plataforma)',
-      })
-    }
   }
+  // Google (E-12): SEM segredos — os dados chegam no corpo da rota, enviados
+  // pelo Maestro (conector Composio). Nenhuma credencial GOOGLE_* no Skip.
 
   try {
     let linhas = []
