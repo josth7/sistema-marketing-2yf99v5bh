@@ -9,7 +9,9 @@
  * - Insights no NÓ DA CONTA (act_<id>/insights com level=campaign, time_increment=1);
  *   insights como campo de outro objeto gera erro #100 (visto 02/10).
  * - RN-09: conferência de permissões via GET me/permissions (só nomes, sem token).
- * - Google segue no Composio (segredos GOOGLE_ADS_*).
+ * - Google segue no Composio do Maestro (E-12): NENHUMA credencial GOOGLE_* no
+ *   Skip — o Google não é chamado daqui; o Maestro lê pelo conector e envia o
+ *   lote no corpo da rota (POST /backend/v1/ingest?fonte=google_ads).
  * - Erro 10/200 ("API access blocked") → parar fonte, registrar código + fbtrace_id,
  *   acionar consultoria, sem reconectar em série (contrato §5).
  * - RN-06/07: falha NUNCA zera nem apaga dados; última ingestão só avança em sucesso.
