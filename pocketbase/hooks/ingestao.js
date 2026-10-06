@@ -238,7 +238,7 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
                 let visualizacoes = null
                 for (const m of pIns) {
                   const vals = (m.values || []).filter(function (v) {
-                    return v && v.value !== undefined && v.value !== null
+                    return v && v.value !== undefined && v.value !== null && Number(v.value) > 0
                   })
                   if (!vals.length) continue
                   const soma = vals.reduce(function (a, v) {
@@ -249,19 +249,22 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
                     visualizacoes = (visualizacoes || 0) + soma
                   }
                 }
-                linhas.push({
-                  campanhaId: 'page_' + acc.id,
-                  campanhaNome: 'Orgânico — ' + (acc.name || 'Página Meta'),
-                  objetivo: 'organico',
-                  data: until,
-                  alcance: null,
-                  impressoes: null,
-                  cliques: null,
-                  gasto: null,
-                  resultados: null,
-                  seguidores: seguidores,
-                  visualizacoes: visualizacoes,
-                })
+                // RN-06: sem métricas reais (>0), não gravar linha vazia — evita zero falso
+                if (seguidores !== null || visualizacoes !== null) {
+                  linhas.push({
+                    campanhaId: 'page_' + acc.id,
+                    campanhaNome: 'Orgânico — ' + (acc.name || 'Página Meta'),
+                    objetivo: 'organico',
+                    data: until,
+                    alcance: null,
+                    impressoes: null,
+                    cliques: null,
+                    gasto: null,
+                    resultados: null,
+                    seguidores: seguidores,
+                    visualizacoes: visualizacoes,
+                  })
+                }
               } else {
                 avisoOrganico = 'página sem insights (HTTP ' + resPage.statusCode + ')'
               }
@@ -288,7 +291,7 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
                 let alcance = null
                 for (const m of iIns) {
                   const vals = (m.values || []).filter(function (v) {
-                    return v && v.value !== undefined && v.value !== null
+                    return v && v.value !== undefined && v.value !== null && Number(v.value) > 0
                   })
                   if (!vals.length) continue
                   const soma = vals.reduce(function (a, v) {
@@ -297,19 +300,22 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
                   if (m.name === 'views') views = soma
                   if (m.name === 'reach') alcance = soma
                 }
-                linhas.push({
-                  campanhaId: 'ig_' + ig.id,
-                  campanhaNome: 'Orgânico — Instagram @haisanmoveis',
-                  objetivo: 'organico',
-                  data: until,
-                  alcance: alcance,
-                  impressoes: null,
-                  cliques: null,
-                  gasto: null,
-                  resultados: null,
-                  seguidores: null,
-                  visualizacoes: views,
-                })
+                // RN-06: sem métricas reais (>0), não gravar linha vazia — evita zero falso
+                if (views !== null || alcance !== null) {
+                  linhas.push({
+                    campanhaId: 'ig_' + ig.id,
+                    campanhaNome: 'Orgânico — Instagram @haisanmoveis',
+                    objetivo: 'organico',
+                    data: until,
+                    alcance: alcance,
+                    impressoes: null,
+                    cliques: null,
+                    gasto: null,
+                    resultados: null,
+                    seguidores: null,
+                    visualizacoes: views,
+                  })
+                }
               }
             }
           }
