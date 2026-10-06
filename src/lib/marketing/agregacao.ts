@@ -47,24 +47,43 @@ export function agregar(registros: RegistroMetricas[]): {
     const gasto = somar(linhas.map((r) => r.metricas.gasto))
     const resultados = somar(linhas.map((r) => r.metricas.resultados))
     const impressoes = somar(linhas.map((r) => r.metricas.impressoes))
+    const cliques = somar(linhas.map((r) => r.metricas.cliques))
+    // CTR/CPC/CPM: usa o valor da fonte quando existe; sem valor na fonte,
+    // deriva dos totais reais do grupo (null ≠ zero — RN-06).
+    const ctrFonte = mediaPonderada(
+      linhas.map((r) => ({ valor: r.metricas.ctr, peso: r.metricas.impressoes })),
+    )
+    const cpcFonte = mediaPonderada(
+      linhas.map((r) => ({ valor: r.metricas.cpc, peso: r.metricas.cliques })),
+    )
+    const cpmFonte = mediaPonderada(
+      linhas.map((r) => ({ valor: r.metricas.cpm, peso: r.metricas.impressoes })),
+    )
+    const ctr =
+      ctrFonte !== null
+        ? ctrFonte
+        : cliques !== null && impressoes
+          ? (cliques / impressoes) * 100
+          : null
+    const cpc = cpcFonte !== null ? cpcFonte : gasto !== null && cliques ? gasto / cliques : null
+    const cpm =
+      cpmFonte !== null
+        ? cpmFonte
+        : gasto !== null && impressoes
+          ? (gasto / impressoes) * 1000
+          : null
     return {
       objetivo,
       registros: linhas.length,
       metricas: {
         alcance: somar(linhas.map((r) => r.metricas.alcance)),
         impressoes,
-        cliques: somar(linhas.map((r) => r.metricas.cliques)),
+        cliques,
         gasto,
         resultados,
-        cpc: mediaPonderada(
-          linhas.map((r) => ({ valor: r.metricas.cpc, peso: r.metricas.cliques })),
-        ),
-        cpm: mediaPonderada(
-          linhas.map((r) => ({ valor: r.metricas.cpm, peso: r.metricas.impressoes })),
-        ),
-        ctr: mediaPonderada(
-          linhas.map((r) => ({ valor: r.metricas.ctr, peso: r.metricas.impressoes })),
-        ),
+        cpc,
+        cpm,
+        ctr,
         // RN-01: calculado SOMENTE dentro do objetivo — nunca consolidado entre objetivos.
         custoPorResultado: custoPorResultado(gasto, resultados),
       },

@@ -199,6 +199,61 @@ console.log('REGRESSÃO — comparativo usa a base existente:')
   prova('anterior = 800', visao.comparativo.gasto.anterior === 800)
 }
 
+// ---------- RN-06 derivado: ctr/cpc/cpm ausentes derivam dos totais reais ----------
+console.log('RN-06 derivado — ctr/cpc/cpm sem valor na fonte são derivados (nunca 0 falso):')
+{
+  const registros = [
+    mk({
+      id: 'a1',
+      metricas: {
+        ...mk({}).metricas,
+        impressoes: 135260,
+        cliques: 2200,
+        gasto: 1146.38,
+        resultados: 24,
+        ctr: null,
+        cpc: null,
+        cpm: null,
+      },
+    }),
+  ]
+  const agg = agregar(registros)
+  const linha = agg.porObjetivo[0].metricas
+  prova('ctr derivado = 1.6266% (2200/135260*100)', Math.abs((linha.ctr ?? 0) - 1.6266) < 0.001)
+  prova('cpc derivado = 0.5210 (1146.38/2200)', Math.abs((linha.cpc ?? 0) - 0.52108) < 0.001)
+  prova('cpm derivado = 8.4748 (1146.38/135260*1000)', Math.abs((linha.cpm ?? 0) - 8.4748) < 0.001)
+  prova(
+    'custo/resultado = 47.77 (1146.38/24)',
+    Math.abs((linha.custoPorResultado ?? 0) - 47.7658) < 0.01,
+  )
+  // Regressão RN-01: fonte com valor real prevalece sobre o derivado
+  const registros2 = [
+    mk({
+      id: 'b1',
+      metricas: {
+        ...mk({}).metricas,
+        impressoes: 1000,
+        cliques: 10,
+        gasto: 100,
+        ctr: 2.5,
+        cpc: null,
+      },
+    }),
+  ]
+  const agg2 = agregar(registros2)
+  prova(
+    'ctr da fonte (2.5) prevalece sobre o derivado (1.0)',
+    agg2.porObjetivo[0].metricas.ctr === 2.5,
+  )
+  prova('cpc derivado quando só ele falta (100/10=10)', agg2.porObjetivo[0].metricas.cpc === 10)
+  // Sem base para derivar: continua null (nunca 0)
+  const registros3 = [
+    mk({ id: 'c1', metricas: { ...mk({}).metricas, impressoes: null, cliques: 10, gasto: 100 } }),
+  ]
+  const agg3 = agregar(registros3)
+  prova('sem impressões: cpm = null (não 0)', agg3.porObjetivo[0].metricas.cpm === null)
+}
+
 // ---------- REGRESSÃO: janela do mês com dataset DESC (bug do painel 06/10) ----------
 console.log('REGRESSÃO — periodosDisponiveis com registros em ordem DESC:')
 {
