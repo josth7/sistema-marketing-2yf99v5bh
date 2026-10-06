@@ -81,9 +81,11 @@ export function paraRegistroMetricas(r: MetricaDiariaRecord): RegistroMetricas {
       cliques: num(r.cliques),
       gasto: num(r.gasto),
       resultados: num(r.resultados),
-      cpc: num(r.cpc),
-      cpm: num(r.cpm),
-      ctr: num(r.ctr),
+      // ctr/cpc/cpm calculados na fonte: 0 gravado = "não calculado" (RN-06) —
+      // vira null e a agregação deriva dos valores reais (cliques/impressões/gasto).
+      cpc: num(r.cpc) === 0 ? null : num(r.cpc),
+      cpm: num(r.cpm) === 0 ? null : num(r.cpm),
+      ctr: num(r.ctr) === 0 ? null : num(r.ctr),
       custoPorResultado: null, // calculado na agregação (RN-01), nunca lido da fonte
     },
     atualizadoEm: r.updated,
