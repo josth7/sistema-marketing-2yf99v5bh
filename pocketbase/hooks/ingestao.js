@@ -324,98 +324,77 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
         avisoOrganico = 'orgânico indisponível nesta rodada (' + String(errOrg).slice(0, 80) + ')'
       }
     } else {
-      // ---- Google Ads via relatório (segredos GOOGLE_ADS_*; guia 05_entregas/como-conectar-o-google-ao-sistema.md) ----
-      // Métricas POR DIA (segments.date) — mesmo padrão da Meta (time_increment=1),
-      // reprocesso dos últimos 7 dias (RN-10), upsert idempotente.
-      const diasG = []
-      for (let i = 7; i >= 0; i--) {
-        diasG.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10))
+      // ---- Google Ads RECEBIDO do conector do Maestro (emenda E-12) ----
+      // O Google NÃO é chamado daqui (proibido pela E-12): o Maestro lê a conta
+      // 962-453-3125 pelo Composio e envia as linhas no CORPO desta rota.
+      // Nenhuma credencial GOOGLE_* no Skip (nem segredo, nem chamada externa).
+      const corpo = e.requestInfo().body || {}
+      const contaG = String(corpo.conta_id || '9624533125').replace(/-/g, '')
+      const lote = corpo.linhas
+      if (!Array.isArray(lote) || lote.length === 0) {
+        return e.json(400, {
+          ok: false,
+          erro: 'corpo inválido: envie { "conta_id": "9624533125", "linhas": [ { "campanha_id", "campanha_nome", "data" (yyyy-mm-dd), "impressoes", "cliques", "gasto", "resultados", "objetivo" } ] }',
+        })
       }
-      const sinceG = diasG[0]
-      const untilG = diasG[diasG.length - 1]
-      const res = $http.send({
-        url:
-          'https://googleads.googleapis.com/v21/customers/' +
-          conta.replace(/-/g, '') +
-          '/googleAds:searchStream',
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + token,
-          'Content-Type': 'application/json',
-          'developer-token': $secrets.get('GOOGLE_ADS_DEVELOPER_TOKEN') || '',
-        },
-        body: JSON.stringify({
-          query:
-            "SELECT campaign.id, campaign.name, campaign.status, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date BETWEEN '" +
-            sinceG +
-            "' AND '" +
-            untilG +
-            "' AND campaign.status IN ('ENABLED', 'PAUSED', 'REMOVED')",
-        }),
-        timeout: 30,
-      })
-      if (res.statusCode !== 200) {
-        const errG = res.json && (Array.isArray(res.json) ? res.json[0] : res.json)
-        const msgG =
-          errG && errG.error && errG.error.message ? String(errG.error.message).slice(0, 140) : ''
-        const estadoG =
-          res.statusCode === 401 || res.statusCode === 403 ? 'erro_autenticacao' : 'erro_api'
+      let rejeitadas = 0
+      for (const l of lote) {
+        if (!l || typeof l !== 'object') {
+          rejeitadas++
+          continue
+        }
+        if (!l.campanha_id || !l.data || !/^\d{4}-\d{2}-\d{2}$/.test(String(l.data))) {
+          rejeitadas++
+          continue
+        }
+        const impr =
+          l.impressoes !== undefined && l.impressoes !== null && l.impressoes !== ''
+            ? Number(l.impressoes)
+            : null
+        const cliq =
+          l.cliques !== undefined && l.cliques !== null && l.cliques !== ''
+            ? Number(l.cliques)
+            : null
+        const gast =
+          l.gasto !== undefined && l.gasto !== null && l.gasto !== '' ? Number(l.gasto) : null
+        const resu =
+          l.resultados !== undefined && l.resultados !== null && l.resultados !== ''
+            ? Number(l.resultados)
+            : null
+        if (
+          (impr === null || isNaN(impr)) &&
+          (cliq === null || isNaN(cliq)) &&
+          (gast === null || isNaN(gast))
+        ) {
+          rejeitadas++
+          continue
+        }
+        linhas.push({
+          campanhaId: String(l.campanha_id),
+          campanhaNome: String(l.campanha_nome || ''),
+          objetivo: String(l.objetivo || 'nao_informado'),
+          data: String(l.data),
+          alcance: null,
+          impressoes: impr !== null && !isNaN(impr) ? impr : null,
+          cliques: cliq !== null && !isNaN(cliq) ? cliq : null,
+          gasto: gast !== null && !isNaN(gast) ? gast : null,
+          resultados: resu !== null && !isNaN(resu) ? resu : null,
+          contaG: contaG,
+        })
+      }
+      if (linhas.length === 0) {
         gravarEstado(
           e.app,
           fonte,
-          estadoG,
-          'Google rejeitou a leitura (HTTP ' +
-            res.statusCode +
-            (msgG ? ': ' + msgG : '') +
-            ') em ' +
-            new Date().toISOString(),
+          'erro_api',
+          'lote rejeitado: ' + rejeitadas + ' linha(s) inválida(s) em ' + new Date().toISOString(),
           false,
         )
-        return e.json(502, {
+        return e.json(400, {
           ok: false,
-          erro: 'Google retornou HTTP ' + res.statusCode + (msgG ? ': ' + msgG : ''),
-          acao:
-            res.statusCode === 401 || res.statusCode === 403
-              ? 'conferir o token no segredo GOOGLE_ADS_TOKEN (uma nova tentativa); persistindo, registrar e acionar consultoria'
-              : 'tentar no próximo ciclo; dados anteriores preservados',
+          erro: 'nenhuma linha válida no lote (' + rejeitadas + ' rejeitada(s))',
           ingested: 0,
         })
-      }
-      const json = res.json
-      const batches = Array.isArray(json) ? json : [json]
-      for (const batch of batches) {
-        if (!batch || !batch.results) continue
-        for (const r of batch.results) {
-          if (!r.campaign || r.campaign.id === undefined) continue
-          // RN-06: dia sem métrica (>0) não vira registro — evita zero falso
-          const imprG =
-            r.metrics && r.metrics.impressions !== undefined ? Number(r.metrics.impressions) : null
-          const cliqG =
-            r.metrics && r.metrics.clicks !== undefined ? Number(r.metrics.clicks) : null
-          const gastoG =
-            r.metrics && r.metrics.costMicros !== undefined
-              ? Number(r.metrics.costMicros) / 1e6
-              : null
-          const resG =
-            r.metrics && r.metrics.conversions !== undefined ? Number(r.metrics.conversions) : null
-          if (
-            (imprG === null || imprG === 0) &&
-            (cliqG === null || cliqG === 0) &&
-            (gastoG === null || gastoG === 0)
-          )
-            continue
-          linhas.push({
-            campanhaId: String(r.campaign.id),
-            campanhaNome: r.campaign.name || '',
-            objetivo: 'nao_informado',
-            data: r.segments && r.segments.date ? r.segments.date : '',
-            alcance: null,
-            impressoes: imprG,
-            cliques: cliqG,
-            gasto: gastoG,
-            resultados: resG,
-          })
-        }
       }
     }
 
@@ -443,7 +422,7 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
       }
       const ehOrganico = r.objetivo === 'organico'
       rec.set('natureza', ehOrganico ? 'organico' : 'pago')
-      rec.set('conta_id', conta)
+      rec.set('conta_id', r.contaG || conta)
       rec.set('campanha_id', r.campanhaId)
       rec.set('campanha_nome', r.campanhaNome)
       rec.set('objetivo', r.objetivo || 'nao_informado')
