@@ -199,6 +199,32 @@ console.log('REGRESSÃO — comparativo usa a base existente:')
   prova('anterior = 800', visao.comparativo.gasto.anterior === 800)
 }
 
+// ---------- REGRESSÃO: janela do mês com dataset DESC (bug do painel 06/10) ----------
+console.log('REGRESSÃO — periodosDisponiveis com registros em ordem DESC:')
+{
+  const registros = [
+    mk({ id: 'd6', periodoInicio: '2026-10-06', periodoFim: '2026-10-06' }),
+    mk({ id: 'd5', periodoInicio: '2026-10-05', periodoFim: '2026-10-05' }),
+    mk({ id: 'd2', periodoInicio: '2026-10-02', periodoFim: '2026-10-02' }),
+    mk({ id: 'd1', periodoInicio: '2026-10-01', periodoFim: '2026-10-01' }),
+    mk({ id: 's30', periodoInicio: '2026-09-30', periodoFim: '2026-09-30' }),
+  ]
+  const periodos = periodosDisponiveis(registros)
+  const out = periodos.find((p) => p.inicio === '2026-10-01')
+  prova('janela de outubro = 01/10 → 06/10', !!out && out.fim === '2026-10-06')
+  const set30 = periodos.find((p) => p.inicio === '2026-09-30')
+  prova('janela de setembro = 30/09 → 30/09', !!set30 && set30.fim === '2026-09-30')
+  // Soma do período corrigido: OUT. deve incluir os 4 dias (não só 01/10)
+  const visao = construirVisao(
+    registros.map((r, i) => ({
+      ...r,
+      metricas: { ...mk({}).metricas, gasto: [144.33, 125.03, 49.79, 99.39, 78.81][i] ?? 0 },
+    })),
+    { ...FILTROS_VAZIOS, periodoInicio: '2026-10-01', periodoFim: '2026-10-06' },
+  )
+  prova('soma de outubro = 418,26 (não 99,39)', visao.total.gasto === 418.26)
+}
+
 // ---------- REGRESSÃO parcial: Meta falho × Google real ----------
 console.log('REGRESSÃO — canal indisponível não zera o outro:')
 {

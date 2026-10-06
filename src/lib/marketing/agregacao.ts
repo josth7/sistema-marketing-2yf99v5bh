@@ -159,8 +159,19 @@ export function periodosDisponiveis(registros: RegistroMetricas[]): Array<{
   for (const r of registros) {
     const chave = r.periodoInicio.slice(0, 7)
     const atual = meses.get(chave)
-    if (!atual || r.periodoInicio < atual.inicio || r.periodoFim > atual.fim) {
-      meses.set(chave, { inicio: r.periodoInicio, fim: r.periodoFim })
+    // Independente da ordem do dataset (o fetch real vem DESC), a janela do
+    // mês é min(inicio) → max(fim) — comparar TODOS os campos, não só um.
+    if (
+      !atual ||
+      r.periodoInicio < atual.inicio ||
+      r.periodoFim > atual.fim ||
+      r.periodoFim < atual.fim
+    ) {
+      meses.set(chave, {
+        inicio:
+          r.periodoInicio < atual?.inicio ? r.periodoInicio : (atual?.inicio ?? r.periodoInicio),
+        fim: r.periodoFim > (atual?.fim ?? '') ? r.periodoFim : atual.fim,
+      })
     }
   }
   return [...meses.entries()]
