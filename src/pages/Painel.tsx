@@ -258,6 +258,10 @@ export default function PainelPage() {
 
   const visao = useMemo(() => construirVisao(dataset, filtros), [dataset, filtros])
 
+  // CA-2-03: motivo da supressão do comparativo exibido nos KPIs
+  const motivoComparativo = visao.cobertura.valida ? null : visao.cobertura.motivo
+  const variacaoTxtComMotivo = (txt: string) => (motivoComparativo ? motivoComparativo : txt)
+
   // CA-2-02: pago e orgânico em blocos separados — quando "Pago + orgânico"
   // está selecionado, cada bloco agrega só a sua natureza (fórmulas nunca cruzam).
   const visaoPago = useMemo(
@@ -412,25 +416,25 @@ export default function PainelPage() {
             <Kpi
               titulo="Gasto"
               valor={formatarMoeda(visao.total.gasto)}
-              variacaoTxt={formatarVariacao(visao.comparativo.gasto)}
+              variacaoTxt={variacaoTxtComMotivo(formatarVariacao(visao.comparativo.gasto))}
               semBase={visao.comparativo.gasto.semBaseDeComparacao}
             />
             <Kpi
               titulo="Cliques"
               valor={formatarInteiro(visao.total.cliques)}
-              variacaoTxt={formatarVariacao(visao.comparativo.cliques)}
+              variacaoTxt={variacaoTxtComMotivo(formatarVariacao(visao.comparativo.cliques))}
               semBase={visao.comparativo.cliques.semBaseDeComparacao}
             />
             <Kpi
               titulo="Impressões"
               valor={formatarInteiro(visao.total.impressoes)}
-              variacaoTxt={formatarVariacao(visao.comparativo.impressoes)}
+              variacaoTxt={variacaoTxtComMotivo(formatarVariacao(visao.comparativo.impressoes))}
               semBase={visao.comparativo.impressoes.semBaseDeComparacao}
             />
             <Kpi
               titulo="Resultados"
               valor={formatarInteiro(visao.total.resultados)}
-              variacaoTxt={formatarVariacao(visao.comparativo.resultados)}
+              variacaoTxt={variacaoTxtComMotivo(formatarVariacao(visao.comparativo.resultados))}
               semBase={visao.comparativo.resultados.semBaseDeComparacao}
             />
           </div>
@@ -452,9 +456,12 @@ export default function PainelPage() {
                       <th className="py-2 pr-4">Gasto</th>
                       <th className="py-2 pr-4">Resultados</th>
                       <th className="py-2 pr-4">Custo/resultado</th>
+                      <th className="py-2 pr-4">CPC</th>
+                      <th className="py-2 pr-4">CPM</th>
                       <th className="py-2 pr-4">Cliques</th>
                       <th className="py-2 pr-4">Impressões</th>
                       <th className="py-2 pr-4">CTR</th>
+                      <th className="py-2 pr-4">Alcance</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -473,14 +480,17 @@ export default function PainelPage() {
                         <td className="py-2 pr-4 font-medium">
                           {formatarMoeda(linha.metricas.custoPorResultado)}
                         </td>
+                        <td className="py-2 pr-4">{formatarMoeda(linha.metricas.cpc)}</td>
+                        <td className="py-2 pr-4">{formatarMoeda(linha.metricas.cpm)}</td>
                         <td className="py-2 pr-4">{formatarInteiro(linha.metricas.cliques)}</td>
                         <td className="py-2 pr-4">{formatarInteiro(linha.metricas.impressoes)}</td>
                         <td className="py-2 pr-4">{formatarPercentual(linha.metricas.ctr)}</td>
+                        <td className="py-2 pr-4">{formatarInteiro(linha.metricas.alcance)}</td>
                       </tr>
                     ))}
                     {visao.porObjetivo.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="py-6 text-center text-gray-500">
+                        <td colSpan={10} className="py-6 text-center text-gray-500">
                           Sem registros para os filtros aplicados.
                         </td>
                       </tr>
@@ -491,6 +501,22 @@ export default function PainelPage() {
               <p className="mt-3 text-xs text-gray-400">
                 "—" significa indisponível (a fonte não fornece a métrica) — diferente de zero.
               </p>
+              {visao.cobertura.motivo && (
+                <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {visao.cobertura.motivo}
+                </p>
+              )}
+              {visao.cobertura.atual.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Cobertura:{' '}
+                  {visao.cobertura.atual
+                    .map(
+                      (c) =>
+                        `${c.canal === 'meta_ads' ? 'Meta' : c.canal === 'google_ads' ? 'Google' : c.canal} ${c.dias} dia(s) (${c.inicio.slice(5)}–${c.fim.slice(5)})`,
+                    )
+                    .join(' · ')}
+                </p>
+              )}
             </CardContent>
           </Card>
 
