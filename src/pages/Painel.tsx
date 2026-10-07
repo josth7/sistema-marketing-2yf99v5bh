@@ -171,6 +171,50 @@ function Kpi({
   )
 }
 
+/** Tabela compacta por objetivo de um bloco de natureza (CA-2-02). */
+function TabelaNatureza({ visao }: { visao: ReturnType<typeof construirVisao> }) {
+  if (visao.porObjetivo.length === 0) {
+    return <p className="text-sm text-gray-500">Sem registros nesta natureza.</p>
+  }
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b text-left text-xs uppercase text-gray-400">
+          <th className="py-2 pr-4">Objetivo</th>
+          <th className="py-2 pr-4">Gasto</th>
+          <th className="py-2 pr-4">Resultados</th>
+          <th className="py-2 pr-4">Custo/Resultado</th>
+          <th className="py-2 pr-4">Cliques</th>
+          <th className="py-2 pr-4">Impressões</th>
+          <th className="py-2 pr-4">CTR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {visao.porObjetivo.map((linha) => (
+          <tr key={linha.objetivo} className="border-b last:border-0">
+            <td className="py-2 pr-4 font-medium">
+              <Badge variant="outline">{LABEL_OBJETIVO[linha.objetivo]}</Badge>
+              {linha.motivoCprIndisponivel && (
+                <p className="mt-1 max-w-[200px] text-xs text-gray-400">
+                  {linha.motivoCprIndisponivel}
+                </p>
+              )}
+            </td>
+            <td className="py-2 pr-4">{formatarMoeda(linha.metricas.gasto)}</td>
+            <td className="py-2 pr-4">{formatarInteiro(linha.metricas.resultados)}</td>
+            <td className="py-2 pr-4 font-medium">
+              {formatarMoeda(linha.metricas.custoPorResultado)}
+            </td>
+            <td className="py-2 pr-4">{formatarInteiro(linha.metricas.cliques)}</td>
+            <td className="py-2 pr-4">{formatarInteiro(linha.metricas.impressoes)}</td>
+            <td className="py-2 pr-4">{formatarPercentual(linha.metricas.ctr)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 export default function PainelPage() {
   const [usarDemo, setUsarDemo] = useState(true)
   const [canalSelecionado, setCanalSelecionado] = useState<Canal | 'todos'>('todos')
@@ -213,6 +257,18 @@ export default function PainelPage() {
   }
 
   const visao = useMemo(() => construirVisao(dataset, filtros), [dataset, filtros])
+
+  // CA-2-02: pago e orgânico em blocos separados — quando "Pago + orgânico"
+  // está selecionado, cada bloco agrega só a sua natureza (fórmulas nunca cruzam).
+  const visaoPago = useMemo(
+    () => construirVisao(dataset, { ...filtros, natureza: 'pago' }),
+    [dataset, filtros],
+  )
+  const visaoOrganico = useMemo(
+    () => construirVisao(dataset, { ...filtros, natureza: 'organico' }),
+    [dataset, filtros],
+  )
+  const mostrarBlocosSeparados = natureza === 'ambos'
 
   const semDados =
     visao.total.gasto === null && visao.total.impressoes === null && visao.total.alcance === null
@@ -406,6 +462,11 @@ export default function PainelPage() {
                       <tr key={linha.objetivo} className="border-b last:border-0">
                         <td className="py-2 pr-4 font-medium">
                           <Badge variant="outline">{LABEL_OBJETIVO[linha.objetivo]}</Badge>
+                          {linha.motivoCprIndisponivel && (
+                            <p className="mt-1 max-w-[220px] text-xs text-gray-400">
+                              {linha.motivoCprIndisponivel}
+                            </p>
+                          )}
                         </td>
                         <td className="py-2 pr-4">{formatarMoeda(linha.metricas.gasto)}</td>
                         <td className="py-2 pr-4">{formatarInteiro(linha.metricas.resultados)}</td>
@@ -432,6 +493,27 @@ export default function PainelPage() {
               </p>
             </CardContent>
           </Card>
+
+          {mostrarBlocosSeparados && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Pago (mídia)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TabelaNatureza visao={visaoPago} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Orgânico</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TabelaNatureza visao={visaoOrganico} />
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </>
       )}
     </div>
