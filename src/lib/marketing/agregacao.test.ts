@@ -201,6 +201,93 @@ console.log('REGRESSÃO — comparativo usa a base existente:')
   prova('anterior = 800', visao.comparativo.gasto.anterior === 800)
 }
 
+// ---------- CA-2-03: comparativo suprimido quando cobertura desigual ----------
+console.log('CA-2-03 — variação% só com janelas equivalentes e fechadas:')
+{
+  // Outubro parcial (6 dias) vs setembro incompleto (2 dias): sem %
+  const registros = [
+    mk({
+      id: 'o1',
+      periodoInicio: '2026-10-01',
+      periodoFim: '2026-10-06',
+      metricas: { ...mk({}).metricas, gasto: 1130.47 },
+    }),
+    mk({
+      id: 's1',
+      periodoInicio: '2026-09-29',
+      periodoFim: '2026-09-30',
+      metricas: { ...mk({}).metricas, gasto: 1736.53 },
+    }),
+  ]
+  const visao = construirVisao(registros, {
+    ...FILTROS_VAZIOS,
+    periodoInicio: '2026-10-01',
+    periodoFim: '2026-10-06',
+  })
+  prova(
+    'out parcial vs set incompleto: variação% = null (suprimida)',
+    visao.comparativo.gasto.variacaoPercentual === null,
+  )
+  prova(
+    'out parcial vs set incompleto: semBaseDeComparacao = true',
+    visao.comparativo.gasto.semBaseDeComparacao,
+  )
+  prova(
+    'motivo de cobertura desigual presente',
+    visao.cobertura.motivo !== null && visao.cobertura.valida === false,
+  )
+  prova('cobertura do período atual registrada', visao.cobertura.atual.length > 0)
+
+  // Janelas equivalentes e fechadas: % válida (2 registros mensais completos)
+  const registros2 = [
+    mk({
+      id: 'a1',
+      periodoInicio: '2026-09-01',
+      periodoFim: '2026-09-30',
+      metricas: { ...mk({}).metricas, gasto: 1000 },
+    }),
+    mk({
+      id: 'a2',
+      periodoInicio: '2026-08-01',
+      periodoFim: '2026-08-31',
+      metricas: { ...mk({}).metricas, gasto: 800 },
+    }),
+  ]
+  const visao2 = construirVisao(registros2, {
+    ...FILTROS_VAZIOS,
+    periodoInicio: '2026-09-01',
+    periodoFim: '2026-09-30',
+  })
+  prova(
+    'janelas equivalentes fechadas: variação% = -20%',
+    visao2.comparativo.gasto.variacaoPercentual === -20,
+  )
+  prova('janelas equivalentes: veredito válido', visao2.cobertura.valida)
+}
+
+// ---------- CA-2-04: CPC/CPM/CTR/alcance exibíveis ----------
+console.log('CA-2-04 — indicadores derivados disponíveis na linha por objetivo:')
+{
+  const registros = [
+    mk({
+      id: 'd1',
+      metricas: {
+        ...mk({}).metricas,
+        alcance: 111883,
+        impressoes: 27545,
+        cliques: 1601,
+        gasto: 306.19,
+      },
+    }),
+  ]
+  const agg = agregar(registros)
+  const m = agg.porObjetivo[0].metricas
+  prova('cpc derivado = 0.19 (306,19/1601)', Math.abs((m.cpc ?? 0) - 0.1913) < 0.001)
+  prova('cpm derivado = 11.12 (306,19/27545*1000)', Math.abs((m.cpm ?? 0) - 11.117) < 0.001)
+  prova('ctr derivado = 5.81% (1601/27545*100)', Math.abs((m.ctr ?? 0) - 5.812) < 0.001)
+  prova('alcance somado do registro (111883)', m.alcance === 111883)
+}
+
 // ---------- CA-2-01: CPR null em objetivo desconhecido; sem soma entre tipos ----------
 console.log('CA-2-01 — CPR null com motivo em desconhecido; resultados nunca somam entre tipos:')
 {
