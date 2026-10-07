@@ -45,9 +45,25 @@ export function agregar(registros: RegistroMetricas[]): {
   const porObjetivo: LinhaPorObjetivo[] = objetivosUnicos.map((objetivo) => {
     const linhas = registros.filter((r) => r.objetivo === objetivo)
     const gasto = somar(linhas.map((r) => r.metricas.gasto))
-    const resultados = somar(linhas.map((r) => r.metricas.resultados))
     const impressoes = somar(linhas.map((r) => r.metricas.impressoes))
     const cliques = somar(linhas.map((r) => r.metricas.cliques))
+    // CA-2-01: resultados só somam quando TODOS os registros do grupo compartilham
+    // objetivo + tipo de resultado + natureza — nunca entre tipos/objetivos distintos.
+    const tiposUnicos = [...new Set(linhas.map((r) => r.resultType ?? null))]
+    const resultadosCompatíveis =
+      tiposUnicos.length === 1 && tiposUnicos[0] !== null
+        ? somar(linhas.map((r) => r.metricas.resultados))
+        : null
+    const resultados = resultadosCompatíveis
+    // Motivo do CPR indisponível (exibido na tela, nunca calculado em desconhecido):
+    let motivoCprIndisponivel: string | null = null
+    if (objetivo === 'nao_informado') {
+      motivoCprIndisponivel = linhas.every((r) => r.resultType === null)
+        ? 'objetivo não informado pela fonte — resultados não comparáveis'
+        : 'objetivo não informado e tipos de resultado distintos — resultados não somam'
+    } else if (tiposUnicos.length > 1) {
+      motivoCprIndisponivel = 'tipos de resultado distintos no mesmo objetivo'
+    }
     // CTR/CPC/CPM: usa o valor da fonte quando existe; sem valor na fonte,
     // deriva dos totais reais do grupo (null ≠ zero — RN-06).
     const ctrFonte = mediaPonderada(
@@ -72,9 +88,16 @@ export function agregar(registros: RegistroMetricas[]): {
         : gasto !== null && impressoes
           ? (gasto / impressoes) * 1000
           : null
+    // CA-2-01: CPR em grupo desconhecido é SEMPRE null (com motivo); nos demais,
+    // só quando resultados compatíveis existem.
+    const cpr =
+      objetivo === 'nao_informado' || tiposUnicos.length > 1
+        ? null
+        : custoPorResultado(gasto, resultados)
     return {
       objetivo,
       registros: linhas.length,
+      motivoCprIndisponivel,
       metricas: {
         alcance: somar(linhas.map((r) => r.metricas.alcance)),
         impressoes,
@@ -85,10 +108,19 @@ export function agregar(registros: RegistroMetricas[]): {
         cpm,
         ctr,
         // RN-01: calculado SOMENTE dentro do objetivo — nunca consolidado entre objetivos.
-        custoPorResultado: custoPorResultado(gasto, resultados),
+        custoPorResultado: cpr,
       },
     }
   })
+
+  // CA-2-01: o total geral NUNCA soma resultados entre objetivos/tipos distintos —
+  // só quando o dataset inteiro compartilha objetivo+tipo+natureza compatíveis.
+  const tiposGlobais = [...new Set(registros.map((r) => r.resultType ?? null))]
+  const objetivosGlobais = [...new Set(registros.map((r) => r.objetivo))]
+  const resultadosTotais =
+    tiposGlobais.length === 1 && tiposGlobais[0] !== null && objetivosGlobais.length === 1
+      ? somar(registros.map((r) => r.metricas.resultados))
+      : null
 
   return {
     total: {
@@ -98,7 +130,7 @@ export function agregar(registros: RegistroMetricas[]): {
       // Gasto é dinheiro: soma direta entre objetivos é comparável (RN-01 só
       // proíbe consolidar CUSTO POR RESULTADO, não o gasto em si).
       gasto: somar(registros.map((r) => r.metricas.gasto)),
-      resultados: somar(registros.map((r) => r.metricas.resultados)),
+      resultados: resultadosTotais,
     },
     porObjetivo,
   }

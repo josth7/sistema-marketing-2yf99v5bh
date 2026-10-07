@@ -29,19 +29,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -167,19 +162,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "objective_raw",
@@ -220,12 +210,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "conectado",
-            "nao_conectado",
-            "erro_autenticacao",
-            "sem_dados"
-          ]
+          "selectValues": ["conectado", "nao_conectado", "erro_autenticacao", "sem_dados"]
         },
         {
           "name": "aviso",
@@ -244,24 +229,17 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": [
-        "CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"
-      ]
+      "indexes": ["CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"]
     }
   ]
 }

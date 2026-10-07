@@ -15,6 +15,8 @@ export interface MetricaDiariaRecord {
   campanha_id: string
   campanha_nome: string
   objetivo: string
+  objective_raw?: string | null
+  result_type?: string | null
   data: string
   alcance: number | null
   impressoes: number | null
@@ -46,7 +48,40 @@ function dataSegura(v: string): string {
   return typeof v === 'string' && v.length >= 10 ? v.slice(0, 10) : ''
 }
 
+/**
+ * Mapeia códigos raw das fontes para os objetivos canônicos (CA-2-01).
+ * A Meta manda OUTCOME_* / LINK_CLICKS; o Google não manda objetivo.
+ * Código desconhecido NUNCA vira um grupo equivalente: fica 'nao_informado'
+ * com o raw preservado (objective_raw) e CPR indisponível com motivo.
+ */
+const MAPA_OBJETIVO: Record<string, ObjetivoCampanha> = {
+  // Meta (objective na API de insights)
+  OUTCOME_AWARENESS: 'alcance',
+  BRAND_AWARENESS: 'alcance',
+  REACH: 'alcance',
+  STORE_VISITS: 'alcance',
+  LINK_CLICKS: 'trafico',
+  TRAFFIC: 'trafico',
+  OUTCOME_ENGAGEMENT: 'engajamento',
+  POST: 'engajamento',
+  POST_ENGAGEMENT: 'engajamento',
+  PAGE_LIKES: 'engajamento',
+  OUTCOME_LEADS: 'leads',
+  LEAD_GENERATION: 'leads',
+  QUALITY_LEAD: 'leads',
+  MESSAGE: 'leads',
+  OUTCOME_SALES: 'vendas',
+  CONVERSIONS: 'vendas',
+  CATALOG_SALES: 'vendas',
+  PRODUCT_CATALOG_SALES: 'vendas',
+  VIDEO_VIEWS: 'video',
+  OUTCOME_VIDEO_VIEW: 'video',
+}
+
 function objetivoSeguro(v: string): ObjetivoCampanha {
+  if (!v) return 'nao_informado'
+  const mapeado = MAPA_OBJETIVO[v.toUpperCase()]
+  if (mapeado) return mapeado
   const validos: ObjetivoCampanha[] = [
     'alcance',
     'trafico',
@@ -73,6 +108,10 @@ export function paraRegistroMetricas(r: MetricaDiariaRecord): RegistroMetricas {
     campanhaId: r.campanha_id,
     campanhaNome: r.campanha_nome,
     objetivo: objetivoSeguro(r.objetivo),
+    // Preservar o código original da fonte (nunca descartar o que a API manda)
+    // e o tipo do resultado (Google = 'conversoes'; Meta = null — sem tipo na fonte).
+    objetivoRaw: r.objective_raw || r.objetivo || null,
+    resultType: r.result_type || null,
     periodoInicio: dataSegura(r.data),
     periodoFim: dataSegura(r.data),
     metricas: {

@@ -32,6 +32,13 @@ export type ObjetivoCampanha =
   | 'video'
   | 'nao_informado'
 
+/**
+ * Tipo do resultado (CA-2-01): resultados de tipos distintos NUNCA são somados.
+ * Google = 'conversoes' (all_conversions); Meta = null (a fonte não fornece tipo
+ * separado no endpoint lido — indisponível com motivo, nunca inventado).
+ */
+export type TipoResultado = 'conversoes' | null
+
 /** Estado de disponibilidade de uma fonte/canal (RN-06, RN-07). */
 export type EstadoFonte = 'conectado' | 'nao_conectado' | 'erro_autenticacao' | 'sem_dados'
 
@@ -46,6 +53,10 @@ export interface RegistroMetricas {
   campanhaId: string
   campanhaNome: string
   objetivo: ObjetivoCampanha
+  /** Código original da fonte (ex.: OUTCOME_AWARENESS) — nunca descartado. */
+  objetivoRaw: string | null
+  /** Tipo do resultado ('conversoes' no Google; null quando a fonte não fornece). */
+  resultType: TipoResultado
   /** Início do período (ISO yyyy-mm-dd). */
   periodoInicio: string
   /** Fim do período (ISO yyyy-mm-dd). */
@@ -101,11 +112,14 @@ export interface ComparativoPeriodo {
 export interface LinhaPorObjetivo {
   objetivo: ObjetivoCampanha
   registros: number
+  /** Motivo de indisponibilidade do CPR quando objetivo desconhecido (CA-2-01). */
+  motivoCprIndisponivel: string | null
   metricas: {
     alcance: number | null
     impressoes: number | null
     cliques: number | null
     gasto: number | null
+    /** Resultados SOMENTE quando todos os registros compartilham objetivo+tipo+natureza. */
     resultados: number | null
     cpc: number | null
     cpm: number | null
