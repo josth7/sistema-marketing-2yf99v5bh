@@ -19,23 +19,13 @@ migrate(
   (app) => {
     const col = app.findCollectionByNameOrId('metricas_diarias')
     // Up: adicionar campos se não existirem (idempotente por nome)
-    const temRaw = col.fields.some((f) => f.name === 'objective_raw')
-    const temTipo = col.fields.some((f) => f.name === 'result_type')
+    const temRaw = col.fields.getByName('objective_raw')
+    const temTipo = col.fields.getByName('result_type')
     if (!temRaw) {
-      col.fields.add({
-        name: 'objective_raw',
-        type: 'text',
-        required: false,
-        presentable: false,
-      })
+      col.fields.add(new TextField({ name: 'objective_raw' }))
     }
     if (!temTipo) {
-      col.fields.add({
-        name: 'result_type',
-        type: 'text',
-        required: false,
-        presentable: false,
-      })
+      col.fields.add(new TextField({ name: 'result_type' }))
     }
     app.save(col)
 
@@ -56,9 +46,8 @@ migrate(
     // Down: remover os campos (dados de backfill descartáveis — recriáveis
     // re-executando o up; métricas reais nunca são tocadas)
     const col = app.findCollectionByNameOrId('metricas_diarias')
-    const campos = ['objective_raw', 'result_type']
-    for (const nome of campos) {
-      const f = col.fields.find((x) => x.name === nome)
+    for (const nome of ['objective_raw', 'result_type']) {
+      const f = col.fields.getByName(nome)
       if (f) col.fields.remove(f)
     }
     app.save(col)
