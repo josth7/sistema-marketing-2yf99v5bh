@@ -250,9 +250,14 @@ console.log('CA-2-01 — CPR null com motivo em desconhecido; resultados nunca s
   )
   prova('grupo misto: CPR = null', linhaM?.metricas.custoPorResultado === null)
   prova(
-    'grupo misto: motivo = tipos distintos',
+    'grupo misto: motivo = resultados não comparáveis (tipos mistos no desconhecido)',
     linhaM?.motivoCprIndisponivel ===
-      'objetivo não informado e tipos de resultado distintos — resultados não somam',
+      'objetivo não informado pela fonte — resultados não comparáveis',
+  )
+  prova(
+    'grupo só Google: motivo cita o tipo (conversoes)',
+    linhaG.motivoCprIndisponivel ===
+      'objetivo não informado pela fonte — resultados (conversoes) sem objetivo para comparar',
   )
   prova(
     'total geral: resultados = null (objetivos/tipos distintos)',

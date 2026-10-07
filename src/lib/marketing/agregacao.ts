@@ -58,9 +58,10 @@ export function agregar(registros: RegistroMetricas[]): {
     // Motivo do CPR indisponível (exibido na tela, nunca calculado em desconhecido):
     let motivoCprIndisponivel: string | null = null
     if (objetivo === 'nao_informado') {
-      motivoCprIndisponivel = linhas.every((r) => r.resultType === null)
-        ? 'objetivo não informado pela fonte — resultados não comparáveis'
-        : 'objetivo não informado e tipos de resultado distintos — resultados não somam'
+      motivoCprIndisponivel =
+        tiposUnicos.length === 1 && tiposUnicos[0] !== null
+          ? `objetivo não informado pela fonte — resultados (${tiposUnicos[0]}) sem objetivo para comparar`
+          : 'objetivo não informado pela fonte — resultados não comparáveis'
     } else if (tiposUnicos.length > 1) {
       motivoCprIndisponivel = 'tipos de resultado distintos no mesmo objetivo'
     }
