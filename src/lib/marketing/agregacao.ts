@@ -4,10 +4,12 @@
  * comparação), RN-06 (ausência ≠ zero) e isolamento por origem (RN-05).
  */
 import type {
+  CoberturaCanal,
   ComparativoPeriodo,
   FiltrosPainel,
   LinhaPorObjetivo,
   RegistroMetricas,
+  VereditoComparacao,
   VisaoPainel,
 } from './types'
 import { custoPorResultado, mediaPonderada, somar, variacao } from './types'
@@ -150,6 +152,113 @@ function metricaPeriodo(
   return somar(noPeriodo.map((r) => r.metricas[campo]))
 }
 
+/** Cobertura por canal num conjunto de registros (CA-2-04). */
+function coberturaPorCanal(registros: RegistroMetricas[]): CoberturaCanal[] {
+  const porCanal = new Map<string, { dias: Set<string>; inicio: string; fim: string }>()
+  for (const r of registros) {
+    const atual = porCanal.get(r.canal)
+    if (!atual) {
+      porCanal.set(r.canal, {
+        dias: new Set([r.periodoInicio]),
+        inicio: r.periodoInicio,
+        fim: r.periodoFim,
+      })
+      continue
+    }
+    atual.dias.add(r.periodoInicio)
+    if (r.periodoInicio < atual.inicio) atual.inicio = r.periodoInicio
+    if (r.periodoFim > atual.fim) atual.fim = r.periodoFim
+  }
+  return [...porCanal.entries()]
+    .map(([canal, c]) => ({
+      canal: canal as CoberturaCanal['canal'],
+      dias: c.dias.size,
+      inicio: c.inicio,
+      fim: c.fim,
+    }))
+    .sort((a, b) => a.canal.localeCompare(b.canal))
+}
+
+/**
+ * Veredito de comparabilidade (CA-2-03): a variação% só é válida quando o
+ * período atual e o anterior têm janelas equivalentes (mesmo nº de dias) e
+ * ambos FECHADOS. Mês em curso ou cobertura desigual → suprimir % com motivo.
+ */
+function vereditoComparacao(
+  registros: RegistroMetricas[],
+  filtros: FiltrosPainel,
+): VereditoComparacao {
+  const semCobertura: VereditoComparacao = {
+    valida: false,
+    motivo: null,
+    atual: [],
+    anterior: [],
+  }
+  if (!filtros.periodoInicio || !filtros.periodoFim) return semCobertura
+
+  const noPeriodo = filtrar(registros, filtros)
+  const atual = coberturaPorCanal(noPeriodo)
+  const ant = periodoAnterior(filtros.periodoInicio, filtros.periodoFim)
+  const noAnterior = registros.filter(
+    (r) => r.periodoInicio <= ant.fim && r.periodoFim >= ant.inicio,
+  )
+  const anterior = coberturaPorCanal(noAnterior)
+
+  // Janela do período atual em dias (calendário, não dias com registro)
+  const dInicio = new Date(`${filtros.periodoInicio}T00:00:00Z`)
+  const dFim = new Date(`${filtros.periodoFim}T00:00:00Z`)
+  const diasJanela = Math.round((dFim.getTime() - dInicio.getTime()) / 86400000) + 1
+
+  // Mês em curso? A janela termina hoje ou depois (não fechada)
+  const hoje = new Date().toISOString().slice(0, 10)
+  const mesEmCurso = filtros.periodoFim >= hoje
+
+  // Cobertura total do atual: soma de dias cobertos por canal (diários)
+  const diasCobertosAtual = atual.reduce((acc, c) => acc + c.dias, 0)
+  const diasCobertosAnterior = anterior.reduce((acc, c) => acc + c.dias, 0)
+
+  if (mesEmCurso) {
+    return {
+      valida: false,
+      motivo: `período em curso (${filtros.periodoInicio} a ${filtros.periodoFim}) — totais parciais, sem variação`,
+      atual,
+      anterior,
+    }
+  }
+  if (diasCobertosAtual === 0 || diasCobertosAnterior === 0) {
+    return {
+      valida: false,
+      motivo: 'sem base de comparação no período anterior',
+      atual,
+      anterior,
+    }
+  }
+  // Janelas equivalentes: mesma quantidade de dias cobertos por canal
+  const canaisAtual = new Map(atual.map((c) => [c.canal, c.dias]))
+  const canaisAnterior = new Map(anterior.map((c) => [c.canal, c.dias]))
+  for (const [canal, diasA] of canaisAtual) {
+    const diasB = canaisAnterior.get(canal)
+    if (diasB === undefined || diasB !== diasA) {
+      return {
+        valida: false,
+        motivo: `cobertura desigual — ${canal}: ${diasA} dia(s) no período atual vs ${diasB ?? 0} no anterior`,
+        atual,
+        anterior,
+      }
+    }
+  }
+  // Janela fechada e equivalente: % válida
+  if (diasJanela !== diasCobertosAtual) {
+    return {
+      valida: false,
+      motivo: `janela de ${diasJanela} dias com ${diasCobertosAtual} dia(s) coberto(s) — período incompleto`,
+      atual,
+      anterior,
+    }
+  }
+  return { valida: true, motivo: null, atual, anterior }
+}
+
 /** Constrói a visão do painel para um dataset e filtros, com comparativo (RN-02). */
 export function construirVisao(registros: RegistroMetricas[], filtros: FiltrosPainel): VisaoPainel {
   const filtrados = filtrar(registros, filtros)
@@ -157,6 +266,9 @@ export function construirVisao(registros: RegistroMetricas[], filtros: FiltrosPa
 
   // Origem do dataset (todos os registros do dataset compartilham a origem — RN-05).
   const origem = registros.length > 0 ? registros[0].origem : 'demonstracao'
+
+  // Manifesto de cobertura + veredito (CA-2-03/04)
+  const cobertura = vereditoComparacao(registros, filtros)
 
   // Comparativo: só faz sentido com período explícito; sem base → RN-02.
   let comparativo: VisaoPainel['comparativo'] = {
@@ -178,27 +290,68 @@ export function construirVisao(registros: RegistroMetricas[], filtros: FiltrosPa
 
   if (filtros.periodoInicio && filtros.periodoFim) {
     const ant = periodoAnterior(filtros.periodoInicio, filtros.periodoFim)
+    // CA-2-03: variação% só quando o veredito de cobertura diz que é válida;
+    // caso contrário, suprimida com semBaseDeComparacao (o motivo fica no manifesto).
+    const podeComparar = cobertura.valida
     comparativo = {
-      gasto: variacao(
-        metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'gasto'),
-        metricaPeriodo(registros, ant.inicio, ant.fim, 'gasto'),
-      ),
-      cliques: variacao(
-        metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'cliques'),
-        metricaPeriodo(registros, ant.inicio, ant.fim, 'cliques'),
-      ),
-      impressoes: variacao(
-        metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'impressoes'),
-        metricaPeriodo(registros, ant.inicio, ant.fim, 'impressoes'),
-      ),
-      resultados: variacao(
-        metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'resultados'),
-        metricaPeriodo(registros, ant.inicio, ant.fim, 'resultados'),
-      ),
+      gasto: podeComparar
+        ? variacao(
+            metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'gasto'),
+            metricaPeriodo(registros, ant.inicio, ant.fim, 'gasto'),
+          )
+        : {
+            atual: metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'gasto'),
+            anterior: null,
+            variacaoPercentual: null,
+            semBaseDeComparacao: true,
+          },
+      cliques: podeComparar
+        ? variacao(
+            metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'cliques'),
+            metricaPeriodo(registros, ant.inicio, ant.fim, 'cliques'),
+          )
+        : {
+            atual: metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'cliques'),
+            anterior: null,
+            variacaoPercentual: null,
+            semBaseDeComparacao: true,
+          },
+      impressoes: podeComparar
+        ? variacao(
+            metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'impressoes'),
+            metricaPeriodo(registros, ant.inicio, ant.fim, 'impressoes'),
+          )
+        : {
+            atual: metricaPeriodo(
+              filtrados,
+              filtros.periodoInicio,
+              filtros.periodoFim,
+              'impressoes',
+            ),
+            anterior: null,
+            variacaoPercentual: null,
+            semBaseDeComparacao: true,
+          },
+      resultados: podeComparar
+        ? variacao(
+            metricaPeriodo(filtrados, filtros.periodoInicio, filtros.periodoFim, 'resultados'),
+            metricaPeriodo(registros, ant.inicio, ant.fim, 'resultados'),
+          )
+        : {
+            atual: metricaPeriodo(
+              filtrados,
+              filtros.periodoInicio,
+              filtros.periodoFim,
+              'resultados',
+            ),
+            anterior: null,
+            variacaoPercentual: null,
+            semBaseDeComparacao: true,
+          },
     }
   }
 
-  return { origem, filtrosAplicados: filtros, total, porObjetivo, comparativo }
+  return { origem, filtrosAplicados: filtros, cobertura, total, porObjetivo, comparativo }
 }
 
 /** Períodos disponíveis no dataset (para o seletor de período). */

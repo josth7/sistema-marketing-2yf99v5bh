@@ -129,10 +129,33 @@ export interface LinhaPorObjetivo {
   }
 }
 
+/** Cobertura de um canal no recorte (CA-2-04): dias confirmados pela fonte. */
+export interface CoberturaCanal {
+  canal: Canal
+  /** Dias distintos com registro (confirmados pela fonte). */
+  dias: number
+  inicio: string
+  fim: string
+}
+
+/** Veredito de comparabilidade entre o período atual e o anterior (CA-2-03). */
+export interface VereditoComparacao {
+  /** true = variação% pode ser exibida (janelas equivalentes e fechadas). */
+  valida: boolean
+  /** Motivo da não comparabilidade quando valida=false. */
+  motivo: string | null
+  /** Cobertura por canal no período ATUAL. */
+  atual: CoberturaCanal[]
+  /** Cobertura por canal no período ANTERIOR. */
+  anterior: CoberturaCanal[]
+}
+
 /** Resultado agregado de uma visão do painel. */
 export interface VisaoPainel {
   origem: OrigemDados
   filtrosAplicados: FiltrosPainel
+  /** Manifesto de cobertura + veredito de comparação (CA-2-03/04). */
+  cobertura: VereditoComparacao
   total: {
     alcance: number | null
     impressoes: number | null
