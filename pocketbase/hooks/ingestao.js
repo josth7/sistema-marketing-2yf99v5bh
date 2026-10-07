@@ -420,6 +420,20 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
       rec.set('campanha_id', r.campanhaId)
       rec.set('campanha_nome', r.campanhaNome)
       rec.set('objetivo', r.objetivo || 'nao_informado')
+      // CA-2-01 (card b327b4ea): preservar raw da fonte + tipo do resultado.
+      // Meta: objective_raw = código da API (ex. OUTCOME_AWARENESS); result_type
+      // null (a fonte não fornece tipo separado). Google: result_type 'conversoes'
+      // (all_conversions) quando o lote traz resultados.
+      if (fonte === 'meta_ads') {
+        rec.set('objective_raw', r.objetivo || 'nao_informado')
+        rec.set('result_type', null)
+      } else {
+        rec.set('objective_raw', r.objetivo || 'nao_informado')
+        rec.set(
+          'result_type',
+          r.resultados !== null && r.resultados !== undefined ? 'conversoes' : null,
+        )
+      }
       rec.set('data', r.data)
       if (r.alcance !== null && r.alcance !== undefined) rec.set('alcance', r.alcance)
       if (r.impressoes !== null && r.impressoes !== undefined) rec.set('impressoes', r.impressoes)
