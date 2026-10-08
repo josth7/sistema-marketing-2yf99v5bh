@@ -106,8 +106,18 @@ export default function Criterios() {
   const [errosCampo, setErrosCampo] = useState<Record<string, string>>({})
   const [aviso, setAviso] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [user, setUser] = useState(pb.authStore.isValid ? pb.authStore.record : null)
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erroAuth, setErroAuth] = useState<string | null>(null)
+  const [entrando, setEntrando] = useState(false)
 
   const carregar = useCallback(async () => {
+    if (!pb.authStore.isValid) {
+      setCarregando(false)
+      setErro('Entre com um usuário de teste para ver e cadastrar critérios.')
+      return
+    }
     setCarregando(true)
     setErro(null)
     try {
@@ -123,7 +133,7 @@ export default function Criterios() {
   }, [])
 
   useEffect(() => {
-    void carregar()
+    if (pb.authStore.isValid) void carregar()
   }, [carregar])
 
   const salvar = async () => {
@@ -182,6 +192,30 @@ export default function Criterios() {
     }
   }
 
+  const entrar = async () => {
+    setEntrando(true)
+    setErroAuth(null)
+    try {
+      await pb.collection('users').authWithPassword(email, senha)
+      setUser(pb.authStore.isValid ? pb.authStore.record : null)
+      setAviso(null)
+      await carregar()
+    } catch {
+      setErroAuth(
+        'Login inválido — usuários de teste: criterios.fixture.criador@haisan.com.br (cria) ou criterios.fixture.aprovador@haisan.com.br (aprova), senha Fixture@2026',
+      )
+    } finally {
+      setEntrando(false)
+    }
+  }
+
+  const sair = () => {
+    pb.authStore.clear()
+    setUser(null)
+    setItens([])
+    setErro(null)
+  }
+
   const badgeEstado = (estado: string) => {
     if (estado === 'approved')
       return <Badge className="bg-emerald-100 text-emerald-800">aprovado</Badge>
@@ -199,6 +233,59 @@ export default function Criterios() {
           obrigatórios.
         </p>
       </div>
+
+      {user && (
+        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
+          <span>
+            Logado como <strong>{String(user.email ?? '')}</strong>
+            {String(user.email ?? '').startsWith('criterios.fixture.criador') &&
+              ' — cria rascunhos (aprovação é de outro responsável)'}
+            {String(user.email ?? '').startsWith('criterios.fixture.aprovador') &&
+              ' — pode aprovar rascunhos de outra pessoa'}
+          </span>
+          <Button size="sm" variant="ghost" onClick={sair}>
+            Sair
+          </Button>
+        </div>
+      )}
+
+      {!user && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Entrar (usuário de teste)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(ev) => setEmail(ev.target.value)}
+                  placeholder="criterios.fixture.criador@haisan.com.br"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Senha</Label>
+                <Input
+                  type="password"
+                  value={senha}
+                  onChange={(ev) => setSenha(ev.target.value)}
+                  placeholder="Fixture@2026"
+                />
+              </div>
+            </div>
+            {erroAuth && <p className="text-xs text-red-600">{erroAuth}</p>}
+            <Button onClick={entrar} disabled={entrando}>
+              {entrando ? 'Entrando…' : 'Entrar'}
+            </Button>
+            <p className="text-xs text-[#6B7280]">
+              Contas de teste (migração 0013): <strong>criador</strong> cria rascunhos (não aprova a
+              si mesmo) e <strong>aprovador</strong> aprova. Senha das duas: Fixture@2026.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {aviso && (
         <div className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
