@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T18:04:45.951Z",
+  "generatedAt": "2026-10-08T18:06:47.821Z",
   "collections": [
     {
       "name": "users",
@@ -273,8 +273,151 @@
         "update": null,
         "delete": null
       },
-      "fields": [],
-      "indexes": []
+      "fields": [
+        {
+          "name": "uuid",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "version",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "state",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "draft",
+            "approved",
+            "archived"
+          ]
+        },
+        {
+          "name": "metric",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "canal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "objetivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "result_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "natureza",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "direction",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "threshold_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "min_base",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "period_kind",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "monthly",
+            "calendar_half"
+          ]
+        },
+        {
+          "name": "comparison_mode",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_user",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "approved_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "approved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "history",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_criteria_uuid_version ON alert_criteria (uuid, version)",
+        "CREATE INDEX idx_criteria_state ON alert_criteria (state)"
+      ]
     }
   ]
 }
