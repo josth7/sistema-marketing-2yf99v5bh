@@ -12,78 +12,10 @@
  * (>= amanhã local America/Sao_Paulo); edição de pendente pode manter data
  * vencida mas não cria agendamento passado; fechar exige resultado; histórico
  * append-only com ator/data/before-after. Sem lembrete/inbox aqui (a434ca96).
+ *
+ * JSVM: TODA a lógica fica INLINE nos callbacks — funções top-level não são
+ * visíveis dentro dos callbacks (pool de VM separado do PocketBase).
  */
-function hojeISO() {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-  return fmt.format(new Date())
-}
-
-function amanhaISO() {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-  return fmt.format(new Date(Date.now() + 24 * 60 * 60 * 1000))
-}
-
-function textoValido(v, max) {
-  return typeof v === 'string' && v.trim().length > 0 && v.length <= max
-}
-
-function parseHistorico(rec) {
-  try {
-    const h = rec.get('history')
-    if (h && typeof h === 'string' && h.length > 2) return JSON.parse(h)
-  } catch (_) {}
-  return []
-}
-
-function campoHistorico(rec) {
-  const hist = parseHistorico(rec)
-  return JSON.stringify(hist).length < 1900000 ? hist : parseHistorico(rec)
-}
-
-function uuidV4() {
-  const hex = '0123456789abcdef'
-  let u = ''
-  for (let i = 0; i < 36; i++) {
-    if (i === 8 || i === 13 || i === 18 || i === 23) u += '-'
-    else if (i === 14) u += '4'
-    else if (i === 19) u += hex[8 + Math.floor(Math.random() * 4)]
-    else u += hex[Math.floor(Math.random() * 16)]
-  }
-  return u
-}
-
-function itemJSON(r) {
-  return {
-    id: r.id,
-    uuid: r.get('uuid'),
-    source_alert_id: r.get('source_alert_id') || null,
-    scope: r.get('scope') || null,
-    title: r.get('title'),
-    justification: r.get('justification'),
-    planned_action: r.get('planned_action'),
-    responsible_user: r.get('responsible_user'),
-    review_date: r.get('review_date'),
-    state: r.get('state'),
-    revision: r.get('revision'),
-    created_by: r.get('created_by'),
-    created_at: r.get('created_at'),
-    updated_at: r.get('updated_at'),
-    review_outcome: r.get('review_outcome') || null,
-    closed_at: r.get('closed_at') || null,
-    history: r.get('history') || null,
-  }
-}
-
 routerAdd(
   'GET',
   '/backend/v1/decisions',
@@ -94,7 +26,27 @@ routerAdd(
     if (qState) filtro = "state='" + qState.replace(/'/g, '') + "'"
     const registros = $app.findRecordsByFilter(col, filtro, '-created', 200, 0)
     const itens = []
-    for (const r of registros) itens.push(itemJSON(r))
+    for (const r of registros) {
+      itens.push({
+        id: r.id,
+        uuid: r.get('uuid'),
+        source_alert_id: r.get('source_alert_id') || null,
+        scope: r.get('scope') || null,
+        title: r.get('title'),
+        justification: r.get('justification'),
+        planned_action: r.get('planned_action'),
+        responsible_user: r.get('responsible_user'),
+        review_date: r.get('review_date'),
+        state: r.get('state'),
+        revision: r.get('revision'),
+        created_by: r.get('created_by'),
+        created_at: r.get('created_at'),
+        updated_at: r.get('updated_at'),
+        review_outcome: r.get('review_outcome') || null,
+        closed_at: r.get('closed_at') || null,
+        history: r.get('history') || null,
+      })
+    }
     return e.json(200, { ok: true, itens: itens })
   },
   $apis.requireAuth(),
@@ -107,6 +59,31 @@ routerAdd(
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const body = e.requestInfo().body || {}
     const col = $app.findCollectionByNameOrId('decisions')
+
+    // ---- helpers inline (JSVM) ----
+    function textoValido(v, max) {
+      return typeof v === 'string' && v.trim().length > 0 && v.length <= max
+    }
+    function amanhaISO() {
+      const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      return fmt.format(new Date(Date.now() + 24 * 60 * 60 * 1000))
+    }
+    function uuidV4() {
+      const hex = '0123456789abcdef'
+      let u = ''
+      for (let i = 0; i < 36; i++) {
+        if (i === 8 || i === 13 || i === 18 || i === 23) u += '-'
+        else if (i === 14) u += '4'
+        else if (i === 19) u += hex[8 + Math.floor(Math.random() * 4)]
+        else u += hex[Math.floor(Math.random() * 16)]
+      }
+      return u
+    }
 
     // ---- obrigatórios (CA-2-08): 422 e NÃO persiste ----
     const erros = {}
@@ -144,19 +121,20 @@ routerAdd(
 
     // ---- referência de alerta no mesmo escopo (quando informada) ----
     if (body.source_alert_id) {
+      let alerta = null
       try {
-        const alerta = $app.findRecordById('alert_criteria', body.source_alert_id)
-        if (body.scope && String(alerta.get('canal') || '') !== String(body.scope)) {
-          return e.json(403, {
-            ok: false,
-            erro: 'alerta de referência está fora do escopo da decisão',
-          })
-        }
+        alerta = $app.findRecordById('alert_criteria', body.source_alert_id)
       } catch (_) {
         return e.json(422, {
           ok: false,
           erro: 'entrada inválida',
           campos: { source_alert_id: 'alerta de referência não encontrado' },
+        })
+      }
+      if (body.scope && String(alerta.get('canal') || '') !== String(body.scope)) {
+        return e.json(403, {
+          ok: false,
+          erro: 'alerta de referência está fora do escopo da decisão',
         })
       }
     }
@@ -193,6 +171,27 @@ routerAdd(
     const id = e.request.pathValue('id')
     const body = e.requestInfo().body || {}
     const col = $app.findCollectionByNameOrId('decisions')
+
+    function textoValido(v, max) {
+      return typeof v === 'string' && v.trim().length > 0 && v.length <= max
+    }
+    function amanhaISO() {
+      const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      return fmt.format(new Date(Date.now() + 24 * 60 * 60 * 1000))
+    }
+    function parseHistorico(rec) {
+      try {
+        const h = rec.get('history')
+        if (h && typeof h === 'string' && h.length > 2) return JSON.parse(h)
+      } catch (_) {}
+      return []
+    }
+
     let rec
     try {
       rec = $app.findRecordById(col, id)
@@ -300,6 +299,18 @@ routerAdd(
     const id = e.request.pathValue('id')
     const body = e.requestInfo().body || {}
     const col = $app.findCollectionByNameOrId('decisions')
+
+    function textoValido(v, max) {
+      return typeof v === 'string' && v.trim().length > 0 && v.length <= max
+    }
+    function parseHistorico(rec) {
+      try {
+        const h = rec.get('history')
+        if (h && typeof h === 'string' && h.length > 2) return JSON.parse(h)
+      } catch (_) {}
+      return []
+    }
+
     let rec
     try {
       rec = $app.findRecordById(col, id)
