@@ -128,9 +128,18 @@ export default function Decisoes() {
       setAviso('Decisão registrada com data de revisão obrigatória.')
       await carregar()
     } catch (e) {
-      const detail = (
-        e as { response?: { data?: { erro?: string; campos?: Record<string, unknown> } } }
-      ).response?.data
+      const sdk = e as {
+        response?: { data?: { erro?: string; campos?: Record<string, unknown> } } & {
+          erro?: string
+          campos?: Record<string, unknown>
+        }
+        data?: { erro?: string; campos?: Record<string, unknown> }
+      }
+      // SDK PocketBase: o corpo do erro vive em e.response (alias e.data);
+      // validação nativa de coleção vive em e.response.data
+      const detail = sdk.response?.data ?? sdk.response ?? sdk.data
+      // verificado no bundle v0.26: throw new Xm({url, status, data:n}) →
+      // constructor: t.response??t.data → this.response = CORPO; e.response.data = undefined
       const campos: Record<string, string> = {}
       if (detail?.campos && typeof detail.campos === 'object') {
         for (const [campo, det] of Object.entries(detail.campos)) {
@@ -140,7 +149,10 @@ export default function Decisoes() {
         }
       }
       if (Object.keys(campos).length > 0) setErrosCampo(campos)
-      setAviso(detail?.erro || getErrorMessage(e))
+      const mensagemTopo = detail?.erro
+      if (mensagemTopo) setAviso(mensagemTopo)
+      else if (Object.keys(campos).length > 0) setAviso('Confira os campos destacados abaixo.')
+      else setAviso(getErrorMessage(e))
     } finally {
       setSalvando(false)
     }
