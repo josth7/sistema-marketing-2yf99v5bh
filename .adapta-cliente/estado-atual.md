@@ -9,10 +9,10 @@
 - analise: entregue (09/10 ~13:40 BRT)
 - etapa: aguardando_teste_humano
 - autorizacao_implementacao: confirmada 09/10 15:26 — "Pode implementar o edd618c7" (Josth)
-- teste_humano: pendente — Josth confere a tela /decisoes na PRODUÇÃO (sistema-marketing-1f51e.goskip.app/decisoes)
-- verificacao_automatica: passou — QA Skip 100% nas v0.0.56/57; RED provado (404); provas ao vivo 09/10: 401 sem login, 422 sem data/data ontem/data hoje/agendamento passado/fechar sem resultado, 200 criação+PATCH+fechamento com histórico antes/depois, 409 PATCH sem revision e em encerrada, 403 alerta fora do escopo, GET idempotente
-- aprendizado: capturado — Intl.DateTimeFormat NÃO existe no JSVM do PocketBase (goja): datas America/Sao_Paulo por aritmética UTC (UTC-3 fixo); helpers top-level invisíveis nos callbacks (inline obrigatório); hooks são JS puro (sem TS)
-- task_anterior: fc6d0f5a (critérios de alerta em rascunho) — concluída 08/10 16:57
-- ultima_acao: implementação concluída até o portão (09/10) — v0.0.56–v0.0.57, produção publicada (ref ea0f8f4)
-- proxima_acao: teste humano do Josth na tela /decisoes (produção); após aprovação → concluir-task (fase.md, STATUS 4/12, changelog)
-- atualizado_em: 2026-10-09T15:40:00-03:00
+- teste_humano: pendente — 1º teste FALHOU (responsável por e-mail rejeitado + erro silencioso); corrigido em v0.0.61; Josth reconfere /decisoes na PRODUÇÃO
+- verificacao_automatica: passou — QA Skip 100% (v0.0.56/57/59/61); provas ao vivo 09/10: 401, 422×5 (sem data/data ontem/data hoje/agendamento passado/fechar sem resultado), 200×3 (criação/PATCH/fechamento com histórico antes-depois), 409×2, 403 alerta fora do escopo, GET idempotente; revalidação: decisão com responsável por E-MAIL salva 200 (if3huocsb7t191p)
+- aprendizado: capturado — Intl.DateTimeFormat NÃO existe no JSVM (goja) → datas por aritmética UTC; helpers top-level invisíveis nos callbacks (inline); hooks JS puro; **validação de "ID" que humano digita deve aceitar e-mail** (limite 30 chars rejeitava e-mail de 38+); erros do servidor precisam do formato que a página lê (detail.erro + campos string)
+- task_anterior: fc6d0f5a (critérios de alerta) — concluída 08/10 16:57
+- ultima_acao: debug concluído (v0.0.61 publicada, ref dae34c5) — revalidação no navegador OK
+- proxima_acao: re-teste humano do Josth em /decisoes (produção); após aprovação → concluir-task (fase.md, STATUS 4/12, changelog)
+- atualizado_em: 2026-10-09T16:25:00-03:00
