@@ -104,17 +104,25 @@ routerAdd(
       return e.json(422, { ok: false, erro: 'entrada inválida', campos: erros })
     }
 
-    // ---- responsável deve existir (usuário ativo) ----
+    // ---- responsável deve existir (usuário ativo): aceita ID ou E-MAIL ----
+    let respId = null
     try {
-      $app.findRecordById('_pb_users_auth_', body.responsible_user)
+      respId = $app.findRecordById('_pb_users_auth_', body.responsible_user).id
     } catch (_) {
+      try {
+        respId = $app.findAuthRecordByEmail('_pb_users_auth_', String(body.responsible_user)).id
+      } catch (_) {}
+    }
+    if (!respId) {
       return e.json(422, {
         ok: false,
         erro: 'entrada inválida',
-        campos: { responsible_user: 'responsável não encontrado — escolha um usuário ativo' },
+        campos: {
+          responsible_user:
+            'responsável não encontrado — digite o E-MAIL do usuário (ex.: anezia@haisan.com.br) ou o ID dele',
+        },
       })
     }
-
     // ---- referência de alerta no mesmo escopo (quando informada) ----
     if (body.source_alert_id) {
       let alerta = null
@@ -140,7 +148,7 @@ routerAdd(
     rec.set('title', body.title)
     rec.set('justification', body.justification)
     rec.set('planned_action', body.planned_action)
-    rec.set('responsible_user', body.responsible_user)
+    rec.set('responsible_user', respId)
     rec.set('review_date', body.review_date)
     rec.set('state', 'open')
     rec.set('revision', 1)
@@ -211,14 +219,21 @@ routerAdd(
     if (body.planned_action !== undefined && !textoValido(body.planned_action, 4000))
       erros.planned_action = 'ação planejada inválida (1 a 4000 caracteres)'
     if (body.responsible_user !== undefined) {
-      if (!textoValido(body.responsible_user, 30)) {
+      if (!textoValido(body.responsible_user, 200)) {
         erros.responsible_user = 'responsável inválido'
       } else {
+        let okResp = false
         try {
           $app.findRecordById('_pb_users_auth_', body.responsible_user)
+          okResp = true
         } catch (_) {
-          erros.responsible_user = 'responsável não encontrado'
+          try {
+            $app.findAuthRecordByEmail('_pb_users_auth_', String(body.responsible_user))
+            okResp = true
+          } catch (_) {}
         }
+        if (!okResp)
+          erros.responsible_user = 'responsável não encontrado — use o E-MAIL do usuário ou o ID'
       }
     }
     if (body.review_date !== undefined && body.review_date !== null) {
@@ -249,7 +264,27 @@ routerAdd(
     for (const c of camposPermitidos) {
       if (body[c] !== undefined) {
         const valorAtual = rec.get(c)
-        const valorNovo = body[c]
+        let valorNovo = body[c]
+        if (c === 'responsible_user') {
+          let respId = null
+          try {
+            respId = $app.findRecordById('_pb_users_auth_', String(valorNovo)).id
+          } catch (_) {
+            try {
+              respId = $app.findAuthRecordByEmail('_pb_users_auth_', String(valorNovo)).id
+            } catch (_) {}
+          }
+          if (!respId) {
+            return e.json(422, {
+              ok: false,
+              erro: 'entrada inválida',
+              campos: {
+                responsible_user: 'responsável não encontrado — use o E-MAIL do usuário ou o ID',
+              },
+            })
+          }
+          valorNovo = respId
+        }
         if (String(valorAtual ?? '') !== String(valorNovo ?? '')) {
           antes[c] = valorAtual ?? null
           depois[c] = valorNovo

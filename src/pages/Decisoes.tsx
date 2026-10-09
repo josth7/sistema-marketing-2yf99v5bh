@@ -128,17 +128,19 @@ export default function Decisoes() {
       setAviso('Decisão registrada com data de revisão obrigatória.')
       await carregar()
     } catch (e) {
-      const detail = (e as { response?: { data?: Record<string, { message?: string }> } }).response
-        ?.data
+      const detail = (
+        e as { response?: { data?: { erro?: string; campos?: Record<string, unknown> } } }
+      ).response?.data
       const campos: Record<string, string> = {}
-      if (detail && typeof detail === 'object') {
-        for (const [campo, det] of Object.entries(detail)) {
+      if (detail?.campos && typeof detail.campos === 'object') {
+        for (const [campo, det] of Object.entries(detail.campos)) {
           if (det && typeof det === 'object' && 'message' in det)
-            campos[campo] = String(det.message)
+            campos[campo] = String((det as { message: string }).message)
+          else campos[campo] = String(det)
         }
       }
       if (Object.keys(campos).length > 0) setErrosCampo(campos)
-      setAviso(getErrorMessage(e))
+      setAviso(detail?.erro || getErrorMessage(e))
     } finally {
       setSalvando(false)
     }
