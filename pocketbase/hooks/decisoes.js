@@ -88,9 +88,8 @@ routerAdd(
       erros.justification = 'justificativa é obrigatória (até 4000 caracteres)'
     if (!textoValido(body.planned_action, 4000))
       erros.planned_action = 'ação planejada é obrigatória (até 4000 caracteres)'
-    if (!textoValido(body.responsible_user, 30))
-      erros.responsible_user = 'responsável é obrigatório — escolha um usuário ativo'
-    if (
+    if (!textoValido(body.responsible_user, 200))
+      erros.responsible_user = 'responsável é obrigatório — digite o E-MAIL do usuário'    if (
       !textoValido(body.review_date, 10) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(String(body.review_date || ''))
     ) {
