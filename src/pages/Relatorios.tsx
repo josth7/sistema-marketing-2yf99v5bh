@@ -434,6 +434,8 @@ function TemplateRelatorio(props: {
 }) {
   const { titulo, geradoEm, cobertura, warnings, eligibility, snapshot, decisoes, avisoAlertas } =
     props
+  // hoje local (America/Sao_Paulo = UTC-3) — calculado AQUI (não vem do pai)
+  const hojeISO = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const janela = diasJanela(
     titulo.includes('—')
       ? '2026-10-01'
