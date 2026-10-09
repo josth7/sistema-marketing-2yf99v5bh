@@ -214,14 +214,54 @@ routerAdd(
       2000,
       0,
     )
+    // CA-2-01: raw da fonte → objetivo canônico (espelho do MAPA_OBJETIVO em
+    // src/lib/marketing/ingestao.ts) — código desconhecido fica 'nao_informado'.
+    const MAPA_OBJETIVO = {
+      OUTCOME_AWARENESS: 'alcance',
+      BRAND_AWARENESS: 'alcance',
+      REACH: 'alcance',
+      STORE_VISITS: 'alcance',
+      LINK_CLICKS: 'trafico',
+      TRAFFIC: 'trafico',
+      OUTCOME_ENGAGEMENT: 'engajamento',
+      POST: 'engajamento',
+      POST_ENGAGEMENT: 'engajamento',
+      PAGE_LIKES: 'engajamento',
+      OUTCOME_LEADS: 'leads',
+      LEAD_GENERATION: 'leads',
+      QUALITY_LEAD: 'leads',
+      MESSAGE: 'leads',
+      OUTCOME_SALES: 'vendas',
+      CONVERSIONS: 'vendas',
+      CATALOG_SALES: 'vendas',
+      PRODUCT_CATALOG_SALES: 'vendas',
+      VIDEO_VIEWS: 'video',
+      OUTCOME_VIDEO_VIEW: 'video',
+    }
+    const OBJETIVOS_VALIDOS = [
+      'alcance',
+      'trafico',
+      'engajamento',
+      'leads',
+      'vendas',
+      'video',
+      'nao_informado',
+    ]
+    function objetivoSeguro(v) {
+      if (!v) return 'nao_informado'
+      const mapeado = MAPA_OBJETIVO[String(v).toUpperCase()]
+      if (mapeado) return mapeado
+      return OBJETIVOS_VALIDOS.indexOf(v) >= 0 ? v : 'nao_informado'
+    }
     const linhas = []
     for (const r of registrosM) {
+      const raw = r.get('objective_raw') || r.get('objetivo') || null
       linhas.push({
         origem: String(r.get('origem') || ''),
         canal: String(r.get('canal') || ''),
         natureza: String(r.get('natureza') || 'pago'),
-        objetivo: String(r.get('objetivo') || 'nao_informado'),
-        objectiveRaw: r.get('objective_raw') || null,
+        objetivo: objetivoSeguro(r.get('objetivo')),
+        objectiveRaw: raw,
         resultType: r.get('result_type') || null,
         data: String(r.get('data')).slice(0, 10),
         alcance: numOuNull(r.get('alcance')),
