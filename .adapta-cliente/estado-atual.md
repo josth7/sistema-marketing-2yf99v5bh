@@ -6,13 +6,12 @@
 - executor: Mikael
 - owner_informativo: nenhuma
 - spec: 04_fase-atual/specs/spec-003.md (SPEC-2-003)
-- analise: entregue (09/10 ~13:40 BRT)
 - etapa: aguardando_teste_humano
 - autorizacao_implementacao: confirmada 09/10 15:26 — "Pode implementar o edd618c7" (Josth)
-- teste_humano: pendente — 1º teste FALHOU (responsável por e-mail rejeitado + erro silencioso); corrigido em v0.0.61; Josth reconfere /decisoes na PRODUÇÃO
-- verificacao_automatica: passou — QA Skip 100% (v0.0.56/57/59/61); provas ao vivo 09/10: 401, 422×5 (sem data/data ontem/data hoje/agendamento passado/fechar sem resultado), 200×3 (criação/PATCH/fechamento com histórico antes-depois), 409×2, 403 alerta fora do escopo, GET idempotente; revalidação: decisão com responsável por E-MAIL salva 200 (if3huocsb7t191p)
-- aprendizado: capturado — Intl.DateTimeFormat NÃO existe no JSVM (goja) → datas por aritmética UTC; helpers top-level invisíveis nos callbacks (inline); hooks JS puro; **validação de "ID" que humano digita deve aceitar e-mail** (limite 30 chars rejeitava e-mail de 38+); erros do servidor precisam do formato que a página lê (detail.erro + campos string)
+- teste_humano: pendente — 1º teste FALHOU (responsável por e-mail rejeitado + erro silencioso) → corrigido v0.0.61; 2º teste trouxe 2 pontos (e-mail externo recusado sem explicar; campo faltante sem descrever erro) → corrigido v0.0.63; Josth reconfere /decisoes na PRODUÇÃO
+- verificacao_automatica: passou — QA Skip 100% (v0.0.56/57/59/61/62/63); provas ao vivo 09/10 (v0.0.57): 401, 422×5, 200×3, 409×2, 403, GET idempotente; revalidação v0.0.63: submit vazio → "entrada inválida" + 4 erros por campo descritos; e-mail externo → erro descritivo no campo; e-mail do fixture → 200
+- aprendizado: capturado — ClientResponseError do SDK v0.26 carrega o CORPO em e.response (alias e.data), NÃO em e.response.data (isso é só validação NATIVA de coleção); página deve tentar os dois; getErrorMessage deve ler e.response.erro antes do message genérico; validação de "ID" que humano digita deve aceitar e-mail (limite 30 rejeitava e-mail de 38+); Intl.DateTimeFormat não existe no JSVM (goja)
 - task_anterior: fc6d0f5a (critérios de alerta) — concluída 08/10 16:57
-- ultima_acao: debug concluído (v0.0.61 publicada, ref dae34c5) — revalidação no navegador OK
+- ultima_acao: 2ª correção publicada (v0.0.63, ref 388af39) e revalidada no navegador
 - proxima_acao: re-teste humano do Josth em /decisoes (produção); após aprovação → concluir-task (fase.md, STATUS 4/12, changelog)
-- atualizado_em: 2026-10-09T16:25:00-03:00
+- atualizado_em: 2026-10-09T16:50:00-03:00
