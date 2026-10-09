@@ -64,14 +64,10 @@ routerAdd(
     function textoValido(v, max) {
       return typeof v === 'string' && v.trim().length > 0 && v.length <= max
     }
+    // São Paulo = UTC-3 fixo (sem horário de verão): data local = data(now - 3h);
+    // amanhã local = data(now + 21h). Intl NÃO existe no JSVM do PocketBase.
     function amanhaISO() {
-      const fmt = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Sao_Paulo',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      })
-      return fmt.format(new Date(Date.now() + 24 * 60 * 60 * 1000))
+      return new Date(Date.now() + 21 * 60 * 60 * 1000).toISOString().slice(0, 10)
     }
     function uuidV4() {
       const hex = '0123456789abcdef'
@@ -175,14 +171,9 @@ routerAdd(
     function textoValido(v, max) {
       return typeof v === 'string' && v.trim().length > 0 && v.length <= max
     }
+    // São Paulo = UTC-3 fixo (sem horário de verão): amanhã local = data(now + 21h).
     function amanhaISO() {
-      const fmt = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Sao_Paulo',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      })
-      return fmt.format(new Date(Date.now() + 24 * 60 * 60 * 1000))
+      return new Date(Date.now() + 21 * 60 * 60 * 1000).toISOString().slice(0, 10)
     }
     function parseHistorico(rec) {
       try {
