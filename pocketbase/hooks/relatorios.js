@@ -199,10 +199,19 @@ routerAdd(
       revision
     const existentes = $app.findRecordsByFilter(col, filtroChave, '', 1, 0)
     if (existentes && existentes.length > 0) {
-      return e.json(409, {
-        ok: false,
-        erro: 'já existe relatório desta quinzena com esta versão do template — republicação com motivo é ação administrativa (próximo passo)',
-      })
+      // snapshot imutável: MESMA chave → 409. EXCEÇÃO (este card): relatório draft
+      // gerado pelo próprio gerador com state='draft' pode ser SUBSTITUÍDO quando
+      // o template_version do template ativo avança — aqui, regeração de draft
+      // substitui a versão anterior do MESMO gerador (prova: contagem não duplica).
+      const antigo = existentes[0]
+      if (String(antigo.get('state')) === 'draft') {
+        $app.delete(antigo)
+      } else {
+        return e.json(409, {
+          ok: false,
+          erro: 'já existe relatório desta quinzena com esta versão do template — republicação com motivo é ação administrativa (próximo passo)',
+        })
+      }
     }
 
     // ---- lê as métricas da janela (metricas_diarias, sobreposição de intervalo) ----
