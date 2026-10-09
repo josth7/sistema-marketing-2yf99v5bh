@@ -1,5 +1,3 @@
-/* Main App Component - Handles routing (using react-router-dom), query client and other providers - use this file to add all routes */
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -8,26 +6,24 @@ import Painel from './pages/Painel'
 import Criterios from './pages/Criterios'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
-
-// ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
-// AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 const App = () => (
-  <BrowserRouter>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+  <TooltipProvider delayDuration={0}>
+    <Toaster />
+    <Sonner />
+    <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Index />} />
           <Route path="/painel" element={<Painel />} />
           <Route path="/criterios" element={<Criterios />} />
           {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
+          <Route path="*" element={<NotFound />} />
         </Route>
-        <Route path="*" element={<NotFound />} />
       </Routes>
-    </TooltipProvider>
-  </BrowserRouter>
+    </BrowserRouter>
+  </TooltipProvider>
 )
 
 export default App
