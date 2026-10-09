@@ -33,7 +33,7 @@ function amanhaISO() {
   return fmt.format(new Date(Date.now() + 24 * 60 * 60 * 1000))
 }
 
-function textoValido(v: string | null | undefined, max: number): boolean {
+function textoValido(v, max) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= max
 }
 
@@ -84,203 +84,259 @@ function itemJSON(r) {
   }
 }
 
-routerAdd('GET', '/backend/v1/decisions', (e) => {
-  const col = $app.findCollectionByNameOrId('decisions')
-  const qState = e.request.url.query().get('state') || ''
-  let filtro = ''
-  if (qState) filtro = "state='" + qState.replace(/'/g, '') + "'"
-  const registros = $app.findRecordsByFilter(col, filtro, '-created', 200, 0)
-  const itens = []
-  for (const r of registros) itens.push(itemJSON(r))
-  return e.json(200, { ok: true, itens: itens })
-}, $apis.requireAuth())
+routerAdd(
+  'GET',
+  '/backend/v1/decisions',
+  (e) => {
+    const col = $app.findCollectionByNameOrId('decisions')
+    const qState = e.request.url.query().get('state') || ''
+    let filtro = ''
+    if (qState) filtro = "state='" + qState.replace(/'/g, '') + "'"
+    const registros = $app.findRecordsByFilter(col, filtro, '-created', 200, 0)
+    const itens = []
+    for (const r of registros) itens.push(itemJSON(r))
+    return e.json(200, { ok: true, itens: itens })
+  },
+  $apis.requireAuth(),
+)
 
-routerAdd('POST', '/backend/v1/decisions', (e) => {
-  if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-  const body = e.requestInfo().body || {}
-  const col = $app.findCollectionByNameOrId('decisions')
+routerAdd(
+  'POST',
+  '/backend/v1/decisions',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const body = e.requestInfo().body || {}
+    const col = $app.findCollectionByNameOrId('decisions')
 
-  // ---- obrigatórios (CA-2-08): 422 e NÃO persiste ----
-  const erros = {}
-  if (!textoValido(body.title, 200)) erros.title = 'título é obrigatório (até 200 caracteres)'
-  if (!textoValido(body.justification, 4000))
-    erros.justification = 'justificativa é obrigatória (até 4000 caracteres)'
-  if (!textoValido(body.planned_action, 4000))
-    erros.planned_action = 'ação planejada é obrigatória (até 4000 caracteres)'
-  if (!textoValido(body.responsible_user, 30))
-    erros.responsible_user = 'responsável é obrigatório — escolha um usuário ativo'
-  if (!textoValido(body.review_date, 10) || !/^\d{4}-\d{2}-\d{2}$/.test(String(body.review_date || ''))) {
-    erros.review_date = 'data de revisão é obrigatória (formato AAAA-MM-DD)'
-  } else if (String(body.review_date) < amanhaISO()) {
-    erros.review_date = 'data de revisão deve ser de amanhã em diante (não pode ser passada)'
-  }
-  if (body.scope !== undefined && body.scope !== null && String(body.scope).length > 60)
-    erros.scope = 'escopo tem até 60 caracteres'
-  if (Object.keys(erros).length > 0) {
-    return e.json(422, { ok: false, erro: 'entrada inválida', campos: erros })
-  }
-
-  // ---- responsável deve existir (usuário ativo) ----
-  try {
-    $app.findRecordById('_pb_users_auth_', body.responsible_user)
-  } catch (_) {
-    return e.json(422, { ok: false, erro: 'entrada inválida', campos: { responsible_user: 'responsável não encontrado — escolha um usuário ativo' } })
-  }
-
-  // ---- referência de alerta no mesmo escopo (quando informada) ----
-  if (body.source_alert_id) {
-    try {
-      const alerta = $app.findRecordById('alert_criteria', body.source_alert_id)
-      if (body.scope && String(alerta.get('canal') || '') !== String(body.scope)) {
-        return e.json(403, { ok: false, erro: 'alerta de referência está fora do escopo da decisão' })
-      }
-    } catch (_) {
-      return e.json(422, { ok: false, erro: 'entrada inválida', campos: { source_alert_id: 'alerta de referência não encontrado' } })
-    }
-  }
-
-  const rec = new Record(col)
-  rec.set('uuid', uuidV4())
-  rec.set('title', body.title)
-  rec.set('justification', body.justification)
-  rec.set('planned_action', body.planned_action)
-  rec.set('responsible_user', body.responsible_user)
-  rec.set('review_date', body.review_date)
-  rec.set('state', 'open')
-  rec.set('revision', 1)
-  rec.set('created_by', e.auth.id)
-  rec.set('created_at', new Date().toISOString())
-  rec.set('updated_at', new Date().toISOString())
-  if (body.scope) rec.set('scope', body.scope)
-  if (body.source_alert_id) rec.set('source_alert_id', body.source_alert_id)
-  rec.set(
-    'history',
-    JSON.stringify([
-      { at: new Date().toISOString(), ator: e.auth.id, acao: 'criou_decisao' },
-    ]),
-  )
-  $app.save(rec)
-  return e.json(200, { ok: true, id: rec.id, uuid: rec.get('uuid'), revision: 1, state: 'open' })
-}, $apis.requireAuth())
-
-routerAdd('PATCH', '/backend/v1/decisions/{id}', (e) => {
-  if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-  const id = e.request.pathValue('id')
-  const body = e.requestInfo().body || {}
-  const col = $app.findCollectionByNameOrId('decisions')
-  let rec
-  try {
-    rec = $app.findRecordById(col, id)
-  } catch (_) {
-    return e.json(404, { ok: false, erro: 'decisão não encontrada' })
-  }
-  if (String(rec.get('state')) === 'closed') {
-    return e.json(409, { ok: false, erro: 'decisão encerrada não é editável' })
-  }
-  if (body.expected_revision === undefined) {
-    return e.json(409, { ok: false, erro: 'envie expected_revision com a versão que você leu' })
-  }
-  if (Number(body.expected_revision) !== Number(rec.get('revision'))) {
-    return e.json(409, { ok: false, erro: 'conflito de revisão — alguém editou antes de você (recarregue)' })
-  }
-
-  // ---- campos presentes validados; novo agendamento não pode ser passado ----
-  const erros = {}
-  if (body.title !== undefined && !textoValido(body.title, 200))
-    erros.title = 'título inválido (1 a 200 caracteres)'
-  if (body.justification !== undefined && !textoValido(body.justification, 4000))
-    erros.justification = 'justificativa inválida (1 a 4000 caracteres)'
-  if (body.planned_action !== undefined && !textoValido(body.planned_action, 4000))
-    erros.planned_action = 'ação planejada inválida (1 a 4000 caracteres)'
-  if (body.responsible_user !== undefined) {
-    if (!textoValido(body.responsible_user, 30)) {
-      erros.responsible_user = 'responsável inválido'
-    } else {
-      try {
-        $app.findRecordById('_pb_users_auth_', body.responsible_user)
-      } catch (_) {
-        erros.responsible_user = 'responsável não encontrado'
-      }
-    }
-  }
-  if (body.review_date !== undefined && body.review_date !== null) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.review_date))) {
-      erros.review_date = 'data de revisão inválida (formato AAAA-MM-DD)'
+    // ---- obrigatórios (CA-2-08): 422 e NÃO persiste ----
+    const erros = {}
+    if (!textoValido(body.title, 200)) erros.title = 'título é obrigatório (até 200 caracteres)'
+    if (!textoValido(body.justification, 4000))
+      erros.justification = 'justificativa é obrigatória (até 4000 caracteres)'
+    if (!textoValido(body.planned_action, 4000))
+      erros.planned_action = 'ação planejada é obrigatória (até 4000 caracteres)'
+    if (!textoValido(body.responsible_user, 30))
+      erros.responsible_user = 'responsável é obrigatório — escolha um usuário ativo'
+    if (
+      !textoValido(body.review_date, 10) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(body.review_date || ''))
+    ) {
+      erros.review_date = 'data de revisão é obrigatória (formato AAAA-MM-DD)'
     } else if (String(body.review_date) < amanhaISO()) {
-      erros.review_date = 'novo agendamento não pode ficar no passado'
+      erros.review_date = 'data de revisão deve ser de amanhã em diante (não pode ser passada)'
     }
-  }
-  if (body.scope !== undefined && body.scope !== null && String(body.scope).length > 60)
-    erros.scope = 'escopo tem até 60 caracteres'
-  if (Object.keys(erros).length > 0) {
-    return e.json(422, { ok: false, erro: 'entrada inválida', campos: erros })
-  }
+    if (body.scope !== undefined && body.scope !== null && String(body.scope).length > 60)
+      erros.scope = 'escopo tem até 60 caracteres'
+    if (Object.keys(erros).length > 0) {
+      return e.json(422, { ok: false, erro: 'entrada inválida', campos: erros })
+    }
 
-  // ---- histórico com before/after dos campos permitidos ----
-  const camposPermitidos = ['title', 'justification', 'planned_action', 'responsible_user', 'review_date', 'state']
-  const antes = {}
-  const depois = {}
-  let mudou = false
-  for (const c of camposPermitidos) {
-    if (body[c] !== undefined) {
-      const valorAtual = rec.get(c)
-      const valorNovo = body[c]
-      if (String(valorAtual ?? '') !== String(valorNovo ?? '')) {
-        antes[c] = valorAtual ?? null
-        depois[c] = valorNovo
-        rec.set(c, valorNovo)
-        mudou = true
+    // ---- responsável deve existir (usuário ativo) ----
+    try {
+      $app.findRecordById('_pb_users_auth_', body.responsible_user)
+    } catch (_) {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { responsible_user: 'responsável não encontrado — escolha um usuário ativo' },
+      })
+    }
+
+    // ---- referência de alerta no mesmo escopo (quando informada) ----
+    if (body.source_alert_id) {
+      try {
+        const alerta = $app.findRecordById('alert_criteria', body.source_alert_id)
+        if (body.scope && String(alerta.get('canal') || '') !== String(body.scope)) {
+          return e.json(403, {
+            ok: false,
+            erro: 'alerta de referência está fora do escopo da decisão',
+          })
+        }
+      } catch (_) {
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { source_alert_id: 'alerta de referência não encontrado' },
+        })
       }
     }
-  }
-  if (mudou) {
+
+    const rec = new Record(col)
+    rec.set('uuid', uuidV4())
+    rec.set('title', body.title)
+    rec.set('justification', body.justification)
+    rec.set('planned_action', body.planned_action)
+    rec.set('responsible_user', body.responsible_user)
+    rec.set('review_date', body.review_date)
+    rec.set('state', 'open')
+    rec.set('revision', 1)
+    rec.set('created_by', e.auth.id)
+    rec.set('created_at', new Date().toISOString())
+    rec.set('updated_at', new Date().toISOString())
+    if (body.scope) rec.set('scope', body.scope)
+    if (body.source_alert_id) rec.set('source_alert_id', body.source_alert_id)
+    rec.set(
+      'history',
+      JSON.stringify([{ at: new Date().toISOString(), ator: e.auth.id, acao: 'criou_decisao' }]),
+    )
+    $app.save(rec)
+    return e.json(200, { ok: true, id: rec.id, uuid: rec.get('uuid'), revision: 1, state: 'open' })
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'PATCH',
+  '/backend/v1/decisions/{id}',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const id = e.request.pathValue('id')
+    const body = e.requestInfo().body || {}
+    const col = $app.findCollectionByNameOrId('decisions')
+    let rec
+    try {
+      rec = $app.findRecordById(col, id)
+    } catch (_) {
+      return e.json(404, { ok: false, erro: 'decisão não encontrada' })
+    }
+    if (String(rec.get('state')) === 'closed') {
+      return e.json(409, { ok: false, erro: 'decisão encerrada não é editável' })
+    }
+    if (body.expected_revision === undefined) {
+      return e.json(409, { ok: false, erro: 'envie expected_revision com a versão que você leu' })
+    }
+    if (Number(body.expected_revision) !== Number(rec.get('revision'))) {
+      return e.json(409, {
+        ok: false,
+        erro: 'conflito de revisão — alguém editou antes de você (recarregue)',
+      })
+    }
+
+    // ---- campos presentes validados; novo agendamento não pode ser passado ----
+    const erros = {}
+    if (body.title !== undefined && !textoValido(body.title, 200))
+      erros.title = 'título inválido (1 a 200 caracteres)'
+    if (body.justification !== undefined && !textoValido(body.justification, 4000))
+      erros.justification = 'justificativa inválida (1 a 4000 caracteres)'
+    if (body.planned_action !== undefined && !textoValido(body.planned_action, 4000))
+      erros.planned_action = 'ação planejada inválida (1 a 4000 caracteres)'
+    if (body.responsible_user !== undefined) {
+      if (!textoValido(body.responsible_user, 30)) {
+        erros.responsible_user = 'responsável inválido'
+      } else {
+        try {
+          $app.findRecordById('_pb_users_auth_', body.responsible_user)
+        } catch (_) {
+          erros.responsible_user = 'responsável não encontrado'
+        }
+      }
+    }
+    if (body.review_date !== undefined && body.review_date !== null) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.review_date))) {
+        erros.review_date = 'data de revisão inválida (formato AAAA-MM-DD)'
+      } else if (String(body.review_date) < amanhaISO()) {
+        erros.review_date = 'novo agendamento não pode ficar no passado'
+      }
+    }
+    if (body.scope !== undefined && body.scope !== null && String(body.scope).length > 60)
+      erros.scope = 'escopo tem até 60 caracteres'
+    if (Object.keys(erros).length > 0) {
+      return e.json(422, { ok: false, erro: 'entrada inválida', campos: erros })
+    }
+
+    // ---- histórico com before/after dos campos permitidos ----
+    const camposPermitidos = [
+      'title',
+      'justification',
+      'planned_action',
+      'responsible_user',
+      'review_date',
+      'state',
+    ]
+    const antes = {}
+    const depois = {}
+    let mudou = false
+    for (const c of camposPermitidos) {
+      if (body[c] !== undefined) {
+        const valorAtual = rec.get(c)
+        const valorNovo = body[c]
+        if (String(valorAtual ?? '') !== String(valorNovo ?? '')) {
+          antes[c] = valorAtual ?? null
+          depois[c] = valorNovo
+          rec.set(c, valorNovo)
+          mudou = true
+        }
+      }
+    }
+    if (mudou) {
+      const hist = parseHistorico(rec)
+      hist.push({
+        at: new Date().toISOString(),
+        ator: e.auth.id,
+        acao: 'editou_decisao',
+        antes: antes,
+        depois: depois,
+      })
+      rec.set('history', JSON.stringify(hist))
+    }
+    rec.set('revision', Number(rec.get('revision')) + 1)
+    rec.set('updated_at', new Date().toISOString())
+    $app.save(rec)
+    return e.json(200, {
+      ok: true,
+      id: rec.id,
+      revision: rec.get('revision'),
+      state: rec.get('state'),
+    })
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
+  '/backend/v1/decisions/{id}/close',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const id = e.request.pathValue('id')
+    const body = e.requestInfo().body || {}
+    const col = $app.findCollectionByNameOrId('decisions')
+    let rec
+    try {
+      rec = $app.findRecordById(col, id)
+    } catch (_) {
+      return e.json(404, { ok: false, erro: 'decisão não encontrada' })
+    }
+    if (String(rec.get('state')) === 'closed') {
+      return e.json(409, { ok: false, erro: 'decisão já está encerrada' })
+    }
+    if (!textoValido(body.review_outcome, 4000)) {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { review_outcome: 'resultado da revisão é obrigatório para encerrar' },
+      })
+    }
+    const antes = { state: rec.get('state'), review_outcome: null }
+    rec.set('state', 'closed')
+    rec.set('review_outcome', body.review_outcome)
+    rec.set('closed_at', new Date().toISOString())
+    rec.set('updated_at', new Date().toISOString())
     const hist = parseHistorico(rec)
     hist.push({
       at: new Date().toISOString(),
       ator: e.auth.id,
-      acao: 'editou_decisao',
+      acao: 'encerrou_decisao',
       antes: antes,
-      depois: depois,
+      depois: { state: 'closed', review_outcome: body.review_outcome },
     })
     rec.set('history', JSON.stringify(hist))
-  }
-  rec.set('revision', Number(rec.get('revision')) + 1)
-  rec.set('updated_at', new Date().toISOString())
-  $app.save(rec)
-  return e.json(200, { ok: true, id: rec.id, revision: rec.get('revision'), state: rec.get('state') })
-}, $apis.requireAuth())
-
-routerAdd('POST', '/backend/v1/decisions/{id}/close', (e) => {
-  if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-  const id = e.request.pathValue('id')
-  const body = e.requestInfo().body || {}
-  const col = $app.findCollectionByNameOrId('decisions')
-  let rec
-  try {
-    rec = $app.findRecordById(col, id)
-  } catch (_) {
-    return e.json(404, { ok: false, erro: 'decisão não encontrada' })
-  }
-  if (String(rec.get('state')) === 'closed') {
-    return e.json(409, { ok: false, erro: 'decisão já está encerrada' })
-  }
-  if (!textoValido(body.review_outcome, 4000)) {
-    return e.json(422, { ok: false, erro: 'entrada inválida', campos: { review_outcome: 'resultado da revisão é obrigatório para encerrar' } })
-  }
-  const antes = { state: rec.get('state'), review_outcome: null }
-  rec.set('state', 'closed')
-  rec.set('review_outcome', body.review_outcome)
-  rec.set('closed_at', new Date().toISOString())
-  rec.set('updated_at', new Date().toISOString())
-  const hist = parseHistorico(rec)
-  hist.push({
-    at: new Date().toISOString(),
-    ator: e.auth.id,
-    acao: 'encerrou_decisao',
-    antes: antes,
-    depois: { state: 'closed', review_outcome: body.review_outcome },
-  })
-  rec.set('history', JSON.stringify(hist))
-  $app.save(rec)
-  return e.json(200, { ok: true, id: rec.id, state: rec.get('state'), closed_at: rec.get('closed_at') })
-}, $apis.requireAuth())
+    $app.save(rec)
+    return e.json(200, {
+      ok: true,
+      id: rec.id,
+      state: rec.get('state'),
+      closed_at: rec.get('closed_at'),
+    })
+  },
+  $apis.requireAuth(),
+)
