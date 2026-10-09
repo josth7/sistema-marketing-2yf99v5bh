@@ -13,7 +13,7 @@
  * vencida mas não cria agendamento passado; fechar exige resultado; histórico
  * append-only com ator/data/before-after. Sem lembrete/inbox aqui (a434ca96).
  */
-function hojeISO(): string {
+function hojeISO() {
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
     year: 'numeric',
@@ -23,7 +23,7 @@ function hojeISO(): string {
   return fmt.format(new Date())
 }
 
-function amanhaISO(): string {
+function amanhaISO() {
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
     year: 'numeric',
@@ -33,7 +33,7 @@ function amanhaISO(): string {
   return fmt.format(new Date(Date.now() + 24 * 60 * 60 * 1000))
 }
 
-function textoValido(v, max) {
+function textoValido(v: string | null | undefined, max: number): boolean {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= max
 }
 
