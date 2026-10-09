@@ -1,10 +1,20 @@
-# Controle — aprendizado contínuo
+# Aprendizado contínuo — controle
 
-- 2026-09-29T11:15:00-03:00 · task a9acf38d · capturado: 06_notas/aprendizado-continuo/AP-2026-09-29-1115-inventario-contas.md (estado compartilhado portal×plugin: re-ler SHA antes de escrever e mesclar em conflito)
-- 2026-10-02T13:55:00-03:00 · task 219345ea · capturado: 06_notas/aprendizado-continuo/AP-2026-10-02-1355-janela-comparativo.md (comparativo de períodos: sobreposição em vez de contenção; RN de exibição exige prova visual além da unitária)
-- 2026-10-02T17:58:00-03:00 · task ea514702 · capturado: 06_notas/aprendizado-continuo/AP-2026-10-02-1758-fields-plain-objects.md (fields como construtores tipados em new Collection são descartados silenciosamente; confirmar schema com get_collection_details após migrar) · capturado: 06_notas/aprendizado-continuo/AP-2026-10-02-1758-hook-null-trailing.md (argumento null trailing no routerAdd quebra o registro da rota sem falhar o QA; isolar com hook ping mínimo)
-- 2026-10-05T09:15:00-03:00 · task 116061e0 · capturado: 06_notas/aprendizado-continuo/AP-2026-10-05-0915-meta-api-access-blocked.md (classificar falha Meta antes de agir: 190/401=token → reconexão única; "API access blocked"=plataforma → escalar, sem reconectar em série)
-- 2026-10-06T11:10:00-03:00 · task 116061e0 · capturado: 06_notas/aprendizado-continuo/AP-2026-10-06-1110-runtime-skip-http.md ($http.fetch não existe no runtime do Skip — usar $http.send e ler res.statusCode/res.json; filtro de campo date no findRecordsByFilter diverge do formato gravado — dedupe comparando data em JS) · capturado: 06_notas/aprendizado-continuo/AP-2026-10-06-1110-organico-rn06.md (API responde 200 com métricas zeradas ≠ dado real — RN-06: não gravar linha orgânica sem métrica >0)
-- 2026-10-06T17:15:00-03:00 · task 462da177 · capturado: 06_notas/aprendizado-continuo/AP-2026-10-06-1700-zero-nao-calculado.md (campos derivados gravados como 0 pela fonte = "não calculado", não dado real — RN-06 também vale para métricas derivadas: 0 de ctr/cpc/cpm vira null na conversão e a agregação deriva de cliques/impressões/gasto) · capturado: 06_notas/aprendizado-continuo/AP-2026-10-06-1715-agregado-vs-diario.md (carga histórica com janela de 30 dias gravada como um dia polui o painel diário — dedupe por (fonte+conta+campanha+dia) não distingue granularidade; migrar/remover agregado quando a leitura diária cobre o mesmo período)
-- 2026-10-07T14:20:00-03:00 · task b327b4ea · capturado: 06_notas/aprendizado-continuo/AP-2026-10-07-1420-fields-add-textfield.md (sintaxe de fields.add em coleção EXISTENTE exige construtores tipados — plain objects só em new Collection; checar existência com getByName)
-- 2026-10-08T14:10:00-03:00 · task fc6d0f5a · capturado: 06_notas/aprendizado-continuo/AP-2026-10-08-1410-fields-new-collection-reincidente.md (REINCIDÊNCIA da AP-2026-10-02-1758: new Collection aceita SOMENTE plain objects em fields — construtores tipados fazem o PocketBase descartar o array silenciosamente e criar a coleção sem colunas; QA 100% não pega; conferir schema com get_collection_details ou primeiro POST de prova)
+## AP-2026-10-09-1700 — ClientResponseError do SDK v0.26: corpo em e.response, não e.response.data
+
+- **Card**: edd618c7 (decisões) — 2ª rodada de debug, 09/10
+- **Sinal reutilizável**: SIM
+- **Causa provada no bundle**: o SDK PocketBase v0.26 lança `ClientResponseError` com `throw new Xm({url, status, data:n})` e o constructor faz `this.response = t.response ?? t.data` — ou seja, o **CORPO da resposta fica em `e.response`** (com alias `e.data`). `e.response.data` só existe em validação NATIVA de coleção (formato `{code, message, data:{campo:{code,message}}}`).
+- **Sintoma**: página lia `e.response?.data` → undefined → caía na mensagem genérica "Something went wrong." — erros do servidor invisíveis para o usuário (falha silenciosa na tela).
+- **Orientação**: em páginas que chamam rotas custom `/backend/v1/`, ler o corpo com `e.response?.data ?? e.response ?? e.data` (cobre nativa e custom); `getErrorMessage` deve checar `e.response.erro` (contrato das rotas custom) antes de usar `e.message`.
+- **Complemento (mesma task)**: validação que confere "ID" digitado por humano deve aceitar E-MAIL também (limite de 30 chars rejeitava e-mail de 38+; findAuthRecordByEmail resolve); mensagem de recusa deve ensinar o formato ("digite o E-MAIL do usuário (ex.: ...) ou o ID dele").
+
+## AP-2026-10-02-1758 — fields como construtores tipados em new Collection (reincidente 08/10)
+
+- **Sinal reutilizável**: SIM
+- PocketBase descarta silenciosamente o array `fields` quando os campos usam construtores tipados (`new TextField(...)`) dentro de `new Collection({fields:[...]})` — plain objects `{name, type}` são obrigatórios; QA 100% não pega. Conferir schema com get_collection_details após criar coleção. Reincidente no card fc6d0f5a (v0.0.48 → corrigido por migração 0014).
+
+## AP-2026-10-02-1755 — JSVM (goja): sem Intl, sem helpers top-level, hooks em JS puro
+
+- **Sinal reutilizável**: SIM
+- `Intl.DateTimeFormat` NÃO existe no JSVM do PocketBase — datas America/Sao_Paulo por aritmética UTC (UTC-3 fixo, amanhã = now+21h). Helpers top-level são invisíveis nos callbacks de rota/evento — lógica inline obrigatória. Hooks são JS puro (sem TS).

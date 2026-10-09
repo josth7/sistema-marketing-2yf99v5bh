@@ -6,12 +6,13 @@
 - executor: Mikael
 - owner_informativo: nenhuma
 - spec: 04_fase-atual/specs/spec-003.md (SPEC-2-003)
-- etapa: aguardando_teste_humano
+- etapa: concluida
 - autorizacao_implementacao: confirmada 09/10 15:26 — "Pode implementar o edd618c7" (Josth)
-- teste_humano: pendente — 1º teste FALHOU (responsável por e-mail rejeitado + erro silencioso) → corrigido v0.0.61; 2º teste trouxe 2 pontos (e-mail externo recusado sem explicar; campo faltante sem descrever erro) → corrigido v0.0.63; Josth reconfere /decisoes na PRODUÇÃO
-- verificacao_automatica: passou — QA Skip 100% (v0.0.56/57/59/61/62/63); provas ao vivo 09/10 (v0.0.57): 401, 422×5, 200×3, 409×2, 403, GET idempotente; revalidação v0.0.63: submit vazio → "entrada inválida" + 4 erros por campo descritos; e-mail externo → erro descritivo no campo; e-mail do fixture → 200
-- aprendizado: capturado — ClientResponseError do SDK v0.26 carrega o CORPO em e.response (alias e.data), NÃO em e.response.data (isso é só validação NATIVA de coleção); página deve tentar os dois; getErrorMessage deve ler e.response.erro antes do message genérico; validação de "ID" que humano digita deve aceitar e-mail (limite 30 rejeitava e-mail de 38+); Intl.DateTimeFormat não existe no JSVM (goja)
+- teste_humano: APROVADO — "Testei e funcionou — pode concluir o card" (Josth, 09/10 16:59, após 2 rodadas de debug; 3º re-teste)
+- verificacao_automatica: passou — QA Skip 100% (v0.0.56/57/59/61/62/63/64); provas ao vivo (v0.0.57): 401, 422×5, 200×3, 409×2, 403, GET idempotente; revalidações na produção (v0.0.63): submit vazio → "entrada inválida" + 4 erros por campo; e-mail externo → recusa explicada; e-mail fixture → 200; versão no ar = testada (v0.0.64, ref 3736415, publicada 19:41:43Z)
+- aprendizado: capturado — ClientResponseError do SDK v0.26 carrega o CORPO em e.response (alias e.data), NÃO em e.response.data (só validação NATIVA); página cobre os dois formatos; getErrorMessage lê e.response.erro antes do message genérico; validação de "ID" que humano digita deve aceitar e-mail (limite 30 rejeitava e-mail de 38+); Intl.DateTimeFormat não existe no JSVM (goja); helpers top-level invisíveis nos callbacks
 - task_anterior: fc6d0f5a (critérios de alerta) — concluída 08/10 16:57
-- ultima_acao: 2ª correção publicada (v0.0.63, ref 388af39) e revalidada no navegador
-- proxima_acao: re-teste humano do Josth em /decisoes (produção); após aprovação → concluir-task (fase.md, STATUS 4/12, changelog)
-- atualizado_em: 2026-10-09T16:50:00-03:00
+- conclusao: fase.md marcada [x] com done:2026-10-09; STATUS 4/12 = 33%; changelog com bloco de conclusão; evidências em 05_entregas/spec-2-003/testes.md; debug em 06_notas/debug/debug-2026-10-09-decisoes-responsavel-email.md
+- ultima_acao: fechamento do card (fase/STATUS/changelog/estado gravados; envio ao GitHub em andamento)
+- proxima_acao: nenhuma task aberta por este fechamento — próxima task da esteira exige novo pedido do Josth (elegíveis: 3b491438 template de relatório, f9a2a3eb perfis, b1200b57 workshop !22/10, f7591165 alertas !27/10, a434ca96 lembrete !29/10)
+- atualizado_em: 2026-10-09T17:05:00-03:00
