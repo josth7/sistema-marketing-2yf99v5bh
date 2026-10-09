@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T18:06:47.821Z",
+  "generatedAt": "2026-10-09T18:31:55.270Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -162,14 +167,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "objective_raw",
@@ -210,7 +220,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["conectado", "nao_conectado", "erro_autenticacao", "sem_dados"]
+          "selectValues": [
+            "conectado",
+            "nao_conectado",
+            "erro_autenticacao",
+            "sem_dados"
+          ]
         },
         {
           "name": "aviso",
@@ -229,17 +244,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"
+      ]
     },
     {
       "name": "alert_criteria",
@@ -269,7 +291,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "approved", "archived"]
+          "selectValues": [
+            "draft",
+            "approved",
+            "archived"
+          ]
         },
         {
           "name": "metric",
@@ -324,7 +350,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["monthly", "calendar_half"]
+          "selectValues": [
+            "monthly",
+            "calendar_half"
+          ]
         },
         {
           "name": "comparison_mode",
@@ -370,19 +399,163 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
         "CREATE INDEX idx_criteria_uuid_version ON alert_criteria (uuid, version)",
         "CREATE INDEX idx_criteria_state ON alert_criteria (state)"
+      ]
+    },
+    {
+      "name": "decisions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "uuid",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "source_alert_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scope",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "justification",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "planned_action",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible_user",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "review_date",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "state",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "open",
+            "in_review",
+            "closed"
+          ]
+        },
+        {
+          "name": "revision",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "updated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "review_outcome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "closed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "history",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_decisions_uuid_revision ON decisions (uuid, revision)",
+        "CREATE INDEX idx_decisions_state ON decisions (state)"
       ]
     }
   ]
