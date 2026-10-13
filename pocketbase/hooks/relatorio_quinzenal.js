@@ -1190,6 +1190,19 @@ routerAdd(
         campos: { revision_reason: 'informe o motivo da republicação' },
       })
     }
+    // self-heal (prova 13/10): o campo idempotency_key pode NÃO existir no banco
+    // de produção (migrações de schema não chegam lá) — cria na hora.
+    try {
+      const colR0 = $app.findCollectionByNameOrId('reports')
+      let temCampo = false
+      try {
+        temCampo = !!colR0.fields.getByName('idempotency_key')
+      } catch (e20) {}
+      if (!temCampo) {
+        colR0.fields.add(new TextField({ name: 'idempotency_key', max: 200 }))
+        $app.save(colR0)
+      }
+    } catch (e21) {}
     if (!chave) {
       return e.json(422, {
         ok: false,
