@@ -85,19 +85,22 @@ routerAdd(
       return e.json(403, { ok: false, erro: 'só o destinatário pode marcar este item como lido' })
     }
     // idempotente: já lida responde 200 sem mudar read_at
-    var readAtual = null
+    // PROVA 13/10: DateTime zerado do PocketBase chega como STRING VAZIA truthy —
+    // o ramo "já lida" entrava na 1ª chamada e NUNCA gravava (read_at:"").
+    // Conserto: comparar COMO STRING e exigir conteúdo real.
+    var readAtual = ''
     try {
-      readAtual = it.get('read_at')
+      readAtual = String(it.get('read_at') || '')
     } catch (e5) {}
     if (
-      readAtual ||
+      readAtual !== '' ||
       String(it.get('status') || '') === 'read' ||
       Number(it.get('attempts') || 0) >= 1000
     ) {
       return e.json(200, {
         ok: true,
         id: it.id,
-        read_at: readAtual || String(it.get('updated') || ''),
+        read_at: readAtual !== '' ? readAtual : String(it.get('updated') || ''),
         ja_lida: true,
       })
     }
