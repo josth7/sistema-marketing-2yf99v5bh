@@ -149,12 +149,18 @@ cronAdd('relatorio_quinzenal', '0 10 * * *', () => {
       recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
     } catch (e2) {}
     for (const uid of recipients || []) {
+      let resolvido = null
       try {
-        app.findRecordById('users', uid)
-        destOk.push(uid)
+        resolvido = app.findRecordById('users', uid)
       } catch (e3) {
-        avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
+        if (String(uid).indexOf('@') >= 0) {
+          try {
+            resolvido = app.findAuthRecordByEmail('users', String(uid))
+          } catch (e4) {}
+        }
       }
+      if (resolvido) destOk.push(resolvido.id)
+      else avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
     }
 
     for (const f of fechadas) {
@@ -656,14 +662,19 @@ routerAdd(
         recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
       } catch (e2) {}
       for (const uid of recipients || []) {
+        let resolvido = null
         try {
-          app.findRecordById('users', uid)
-          destOk.push(uid)
+          resolvido = app.findRecordById('users', uid)
         } catch (e3) {
-          resumo.avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
+          if (String(uid).indexOf('@') >= 0) {
+            try {
+              resolvido = app.findAuthRecordByEmail('users', String(uid))
+            } catch (e4) {}
+          }
         }
+        if (resolvido) destOk.push(resolvido.id)
+        else avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
       }
-
       for (const f of fechadas) {
         const filtroChave =
           "period_start='" +
@@ -1163,12 +1174,18 @@ routerAdd(
         recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
       } catch (e2) {}
       for (const uid of recipients || []) {
+        let resolvido = null
         try {
-          $app.findRecordById('users', uid)
-          destOk.push(uid)
+          resolvido = app.findRecordById('users', uid)
         } catch (e3) {
-          avisos.push('destinatário ' + uid + ' não existe mais — não recebe a revisão nova')
+          if (String(uid).indexOf('@') >= 0) {
+            try {
+              resolvido = app.findAuthRecordByEmail('users', String(uid))
+            } catch (e4) {}
+          }
         }
+        if (resolvido) destOk.push(resolvido.id)
+        else resumo.avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
       }
     }
 
