@@ -31,8 +31,8 @@ migrate(
       updateRule: null,
       deleteRule: null,
       fields: [
-        { name: 'fixture', type: 'bool', required: true },
-        { name: 'enabled', type: 'bool', required: true },
+        { name: 'fixture', type: 'bool' },
+        { name: 'enabled', type: 'bool' },
         { name: 'timezone', type: 'text', required: true, max: 40 },
         { name: 'periods', type: 'text', required: true, max: 40 },
         { name: 'template_version', type: 'text', required: true, max: 20 },

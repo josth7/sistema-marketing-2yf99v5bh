@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T20:19:31.081Z",
+  "generatedAt": "2026-10-13T13:47:46.111Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -162,14 +167,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "objective_raw",
@@ -210,7 +220,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["conectado", "nao_conectado", "erro_autenticacao", "sem_dados"]
+          "selectValues": [
+            "conectado",
+            "nao_conectado",
+            "erro_autenticacao",
+            "sem_dados"
+          ]
         },
         {
           "name": "aviso",
@@ -229,17 +244,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"
+      ]
     },
     {
       "name": "alert_criteria",
@@ -269,7 +291,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "approved", "archived"]
+          "selectValues": [
+            "draft",
+            "approved",
+            "archived"
+          ]
         },
         {
           "name": "metric",
@@ -324,7 +350,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["monthly", "calendar_half"]
+          "selectValues": [
+            "monthly",
+            "calendar_half"
+          ]
         },
         {
           "name": "comparison_mode",
@@ -370,14 +399,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -450,7 +484,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["open", "in_review", "closed"]
+          "selectValues": [
+            "open",
+            "in_review",
+            "closed"
+          ]
         },
         {
           "name": "revision",
@@ -500,14 +538,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -604,7 +647,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "ready", "delivered", "failed"]
+          "selectValues": [
+            "draft",
+            "ready",
+            "delivered",
+            "failed"
+          ]
         },
         {
           "name": "origem",
@@ -653,19 +701,209 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_unica ON reports (period_start, period_end, scope, template_version, policy_version, report_revision)",
         "CREATE INDEX idx_reports_periodo ON reports (period_start, period_end)"
+      ]
+    },
+    {
+      "name": "report_policy",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "fixture",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "timezone",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "periods",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "template_version",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "policy_version",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "approved_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "approved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recipient_user_ids",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approval_record",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_report_policy_fixture ON report_policy (fixture)"
+      ]
+    },
+    {
+      "name": "inbox_items",
+      "type": "base",
+      "apiRules": {
+        "list": "user_id = @request.auth.id",
+        "view": "user_id = @request.auth.id",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "report_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "scope",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "pending",
+            "delivered",
+            "failed"
+          ]
+        },
+        {
+          "name": "attempts",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_error",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivered_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "read_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_unica ON inbox_items (report_id, user_id)"
       ]
     }
   ]
