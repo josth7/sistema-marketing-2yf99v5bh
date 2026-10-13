@@ -22,6 +22,7 @@ import {
 import { AlertTriangle, FileText, FlaskConical, Scale } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { tickTeste } from '@/lib/marketing/caixa'
 import {
   blocoComparativo,
   destaqueAtrasada,
@@ -105,6 +106,38 @@ function quinzenasFechadas(): Array<{ value: string; label: string }> {
       setRepEnviando(false)
     }
   }
+
+  // ---- job automático com relógio de teste (SPEC-2-004: prova sem esperar o cron) ----
+  const rodarJobAgora = async () => {
+    setTickRodando(true)
+    setTickResultado(null)
+    try {
+      const r = (await tickTeste()) as {
+        tick?: {
+          hojeRef?: string
+          snapshots_criados?: number
+          itens_criados?: number
+          avisos?: string[]
+        }
+      }
+      const t = r.tick || {}
+      setTickResultado(
+        'Job executado (relógio ' +
+          (t.hojeRef ?? 'hoje') +
+          '): ' +
+          (t.snapshots_criados ?? 0) +
+          ' relatório(s) gerado(s), ' +
+          (t.itens_criados ?? 0) +
+          ' entrega(s) na caixa' +
+          (t.avisos && t.avisos.length > 0 ? ' · avisos: ' + t.avisos.join(' | ') : ''),
+      )
+      await carregar()
+    } catch (e) {
+      setTickResultado(lerErro(e).erro)
+    } finally {
+      setTickRodando(false)
+    }
+  }
   const agora = new Date(`${hojeISO}T12:00:00Z`)
   for (let m = 0; m < 6; m++) {
     const base = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - m, 1))
@@ -159,6 +192,8 @@ export default function Relatorios() {
   const [repEnviando, setRepEnviando] = useState(false)
   const [repErro, setRepErro] = useState<string | null>(null)
   const [repResultado, setRepResultado] = useState<string | null>(null)
+  const [tickRodando, setTickRodando] = useState(false)
+  const [tickResultado, setTickResultado] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) {
@@ -271,7 +306,20 @@ export default function Relatorios() {
           Envio automático: <strong>DESATIVADO</strong> — aguarda confirmação do calendário e dos
           destinatários pelo dono. Provas do job automático usam política de teste (fixture).
         </span>
+        <button
+          onClick={() => void rodarJobAgora()}
+          disabled={tickRodando}
+          className="ml-auto shrink-0 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-50 disabled:opacity-60"
+        >
+          {tickRodando ? 'Rodando…' : 'Rodar job agora (teste)'}
+        </button>
       </div>
+
+      {tickResultado && (
+        <p className="rounded-lg border border-border bg-white px-4 py-2 text-sm">
+          {tickResultado}
+        </p>
+      )}
 
       {user && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
