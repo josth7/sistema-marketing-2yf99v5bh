@@ -69,6 +69,42 @@ function lerErro(e: unknown): { erro: string; campos: Record<string, string> } {
 function quinzenasFechadas(): Array<{ value: string; label: string }> {
   const out: Array<{ value: string; label: string }> = []
   const hojeISO = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  // ---- republicação administrativa (SPEC-2-004: motivo + idempotência) ----
+  const abrirRepublicar = (id: string) => {
+    setRepAberto(id)
+    setRepMotivo('')
+    setRepChave('rep-' + id + '-' + Date.now().toString(36))
+    setRepErro(null)
+    setRepResultado(null)
+  }
+
+  const confirmarRepublicar = async () => {
+    if (!repAberto) return
+    setRepEnviando(true)
+    setRepErro(null)
+    setRepResultado(null)
+    try {
+      const r = (await pb.send(`/backend/v1/reports/${repAberto}/republish`, {
+        method: 'POST',
+        body: { revision_reason: repMotivo, idempotency_key: repChave },
+      })) as { id?: string; report_revision?: number; replay?: boolean; aviso?: string }
+      setRepResultado(
+        r.replay
+          ? 'Replay: a MESMA revisão ' +
+              (r.report_revision ?? '') +
+              ' foi devolvida (nada duplicado)'
+          : 'Revisão ' +
+              (r.report_revision ?? '') +
+              ' criada e entregue na caixa dos destinatários atuais',
+      )
+      await carregar()
+    } catch (e) {
+      setRepErro(lerErro(e).erro)
+    } finally {
+      setRepEnviando(false)
+    }
+  }
   const agora = new Date(`${hojeISO}T12:00:00Z`)
   for (let m = 0; m < 6; m++) {
     const base = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - m, 1))
@@ -117,6 +153,12 @@ export default function Relatorios() {
   const [errosCampo, setErrosCampo] = useState<Record<string, string>>({})
   const [detalhe, setDetalhe] = useState<RelatorioDetalhe | null>(null)
   const [aberto, setAberto] = useState<string | null>(null)
+  const [repAberto, setRepAberto] = useState<string | null>(null)
+  const [repMotivo, setRepMotivo] = useState('')
+  const [repChave, setRepChave] = useState('')
+  const [repEnviando, setRepEnviando] = useState(false)
+  const [repErro, setRepErro] = useState<string | null>(null)
+  const [repResultado, setRepResultado] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) {
@@ -221,6 +263,14 @@ export default function Relatorios() {
           Resumo factual da quinzena fechada — sem IA; comparação só quando as janelas são
           comparáveis; nada é enviado nesta fase (envio automático é o próximo card).
         </p>
+      </div>
+
+      <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          Envio automático: <strong>DESATIVADO</strong> — aguarda confirmação do calendário e dos
+          destinatários pelo dono. Provas do job automático usam política de teste (fixture).
+        </span>
       </div>
 
       {user && (
@@ -377,14 +427,19 @@ export default function Relatorios() {
                       {parseJson<string[]>(it.warnings, []).join(' ')}
                     </p>
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => abrir(it.id)}
-                    disabled={aberto === it.id}
-                  >
-                    {aberto === it.id ? 'Abrindo…' : 'Ver prévia'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => abrir(it.id)}
+                      disabled={aberto === it.id}
+                    >
+                      {aberto === it.id ? 'Abrindo…' : 'Ver prévia'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => abrirRepublicar(it.id)}>
+                      Republicar com motivo
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -558,6 +613,50 @@ function TemplateRelatorio(props: {
           </div>
         )}
       </div>
+
+      {repAberto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Republicar relatório"
+          onClick={() => setRepAberto(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold">Republicar relatório</h2>
+            <p className="mt-1 text-sm text-[#6B7280]">
+              Cria uma revisão nova com os dados atuais e entrega na caixa dos destinatários atuais.
+              O snapshot anterior continua intacto. Repetir a MESMA abertura de diálogo devolve a
+              MESMA revisão (nada duplicado).
+            </p>
+            <div className="mt-3 space-y-2">
+              <Label htmlFor="rep-motivo">Motivo da republicação (obrigatório)</Label>
+              <Input
+                id="rep-motivo"
+                value={repMotivo}
+                onChange={(e) => setRepMotivo(e.target.value)}
+                placeholder="Ex.: carga do Google completou a cobertura da quinzena"
+              />
+              {repErro && <p className="text-sm text-destructive">{repErro}</p>}
+              {repResultado && <p className="text-sm text-emerald-700">{repResultado}</p>}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRepAberto(null)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => void confirmarRepublicar()}
+                disabled={repEnviando || !repMotivo.trim()}
+              >
+                {repEnviando ? 'Republicando…' : 'Republicar'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

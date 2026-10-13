@@ -218,7 +218,7 @@ routerAdd(
     const colM = $app.findCollectionByNameOrId('metricas_diarias')
     const registrosM = $app.findRecordsByFilter(
       colM,
-      "data >= '" + inicio + "' && data <= '" + fim + "'",
+      "data >= '" + inicio + "' && data <= '" + fim + "' && origem='api'",
       '-data',
       2000,
       0,
@@ -482,7 +482,7 @@ routerAdd(
     if (anteriorInicio && anteriorFim && linhas.length > 0) {
       const registrosAnt = $app.findRecordsByFilter(
         colM,
-        "data >= '" + anteriorInicio + "' && data <= '" + anteriorFim + "'",
+        "data >= '" + anteriorInicio + "' && data <= '" + anteriorFim + "' && origem='api'",
         '-data',
         2000,
         0,

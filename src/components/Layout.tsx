@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { Rocket, BarChart3, ListPlus, Scale, FileText } from 'lucide-react'
+import { Rocket, BarChart3, ListPlus, Scale, FileText, Inbox } from 'lucide-react'
 
 export default function Layout() {
   const currentYear = new Date().getFullYear()
@@ -44,6 +44,13 @@ export default function Layout() {
           >
             <FileText className="h-4 w-4" />
             Relatórios
+          </a>
+          <a
+            href="/caixa"
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          >
+            <Inbox className="h-4 w-4" />
+            Caixa
           </a>
           <div className="ml-2 text-xs font-medium text-[#6B7280] bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
             v1.0.0

@@ -1,19 +1,22 @@
 # Estado atual — Adapta Cliente
 
 - schema_version: adapta-cliente-state/v2
-- task_id: 3b491438-f380-452f-baba-d4e64aa52fca
+- task_id: a70d5ab8-adbf-4259-9bb4-14d9d04a9273
 - champion: José (Josth) — dono do repo josth7
 - executor: Mikael
 - owner_informativo: nenhuma
-- spec: 04_fase-atual/specs/spec-004.md (SPEC-2-004)
-- analise: .adapta-cliente/analises/3b491438-relatorio-executivo.md (entregue 09/10 ~17:15 BRT)
-- etapa: concluida
-- autorizacao_implementacao: confirmada 09/10 17:13 — "Pode implementar" (Josth)
-- teste_humano: APROVADO — "Testei e funcionou — pode concluir o card" (Josth, 13/10 08:32)
-- verificacao_automatica: passou — QA Skip 100% (v0.0.66–70); schema de reports conferido (22 campos, UNIQUE, RLS); provas ao vivo: 401 · 422 janela inválida · 422 quinzena em curso · 200 generate 16–30/09 com aviso de cobertura parcial · 409 duplicata · 200 generate sem dados (aviso factual, ausência ≠ zero) · GET lista/detalhe · draft substituível sem duplicar (4→4) · tela provada no navegador; versão no ar = testada (v0.0.70, ref 96a4d3e)
-- aprendizado: capturado — (1) campos json do PB chegam JÁ parseados no SDK (typeof string falha); (2) componente extraído precisa calcular seu próprio estado local — ReferenceError derruba o React (tela branca); (3) agrupamento usa objetivo CANÔNICO (espelhar MAPA_OBJETIVO do ingestao.ts, preservando raw); (4) draft pode ser substituído pelo gerador sem duplicar (state!=draft → 409); registrado em 06_notas/aprendizado-continuo/controle.md
-- task_anterior: edd618c7 (decisões com revisão obrigatória) — concluída 09/10 17:00 (v0.0.65, ref 1d4b0be)
-- conclusao: fase.md marcada [x] com done:2026-10-13; STATUS 5/12 = 42%; changelog com bloco de conclusão; evidências em 05_entregas/spec-2-004/testes.md; envio ao GitHub concluído
-- ultima_acao: fechamento concluído — registros no GitHub (commits 7a572a0a fase/STATUS/estado/aprendizado · 4636327d changelog · 088247d9 plataforma+evidência com aceite); produção v0.0.72 (ref faed38f, publicada 2026-10-13T11:45:07Z)
-- proxima_acao: nenhuma task aberta por este fechamento — próxima da esteira exige novo pedido do Josth (elegíveis: f9a2a3eb perfis, b1200b57 workshop !22/10; a70d5ab8 depende da política do dono; f7591165 depende do workshop)
-- atualizado_em: 2026-10-13T08:50:00-03:00
+- spec: 04_fase-atual/specs/spec-004.md (SPEC-2-004, CA-2-11)
+- analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md (entregue 13/10 ~10:40 BRT)
+- etapa: implementando
+- autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
+- teste_humano: pendente
+- verificacao_automatica: pendente
+- aprendizado: pendente
+- sistema: sistema-marketing
+- skip_projeto: 61465
+- skip_versao: 128333e (v0.0.73)
+- skip_publicacao: publicada:128333e em 2026-10-13T11:47:13Z
+- pendente_github: nao
+- ultima_acao: análise do card a70d5ab8 concluída e persistida (estado + relatório de análise)
+- proxima_acao: aguardar autorização para implementar
+- atualizado_em: 2026-10-13T10:40:00-03:00
