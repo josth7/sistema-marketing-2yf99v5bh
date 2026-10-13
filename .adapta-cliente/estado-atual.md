@@ -9,17 +9,18 @@
 - analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md
 - etapa: aguardando_teste_humano
 - autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: reprovado 2× (13/10) — 4 defeitos reportados e TODOS corrigidos com causa raiz provada:
+- teste_humano: reprovado 2× (13/10) — 5 defeitos reportados/achados e TODOS corrigidos com causa raiz provada:
   - (1) página /relatorios em BRANCO → diálogo no componente errado (patch casou no 1º match) → CORRIGIDO v0.0.80
   - (2) job entrega 0 na caixa → recipients com IDs mortos (divergem entre builds) → CORRIGIDO v0.0.86: automedicação por E-MAIL na política fixture
-  - (3) "Marcar como lida" não gravava → CAUSA RAIZ PROVADA: DateTime zerado do PocketBase chega como STRING VAZIA truthy → o ramo "já lida" entrava na 1ª chamada sem gravar → CORRIGIDO v0.0.92 (comparação como string) → PROVA: PATCH gravou read_at, 2ª chamada idempotente (ja_lida:true, mesma data)
-  - (3b) republicação dava 400 → 2 causas: campo idempotency_key inexistente na produção (self-heal v0.0.93) + uuidV4 não definido inline no callback (v0.0.94) → PROVA: rev 2 criada, entregue na caixa, replay devolveu a MESMA rev; rev 3 com chave nova; 422 sem motivo
-  - (4) caixa "Nenhum relatório recebido ainda" SEM LOGIN → a página não tinha formulário de login e o erro de auth ficava invisível; a caixa é POR USUÁRIO (RLS) e os itens estavam na conta fixture, não na do dono → CORRIGIDO v0.0.96: login na própria página (padrão /criterios) + "Sair" + quem vê é sempre o logado → PROVA no navegador: login fixture → 6 itens (revs 3,2,1,1,1,1), 1º "Lido"
-- provas ao vivo (17:03–17:13, backend + navegador): login 200 · marcar lida 200 (read_at gravado) · idempotência 200 · republish 200 rev2 · replay 200 mesma rev · rev3 200 · 422 sem motivo · caixa 6 itens · página /caixa sem sessão = formulário de login
-- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.96); TDD local 13 provas
+  - (3) "Marcar como lida" não gravava → CAUSA RAIZ: DateTime zerado do PocketBase chega como STRING VAZIA truthy → ramo "já lida" na 1ª chamada sem gravar → CORRIGIDO v0.0.92 → PROVA: read_at gravado + idempotência (ja_lida:true, mesma data)
+  - (3b) republicação 400 → campo idempotency_key inexistente na produção (self-heal v0.0.93) + uuidV4 não inline no callback (v0.0.94) → PROVA: rev2/replay/rev3/422
+  - (4) caixa "Nenhum relatório recebido ainda" SEM LOGIN → página sem formulário + erro de auth invisível; caixa é POR USUÁRIO (RLS) → CORRIGIDO v0.0.96: login na própria página → PROVA navegador: 6 itens
+  - (5) "Ver prévia" = tela branca (print do Josth 14:44) → CAUSA RAIZ PROVADA no console: TypeError n.map — resumoFactual chamada com args TROCADOS (snap, cob, janela) vs assinatura (inicio, fim, cobertura, warnings) → cobertura recebia NÚMERO → number.map explode; + SDK PB v0.26 já devolve json como OBJETO e parseJson fazia JSON.parse de novo (degradava tudo p/ fixture) → CORRIGIDO v0.0.98 (tituloPeriodo no template + parseJson aceita objeto ou string) → PROVA navegador: prévia abre COMPLETA (resumo, cobertura, PAGO por objetivo com dados reais, decisões, alertas), 0 erros
+- provas ao vivo (17:03–18:20, backend + navegador): login 200 · marcar lida 200 · idempotência 200 · republish rev2/replay/rev3 · 422 · caixa 6 itens · prévia completa sem erro de console
+- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.98); TDD local 13 provas
 - skip_projeto: 61465
-- skip_versao: v0.0.96 (1dffba7), publicada 2026-10-13T17:13:33Z
-- pendente_github: sim (estado + provas + changelog do fechamento)
-- ultima_acao: 4 causas raiz corrigidas e provadas; aguardando o teste humano do Josth
-- proxima_acao: Josth testa (caixa: ENTRAR com o e-mail/senha dele → itens visíveis → marcar lida; relatorios: republicar com motivo + replay); aprovado → concluir-task (fase.md/STATUS/changelog/aprendizado) + sync GitHub
-- atualizado_em: 2026-10-13T14:15:00-03:00
+- skip_versao: v0.0.98 (30e8cef), publicada 2026-10-13T18:20:07Z
+- pendente_github: nao (estado sincronizado neste commit)
+- ultima_acao: 5 causas raiz corrigidas e provadas; aguardando o teste humano do Josth
+- proxima_acao: Josth testa (Ctrl+F5: /relatorios → Ver prévia abre; /caixa → entra → itens → marcar lida; Republicar com motivo + replay); aprovado → concluir-task (fase.md/STATUS/changelog/aprendizado)
+- atualizado_em: 2026-10-13T15:25:00-03:00
