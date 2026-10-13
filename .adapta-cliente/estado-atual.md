@@ -9,14 +9,14 @@
 - analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md
 - etapa: em_correcao
 - autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: FALHOU parcialmente — (1) página /relatorios em BRANCO ao clicar "Relatório" → CAUSA RAIZ provada: o diálogo de republicação foi inserido dentro do componente TemplateRelatorio (patch casou no local errado) → corrigido v0.0.80, página renderiza; (2) job gera relatórios (4 quinzenas fixture) mas entrega "0 na caixa" — recipients da política fixture são IDs MORTOS no banco de produção (IDs de usuário divergem entre builds); correção por E-MAIL está no código (v0.0.83/84) mas o banco de produção parece manter a política antiga — investigar onde as migrações de dados aplicam (preview × produção)
-- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.84); migrações 0017–0023 aplicadas no ciclo de build
-- aprendizado: pendente (capturar ao fechar: patch multi-blocos casa no PRIMEIRO match — validar âncora única; IDs de usuário não são chave estável entre builds — usar e-mail; findAuthRecordByEmail incerto no JSVM → filtro por email)
-- sistema: sistema-marketing
+- teste_humano: FALHOU parcialmente (13/10) — 2 defeitos reportados:
+  - (1) página /relatorios em BRANCO ao clicar "Relatório" → CAUSA RAIZ provada: diálogo de republicação inserido dentro do componente TemplateRelatorio (patch multi-blocos casou no 1º match) → CORRIGIDO v0.0.80, página renderiza (prova: login+lista 4 relatórios no navegador)
+  - (2) job entrega 0 na caixa → CAUSA RAIZ provada: recipients da política fixture = IDs de usuário MORTOS (divergem entre builds; migrações de DADOS não chegam no banco de produção) → CORRIGIDO v0.0.86: job automedica (política fixture resolve o aprovador POR E-MAIL na hora) → prova: job 2× = 4 relatórios + 4 entregas na caixa, item visível em /caixa
+  - (3) "Marcar como lida" não persiste → PATCH /inbox/{id}/read responde 200 (logs) mas o item continua "Não lido"; causa provável: campo read_at não existe no banco de produção (migrações de SCHEMA também não chegam lá) → 3 correções em camadas aplicadas (0024 campo DateField; v0.0.88 self-heal no hook; v0.0.89 marcador status='read' + attempts+=1000 — ambos campos que EXISTEM) → último re-teste ainda "Não lido" (possível cache do bundle pós-publish; re-testar com Ctrl+F5 antes de nova rodada)
+- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.89); TDD local 13 provas
 - skip_projeto: 61465
-- skip_versao: 3137913 (v0.0.84)
-- skip_publicacao: publicada:3137913 em 2026-10-13T15:17:34Z
-- pendente_github: nao
-- ultima_acao: correção da página branca publicada (v0.0.80) + correção de entrega (v0.0.84); tick ainda entrega 0 (recipients mortos no banco de produção)
-- proxima_acao: debug da entrega — conferir recipients da política fixture NO BANCO DE PRODUÇÃO e onde as migrações 0021/0023 aplicam de fato (preview × produção); política fixture pode precisar de recipients corrigidos via rota autenticada (não migração)
-- atualizado_em: 2026-10-13T12:20:00-03:00
+- skip_versao: v0.0.89 (b964123), publicada 2026-10-13T16:51:18Z
+- pendente_github: nao (estado sincronizado ee265910 → novo push neste fechamento)
+- ultima_acao: 3 camadas de correção do "marcar como lida" publicadas (v0.0.87–89); re-teste imediato ainda "Não lido"
+- proxima_acao: re-testar "Marcar como lida" com Ctrl+F5 (cache do bundle); se persistir, debugar save() do inbox_items (validação oculta?) e provar persistência via GET após PATCH com logs; depois republicação com motivo + prova de replay; fechamento do card (fase.md/STATUS/changelog) exige teste humano do Josth
+- atualizado_em: 2026-10-13T13:05:00-03:00
