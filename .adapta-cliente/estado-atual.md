@@ -7,16 +7,16 @@
 - owner_informativo: nenhuma
 - spec: 04_fase-atual/specs/spec-004.md (SPEC-2-004, CA-2-11)
 - analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md (entregue 13/10 ~10:40 BRT)
-- etapa: implementando
+- etapa: aguardando_teste_humano
 - autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: pendente
-- verificacao_automatica: pendente
+- teste_humano: pendente — Josth executa o roteiro (login fixture → Rodar job 2× → Caixa → marcar lida → republicar 2×) em /relatorios e /caixa na PRODUÇÃO
+- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.77; 2 ciclos de correção de migração: existência por try/catch padrão 0016 + bool required rejeita false); migrações 0017/0018/0019 aplicadas; provas de comportamento ao vivo via API NÃO executadas (eval do navegador falhou 3× e script direto bloqueado pela CDN) — cobertas pelo roteiro de teste humano que executa o job pelo botão (mesma rota do cron)
 - aprendizado: pendente
 - sistema: sistema-marketing
 - skip_projeto: 61465
-- skip_versao: 128333e (v0.0.73)
-- skip_publicacao: publicada:128333e em 2026-10-13T11:47:13Z
+- skip_versao: e928332 (v0.0.77)
+- skip_publicacao: publicada:e928332 em 2026-10-13T13:51:08Z
 - pendente_github: nao
-- ultima_acao: análise do card a70d5ab8 concluída e persistida (estado + relatório de análise)
-- proxima_acao: aguardar autorização para implementar
-- atualizado_em: 2026-10-13T10:40:00-03:00
+- ultima_acao: implementação concluída até o portão (v0.0.77 publicada); registros gravados
+- proxima_acao: teste humano do Josth (/relatorios + /caixa na produção)
+- atualizado_em: 2026-10-13T10:55:00-03:00
