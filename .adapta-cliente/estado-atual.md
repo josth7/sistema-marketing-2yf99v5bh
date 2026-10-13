@@ -6,17 +6,17 @@
 - executor: Mikael
 - owner_informativo: nenhuma
 - spec: 04_fase-atual/specs/spec-004.md (SPEC-2-004, CA-2-11)
-- analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md (entregue 13/10 ~10:40 BRT)
-- etapa: aguardando_teste_humano
+- analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md
+- etapa: em_correcao
 - autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: pendente — Josth executa o roteiro (login fixture → Rodar job 2× → Caixa → marcar lida → republicar 2×) em /relatorios e /caixa na PRODUÇÃO
-- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.77; 2 ciclos de correção de migração: existência por try/catch padrão 0016 + bool required rejeita false); migrações 0017/0018/0019 aplicadas; provas de comportamento ao vivo via API NÃO executadas (eval do navegador falhou 3× e script direto bloqueado pela CDN) — cobertas pelo roteiro de teste humano que executa o job pelo botão (mesma rota do cron)
-- aprendizado: pendente
+- teste_humano: FALHOU parcialmente — (1) página /relatorios em BRANCO ao clicar "Relatório" → CAUSA RAIZ provada: o diálogo de republicação foi inserido dentro do componente TemplateRelatorio (patch casou no local errado) → corrigido v0.0.80, página renderiza; (2) job gera relatórios (4 quinzenas fixture) mas entrega "0 na caixa" — recipients da política fixture são IDs MORTOS no banco de produção (IDs de usuário divergem entre builds); correção por E-MAIL está no código (v0.0.83/84) mas o banco de produção parece manter a política antiga — investigar onde as migrações de dados aplicam (preview × produção)
+- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.84); migrações 0017–0023 aplicadas no ciclo de build
+- aprendizado: pendente (capturar ao fechar: patch multi-blocos casa no PRIMEIRO match — validar âncora única; IDs de usuário não são chave estável entre builds — usar e-mail; findAuthRecordByEmail incerto no JSVM → filtro por email)
 - sistema: sistema-marketing
 - skip_projeto: 61465
-- skip_versao: e928332 (v0.0.77)
-- skip_publicacao: publicada:e928332 em 2026-10-13T13:51:08Z
+- skip_versao: 3137913 (v0.0.84)
+- skip_publicacao: publicada:3137913 em 2026-10-13T15:17:34Z
 - pendente_github: nao
-- ultima_acao: implementação concluída até o portão (v0.0.77 publicada); registros gravados
-- proxima_acao: teste humano do Josth (/relatorios + /caixa na produção)
-- atualizado_em: 2026-10-13T10:55:00-03:00
+- ultima_acao: correção da página branca publicada (v0.0.80) + correção de entrega (v0.0.84); tick ainda entrega 0 (recipients mortos no banco de produção)
+- proxima_acao: debug da entrega — conferir recipients da política fixture NO BANCO DE PRODUÇÃO e onde as migrações 0021/0023 aplicam de fato (preview × produção); política fixture pode precisar de recipients corrigidos via rota autenticada (não migração)
+- atualizado_em: 2026-10-13T12:20:00-03:00
