@@ -46,7 +46,10 @@ routerAdd(
         const ra = it.get('read_at')
         if (ra) readAt = ra
       } catch (e5) {}
-      if (!readAt && Number(it.get('attempts') || 0) >= 1000) {
+      if (
+        !readAt &&
+        (String(it.get('status') || '') === 'read' || Number(it.get('attempts') || 0) >= 1000)
+      ) {
         readAt = String(it.get('updated') || '')
       }
       lista.push({
@@ -86,7 +89,11 @@ routerAdd(
     try {
       readAtual = it.get('read_at')
     } catch (e5) {}
-    if (readAtual || Number(it.get('attempts') || 0) >= 1000) {
+    if (
+      readAtual ||
+      String(it.get('status') || '') === 'read' ||
+      Number(it.get('attempts') || 0) >= 1000
+    ) {
       return e.json(200, {
         ok: true,
         id: it.id,
@@ -113,6 +120,12 @@ routerAdd(
     } catch (e6) {}
     it.set('attempts', Number(it.get('attempts') || 0) + 1000)
     $app.save(it)
+    // marcador 'read' no campo status (EXISTE no banco de produção — persiste
+    // mesmo sem migração de schema; melhor-esforço: select pode rejeitar)
+    try {
+      it.set('status', 'read')
+      $app.save(it)
+    } catch (e12) {}
     var readNovo = null
     try {
       readNovo = it.get('read_at')
