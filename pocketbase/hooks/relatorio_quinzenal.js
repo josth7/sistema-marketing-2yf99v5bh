@@ -1128,6 +1128,16 @@ routerAdd(
     const motivo = String(body.revision_reason || '').trim()
     const chave = String(body.idempotency_key || '').trim()
 
+    // JSVM: helpers de topo NÃO são visíveis nos callbacks (lição 02/10) —
+    // uuidV4 definido INLINE (prova 13/10: ReferenceError uuidV4 is not defined)
+    function uuidV4() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0
+        const v = c === 'x' ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+    }
+
     function numOuNull(v) {
       const n = Number(v)
       return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : n
