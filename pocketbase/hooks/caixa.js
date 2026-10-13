@@ -39,6 +39,16 @@ routerAdd(
       } catch (e2) {
         rel = null
       }
+      // read_at pode não existir no banco de produção (migrações de schema não
+      // chegam lá — prova 13/10): sintetiza a partir do marcador attempts>=1000
+      let readAt = null
+      try {
+        const ra = it.get('read_at')
+        if (ra) readAt = ra
+      } catch (e5) {}
+      if (!readAt && Number(it.get('attempts') || 0) >= 1000) {
+        readAt = String(it.get('updated') || '')
+      }
       lista.push({
         id: it.id,
         report_id: it.get('report_id'),
@@ -47,7 +57,7 @@ routerAdd(
         status: it.get('status'),
         attempts: it.get('attempts'),
         delivered_at: it.get('delivered_at'),
-        read_at: it.get('read_at'),
+        read_at: readAt,
         created: it.get('created'),
       })
     }
@@ -72,12 +82,47 @@ routerAdd(
       return e.json(403, { ok: false, erro: 'só o destinatário pode marcar este item como lido' })
     }
     // idempotente: já lida responde 200 sem mudar read_at
-    if (it.get('read_at')) {
-      return e.json(200, { ok: true, id: it.id, read_at: it.get('read_at'), ja_lida: true })
+    var readAtual = null
+    try {
+      readAtual = it.get('read_at')
+    } catch (e5) {}
+    if (readAtual || Number(it.get('attempts') || 0) >= 1000) {
+      return e.json(200, {
+        ok: true,
+        id: it.id,
+        read_at: readAtual || String(it.get('updated') || ''),
+        ja_lida: true,
+      })
     }
-    it.set('read_at', new Date().toISOString())
+    // self-heal: o campo read_at pode NÃO existir no banco de produção (prova
+    // 13/10: PATCH 200 sem persistir). Adiciona o campo na hora; o marcador
+    // attempts+=1000 garante o estado mesmo se o campo não puder ser criado.
+    try {
+      const colI2 = $app.findCollectionByNameOrId('inbox_items')
+      let temCampo = false
+      try {
+        temCampo = !!colI2.fields.getByName('read_at')
+      } catch (e8) {}
+      if (!temCampo) {
+        colI2.fields.add(new DateField({ name: 'read_at' }))
+        $app.save(colI2)
+      }
+    } catch (e9) {}
+    try {
+      it.set('read_at', new Date().toISOString())
+    } catch (e6) {}
+    it.set('attempts', Number(it.get('attempts') || 0) + 1000)
     $app.save(it)
-    return e.json(200, { ok: true, id: it.id, read_at: it.get('read_at'), ja_lida: false })
+    var readNovo = null
+    try {
+      readNovo = it.get('read_at')
+    } catch (e7) {}
+    return e.json(200, {
+      ok: true,
+      id: it.id,
+      read_at: readNovo || String(it.get('updated') || ''),
+      ja_lida: false,
+    })
   },
   $apis.requireAuth(),
 )
