@@ -1,5 +1,13 @@
 # Aprendizado contínuo — controle
 
+## AP-2026-10-13-0840 — Relatório executivo (card 3b491438): 3 sinais reutilizáveis
+
+- **Sinal reutilizável**: SIM
+- (1) **Campos json do PocketBase chegam JÁ parseados no SDK** — `typeof v === 'string'` falha; usar `typeof v==='string'?JSON.parse(v):v` (visto no detalhe do reports).
+- (2) **Componente extraído precisa calcular seu próprio estado local** — TemplateRelatorio usava `hojeISO` do componente pai (fora de escopo) → ReferenceError derrubou o React INTEIRO (tela branca em produção). Componente extraído = estado próprio; testar a página renderizada, não só o build (QA 100% não pega ReferenceError de runtime).
+- (3) **Agrupamento usa objetivo CANÔNICO** — hook novo que lê metricas_diarias deve ESPELHAR o MAPA_OBJETIVO de src/lib/marketing/ingestao.ts (raw→canônico preservando raw); objetivo raw direto quebra o agrupamento do relatório (OUTCOME_AWARENESS ≠ alcance).
+- **Bônus**: draft do MESMO período pode ser substituído pelo gerador sem duplicar (delete+save do próprio sistema); state!=draft exige republicação administrativa (409).
+
 ## AP-2026-10-09-1700 — ClientResponseError do SDK v0.26: corpo em e.response, não e.response.data
 
 - **Card**: edd618c7 (decisões) — 2ª rodada de debug, 09/10
