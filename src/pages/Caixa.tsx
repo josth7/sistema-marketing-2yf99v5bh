@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Inbox, FileText, Check, RefreshCw, AlertCircle, Inbox as InboxIcon } from 'lucide-react'
+import {
+  Inbox,
+  FileText,
+  Check,
+  RefreshCw,
+  AlertCircle,
+  Inbox as InboxIcon,
+  LogIn,
+} from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { listarCaixa, marcarLida, type ItemCaixa } from '@/lib/marketing/caixa'
 
@@ -8,6 +16,10 @@ import { listarCaixa, marcarLida, type ItemCaixa } from '@/lib/marketing/caixa'
  * Lista dos MEUS relatórios entregues; "Ver relatório" abre o snapshot (mesma
  * prévia de /relatorios); "Marcar como lida" idempotente; estados carregando/
  * vazio/erro; celular em cards.
+ *
+ * PROVA 13/10: sem sessão a página mostrava "Nenhum relatório recebido ainda"
+ * (o erro de auth ficava invisível) — agora exige LOGIN na própria página,
+ * igual ao padrão de /criterios; a caixa é POR USUÁRIO (RLS user_id).
  */
 
 function dataBR(iso: string | null): string {
@@ -40,13 +52,19 @@ function rotuloQuinzena(item: ItemCaixa): string {
 }
 
 export default function Caixa() {
+  const [user, setUser] = useState(pb.authStore.isValid ? pb.authStore.record : null)
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erroAuth, setErroAuth] = useState('')
+  const [entrando, setEntrando] = useState(false)
   const [itens, setItens] = useState<ItemCaixa[]>([])
-  const [carregando, setCarregando] = useState(true)
+  const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
   const [aberto, setAberto] = useState<{ id: string; dados: Record<string, unknown> } | null>(null)
   const [marcando, setMarcando] = useState('')
 
   const carregar = useCallback(async () => {
+    if (!pb.authStore.isValid) return
     setCarregando(true)
     setErro('')
     try {
@@ -60,8 +78,33 @@ export default function Caixa() {
   }, [])
 
   useEffect(() => {
-    void carregar()
-  }, [carregar])
+    if (user) void carregar()
+  }, [user, carregar])
+
+  const entrar = async () => {
+    setEntrando(true)
+    setErroAuth('')
+    try {
+      await pb.collection('users').authWithPassword(email.trim(), senha)
+      setUser(pb.authStore.isValid ? pb.authStore.record : null)
+      setErro('')
+      setItens([])
+      await carregar()
+    } catch {
+      setErroAuth(
+        'Login inválido — confira e-mail e senha (conta de teste: criterios.fixture.aprovador@haisan.com.br, senha Fixture@2026)',
+      )
+    } finally {
+      setEntrando(false)
+    }
+  }
+
+  const sair = () => {
+    pb.authStore.clear()
+    setUser(null)
+    setItens([])
+    setErro('')
+  }
 
   async function abrirRelatorio(item: ItemCaixa) {
     try {
@@ -85,6 +128,63 @@ export default function Caixa() {
     }
   }
 
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-10">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-[#F1EBFE] flex items-center justify-center">
+            <Inbox className="h-5 w-5 text-[#6C3EF5]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Caixa de entrada</h1>
+            <p className="text-sm text-muted-foreground">
+              Relatórios executivos entregues para você
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <LogIn className="h-4 w-4 text-[#6C3EF5]" />
+            <p className="font-medium">Entrar para ver sua caixa</p>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            A caixa é individual — cada usuário vê só os relatórios entregues para ele.
+          </p>
+          <div className="space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(ev) => setEmail(ev.target.value)}
+              placeholder="seu email @haisan.com.br"
+              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-[#6C3EF5]"
+            />
+            <input
+              type="password"
+              value={senha}
+              onChange={(ev) => setSenha(ev.target.value)}
+              placeholder="senha"
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter') void entrar()
+              }}
+              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-[#6C3EF5]"
+            />
+            {erroAuth && <p className="text-xs text-red-600">{erroAuth}</p>}
+            <button
+              onClick={() => void entrar()}
+              disabled={entrando || !email || !senha}
+              className="w-full rounded-md bg-[#6C3EF5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5b32d4] disabled:opacity-60"
+            >
+              {entrando ? 'Entrando…' : 'Entrar'}
+            </button>
+            <p className="text-xs text-muted-foreground">
+              Precisa de uma conta? Fale com o administrador do sistema.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex items-center gap-3">
@@ -103,7 +203,19 @@ export default function Caixa() {
           <RefreshCw className="h-4 w-4" />
           Recarregar
         </button>
+        <button
+          onClick={sair}
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
+        >
+          Sair
+        </button>
       </div>
+
+      {user && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+          Logado como <strong>{String(user.email ?? '')}</strong>
+        </div>
+      )}
 
       {erro && (
         <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
