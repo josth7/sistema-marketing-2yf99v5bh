@@ -9,51 +9,57 @@
  *   (job/retry/republicação — nunca pelo cliente).
  *
  * NOTA (AP-2026-10-08-1410): new Collection aceita SOMENTE plain objects em fields.
+ * Padrão de existência (0016): try/catch em findCollectionByNameOrId — quando NÃO
+ * existe, o método LANÇA "no rows in result set" (não devolve null).
  */
 migrate(
   (app) => {
-    if (!app.findCollectionByNameOrId('inbox_items')) {
-      var col = new Collection({
-        name: 'inbox_items',
-        type: 'base',
-        listRule: 'user_id = @request.auth.id',
-        viewRule: 'user_id = @request.auth.id',
-        createRule: null,
-        updateRule: null,
-        deleteRule: null,
-        fields: [
-          { name: 'report_id', type: 'text', required: true, max: 30 },
-          {
-            name: 'user_id',
-            type: 'relation',
-            collectionId: '_pb_users_auth_',
-            maxSelect: 1,
-            required: true,
-          },
-          { name: 'scope', type: 'text', max: 60 },
-          {
-            name: 'status',
-            type: 'select',
-            required: true,
-            maxSelect: 1,
-            values: ['pending', 'delivered', 'failed'],
-          },
-          { name: 'attempts', type: 'number', onlyInt: true, min: 0 },
-          { name: 'last_error', type: 'text', max: 500 },
-          { name: 'delivered_at', type: 'date' },
-          { name: 'read_at', type: 'date' },
-          { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
-          { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
-        ],
-        indexes: [
-          'CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_unica ON inbox_items (report_id, user_id)',
-        ],
-      })
-      app.save(col)
-      console.log('migração 0018 aplicada: inbox_items (RLS por destinatário)')
-    } else {
+    try {
+      app.findCollectionByNameOrId('inbox_items')
       console.log('migração 0018: inbox_items já existe — nada a fazer')
+      return
+    } catch (_) {
+      // não existe — criar
     }
+
+    var col = new Collection({
+      name: 'inbox_items',
+      type: 'base',
+      listRule: 'user_id = @request.auth.id',
+      viewRule: 'user_id = @request.auth.id',
+      createRule: null,
+      updateRule: null,
+      deleteRule: null,
+      fields: [
+        { name: 'report_id', type: 'text', required: true, max: 30 },
+        {
+          name: 'user_id',
+          type: 'relation',
+          collectionId: '_pb_users_auth_',
+          maxSelect: 1,
+          required: true,
+        },
+        { name: 'scope', type: 'text', max: 60 },
+        {
+          name: 'status',
+          type: 'select',
+          required: true,
+          maxSelect: 1,
+          values: ['pending', 'delivered', 'failed'],
+        },
+        { name: 'attempts', type: 'number', onlyInt: true, min: 0 },
+        { name: 'last_error', type: 'text', max: 500 },
+        { name: 'delivered_at', type: 'date' },
+        { name: 'read_at', type: 'date' },
+        { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+        { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
+      ],
+      indexes: [
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_unica ON inbox_items (report_id, user_id)',
+      ],
+    })
+    app.save(col)
+    console.log('migração 0018 aplicada: inbox_items (RLS por destinatário)')
   },
   (app) => {
     try {

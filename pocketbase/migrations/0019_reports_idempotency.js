@@ -4,8 +4,11 @@
  *
  * idempotency_key: replay da MESMA solicitação administrativa devolve a MESMA revisão
  * (não cria uma 3ª). Chaves diferentes → revisões distintas auditadas (SPEC).
+ * A deduplicação é aplicada pela ROTA (consulta por chave antes de criar) — o índice
+ * SQL cru foi dispensado de propósito: app.db() cru é API instável no JSVM e a rota
+ * já cobre o caso de replay (chamadas repetidas depois da primeira conclusão).
  *
- * ADITIVA: campo novo + índice; nenhum campo existente muda; down remove só o novo.
+ * ADITIVA: campo novo; nenhum campo existente muda; down remove só o campo.
  */
 migrate(
   (app) => {
@@ -19,15 +22,7 @@ migrate(
       col.fields.add(new TextField({ name: 'idempotency_key', max: 64 }))
       app.save(col)
     }
-    try {
-      app
-        .db()
-        .newQuery('CREATE INDEX IF NOT EXISTS idx_reports_idemp ON reports (idempotency_key)')
-        .execute()
-    } catch (e) {
-      console.log('migração 0019: índice já existe ou falhou: ' + String(e).slice(0, 120))
-    }
-    console.log('migração 0019 aplicada: reports.idempotency_key (aditiva)')
+    console.log('migração 0019 aplicada: reports.idempotency_key (aditiva, dedupe na rota)')
   },
   (app) => {
     try {
