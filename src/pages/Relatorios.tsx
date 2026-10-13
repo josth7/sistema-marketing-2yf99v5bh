@@ -456,6 +456,7 @@ export default function Relatorios() {
                 <TemplateRelatorio
                   titulo={rotuloQuinzena(detalhe.period_start, detalhe.period_end)}
                   geradoEm={String(detalhe.generated_at ?? '').slice(0, 10)}
+                  tituloPeriodo={{ inicio: detalhe.period_start, fim: detalhe.period_end }}
                   cobertura={
                     parseJson<CoberturaCanalItem[]>(detalhe.coverage_by_source, null)?.canais ??
                     parseJson<{ canais: CoberturaCanalItem[] }>(detalhe.coverage_by_source, {
@@ -536,6 +537,7 @@ export default function Relatorios() {
 function TemplateRelatorio(props: {
   titulo: string
   geradoEm: string
+  tituloPeriodo: { inicio: string; fim: string }
   cobertura: CoberturaCanalItem[] | null
   janelaDias: number
   snapshot: SnapshotRelatorio | null
@@ -563,7 +565,9 @@ function TemplateRelatorio(props: {
         <Badge variant="outline">template 1.0.0</Badge>
       </div>
 
-      <p className="text-sm text-[#374151]">{resumoFactual(snap, cob, janela)}</p>
+      <p className="text-sm text-[#374151]">
+        {resumoFactual(props.tituloPeriodo.inicio, props.tituloPeriodo.fim, cob, warnings)}
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-gray-200 p-3">

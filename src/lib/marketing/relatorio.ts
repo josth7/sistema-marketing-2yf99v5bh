@@ -147,22 +147,23 @@ export function resumoFactual(
 }
 
 /** Parse seguro do snapshot (JSON malformado → null, nunca quebra a tela). */
-export function parseSnapshot(json: string | null): SnapshotRelatorio | null {
-  if (!json) return null
-  try {
-    const v = JSON.parse(json) as SnapshotRelatorio
-    if (typeof v !== 'object' || v === null) return null
-    return v
-  } catch {
-    return null
-  }
+export function parseSnapshot(json: unknown): SnapshotRelatorio | null {
+  const v = parseJson<SnapshotRelatorio | null>(json, null)
+  if (typeof v !== 'object' || v === null) return null
+  return v
 }
 
-/** Parse seguro genérico (cobertura/eligibility/warnings). */
-export function parseJson<T>(json: string | null, padrao: T): T {
-  if (!json) return padrao
+/**
+ * Parse seguro genérico (cobertura/eligibility/warnings).
+ * PROVA 13/10: o SDK PocketBase v0.26 JÁ devolve campos json como OBJETO —
+ * JSON.parse("[object Object]") degradava tudo para o padrão/fixture.
+ * Aceita objeto direto OU string (legado).
+ */
+export function parseJson<T>(json: unknown, padrao: T): T {
+  if (json === null || json === undefined || json === '') return padrao
+  if (typeof json === 'object') return json as T
   try {
-    return JSON.parse(json) as T
+    return JSON.parse(String(json)) as T
   } catch {
     return padrao
   }
