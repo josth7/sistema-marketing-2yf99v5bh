@@ -9,16 +9,17 @@
 - analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md
 - etapa: aguardando_teste_humano
 - autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: reprovado 2× (13/10 manhã/tarde) — 3 defeitos reportados e TODOS corrigidos com causa raiz provada:
+- teste_humano: reprovado 2× (13/10) — 4 defeitos reportados e TODOS corrigidos com causa raiz provada:
   - (1) página /relatorios em BRANCO → diálogo no componente errado (patch casou no 1º match) → CORRIGIDO v0.0.80
   - (2) job entrega 0 na caixa → recipients com IDs mortos (divergem entre builds) → CORRIGIDO v0.0.86: automedicação por E-MAIL na política fixture
   - (3) "Marcar como lida" não gravava → CAUSA RAIZ PROVADA: DateTime zerado do PocketBase chega como STRING VAZIA truthy → o ramo "já lida" entrava na 1ª chamada sem gravar → CORRIGIDO v0.0.92 (comparação como string) → PROVA: PATCH gravou read_at, 2ª chamada idempotente (ja_lida:true, mesma data)
   - (3b) republicação dava 400 → 2 causas: campo idempotency_key inexistente na produção (self-heal v0.0.93) + uuidV4 não definido inline no callback (v0.0.94) → PROVA: rev 2 criada, entregue na caixa, replay devolveu a MESMA rev; rev 3 com chave nova; 422 sem motivo
-- provas ao vivo (17:03–17:07, backend interno): login 200 · marcar lida 200 (read_at gravado) · idempotência 200 · republish 200 rev2 · replay 200 mesma rev · rev3 200 · 422 sem motivo · caixa 6 itens revs [3,2,1,1,1,1]
-- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.94); TDD local 13 provas
+  - (4) caixa "Nenhum relatório recebido ainda" SEM LOGIN → a página não tinha formulário de login e o erro de auth ficava invisível; a caixa é POR USUÁRIO (RLS) e os itens estavam na conta fixture, não na do dono → CORRIGIDO v0.0.96: login na própria página (padrão /criterios) + "Sair" + quem vê é sempre o logado → PROVA no navegador: login fixture → 6 itens (revs 3,2,1,1,1,1), 1º "Lido"
+- provas ao vivo (17:03–17:13, backend + navegador): login 200 · marcar lida 200 (read_at gravado) · idempotência 200 · republish 200 rev2 · replay 200 mesma rev · rev3 200 · 422 sem motivo · caixa 6 itens · página /caixa sem sessão = formulário de login
+- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.96); TDD local 13 provas
 - skip_projeto: 61465
-- skip_versao: v0.0.94 (8f4f897), publicada 2026-10-13T17:06:56Z
+- skip_versao: v0.0.96 (1dffba7), publicada 2026-10-13T17:13:33Z
 - pendente_github: sim (estado + provas + changelog do fechamento)
-- ultima_acao: todas as 3 causas raiz corrigidas e provadas ao vivo; aguardando o teste humano do Josth
-- proxima_acao: Josth testa (caixa: marcar lida; relatorios: republicar com motivo + replay); aprovado → concluir-task (fase.md/STATUS/changelog/aprendizado) + sync GitHub
-- atualizado_em: 2026-10-13T14:10:00-03:00
+- ultima_acao: 4 causas raiz corrigidas e provadas; aguardando o teste humano do Josth
+- proxima_acao: Josth testa (caixa: ENTRAR com o e-mail/senha dele → itens visíveis → marcar lida; relatorios: republicar com motivo + replay); aprovado → concluir-task (fase.md/STATUS/changelog/aprendizado) + sync GitHub
+- atualizado_em: 2026-10-13T14:15:00-03:00
