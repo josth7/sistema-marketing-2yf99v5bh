@@ -143,31 +143,56 @@ cronAdd('relatorio_quinzenal', '0 10 * * *', () => {
     const scope = fixture ? 'fixture' : ''
     const policyVersion = String(pol.get('policy_version') || '1')
     const destOk = []
-    let recipients = []
-    try {
-      const raw = pol.get('recipient_user_ids')
-      recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
-    } catch (e2) {}
-    for (const uid of recipients || []) {
-      let resolvido = null
+    if (fixture) {
+      // automedicação (prova CA-2-11): resolve o aprovador fixture POR E-MAIL
       try {
-        resolvido = app.findRecordById('users', uid)
-      } catch (e3) {
-        if (String(uid).indexOf('@') >= 0) {
-          try {
-            resolvido =
-              app.findRecordsByFilter(
-                app.findCollectionByNameOrId('users'),
-                "email='" + String(uid).replace(/'/g, '') + "'",
-                '',
-                1,
-                0,
-              )[0] || null
-          } catch (e4) {}
-        }
+        const uFix = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('users'),
+          "email='criterios.fixture.aprovador@haisan.com.br'",
+          '',
+          1,
+          0,
+        )
+        if (uFix && uFix.length > 0) destOk.push(uFix[0].id)
+        else avisos.push('aprovador fixture não encontrado — ninguém recebe')
+      } catch (e9) {
+        avisos.push('falha ao resolver aprovador fixture: ' + String(e9).slice(0, 80))
       }
-      if (resolvido) destOk.push(resolvido.id)
-      else avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
+      avisos.push('política FIXTURE: destinatário por e-mail → ' + destOk.length + ' válido(s)')
+    } else {
+      let recipients = []
+      try {
+        const raw = pol.get('recipient_user_ids')
+        recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
+      } catch (e2) {}
+      for (const uid of recipients || []) {
+        let resolvido = null
+        try {
+          resolvido = app.findRecordById('users', uid)
+        } catch (e3) {
+          if (String(uid).indexOf('@') >= 0) {
+            try {
+              resolvido =
+                app.findRecordsByFilter(
+                  app.findCollectionByNameOrId('users'),
+                  "email='" + String(uid).replace(/'/g, '') + "'",
+                  '',
+                  1,
+                  0,
+                )[0] || null
+            } catch (e4) {}
+          }
+        }
+        if (resolvido) destOk.push(resolvido.id)
+        else avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
+      }
+      avisos.push(
+        'política real: ' +
+          (recipients || []).length +
+          ' gravado(s) → ' +
+          destOk.length +
+          ' válido(s)',
+      )
     }
 
     for (const f of fechadas) {
@@ -664,31 +689,56 @@ routerAdd(
       const scope = fixture ? 'fixture' : ''
       const policyVersion = String(pol.get('policy_version') || '1')
       const destOk = []
-      let recipients = []
-      try {
-        const raw = pol.get('recipient_user_ids')
-        recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
-      } catch (e2) {}
-      for (const uid of recipients || []) {
-        let resolvido = null
+      if (fixture) {
+        // automedicação (prova CA-2-11): resolve o aprovador fixture POR E-MAIL
         try {
-          resolvido = app.findRecordById('users', uid)
-        } catch (e3) {
-          if (String(uid).indexOf('@') >= 0) {
-            try {
-              resolvido =
-                app.findRecordsByFilter(
-                  app.findCollectionByNameOrId('users'),
-                  "email='" + String(uid).replace(/'/g, '') + "'",
-                  '',
-                  1,
-                  0,
-                )[0] || null
-            } catch (e4) {}
-          }
+          const uFix = app.findRecordsByFilter(
+            app.findCollectionByNameOrId('users'),
+            "email='criterios.fixture.aprovador@haisan.com.br'",
+            '',
+            1,
+            0,
+          )
+          if (uFix && uFix.length > 0) destOk.push(uFix[0].id)
+          else avisos.push('aprovador fixture não encontrado — ninguém recebe')
+        } catch (e9) {
+          avisos.push('falha ao resolver aprovador fixture: ' + String(e9).slice(0, 80))
         }
-        if (resolvido) destOk.push(resolvido.id)
-        else avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
+        avisos.push('política FIXTURE: destinatário por e-mail → ' + destOk.length + ' válido(s)')
+      } else {
+        let recipients = []
+        try {
+          const raw = pol.get('recipient_user_ids')
+          recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
+        } catch (e2) {}
+        for (const uid of recipients || []) {
+          let resolvido = null
+          try {
+            resolvido = app.findRecordById('users', uid)
+          } catch (e3) {
+            if (String(uid).indexOf('@') >= 0) {
+              try {
+                resolvido =
+                  app.findRecordsByFilter(
+                    app.findCollectionByNameOrId('users'),
+                    "email='" + String(uid).replace(/'/g, '') + "'",
+                    '',
+                    1,
+                    0,
+                  )[0] || null
+              } catch (e4) {}
+            }
+          }
+          if (resolvido) destOk.push(resolvido.id)
+          else avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
+        }
+        avisos.push(
+          'política real: ' +
+            (recipients || []).length +
+            ' gravado(s) → ' +
+            destOk.length +
+            ' válido(s)',
+        )
       }
       for (const f of fechadas) {
         const filtroChave =
@@ -702,7 +752,28 @@ routerAdd(
           policyVersion +
           "' && report_revision=1"
         const existentes = app.findRecordsByFilter(colR, filtroChave, '', 1, 0)
-        if (existentes && existentes.length > 0) continue
+        if (existentes && existentes.length > 0) {
+          if (fixture) {
+            // artefato de teste (prova anterior sem destinatário): limpa e
+            // regenera com a entrega — o teste fica reproduzível a cada tick
+            for (const antigo of existentes) {
+              try {
+                const itensAntigos = app.findRecordsByFilter(
+                  colI,
+                  "report_id='" + antigo.id + "'",
+                  '',
+                  100,
+                  0,
+                )
+                for (const itAntigo of itensAntigos) app.delete(itAntigo)
+              } catch (e11) {}
+              app.delete(antigo)
+            }
+            avisos.push('regenerando ' + f.inicio + ' → ' + f.fim + ' (artefato fixture limpo)')
+          } else {
+            continue
+          }
+        }
 
         const registrosM = app.findRecordsByFilter(
           colM,
@@ -1182,7 +1253,24 @@ routerAdd(
     )
     const destOk = []
     const avisos = []
-    if (pols && pols.length > 0) {
+    if (pols && pols.length > 0 && pols[0].get('fixture') === true) {
+      // automedicação (prova CA-2-11): IDs de usuário não sobrevivem entre
+      // builds — a política de teste resolve o aprovador POR E-MAIL agora
+      try {
+        const uFix = $app.findRecordsByFilter(
+          $app.findCollectionByNameOrId('users'),
+          "email='criterios.fixture.aprovador@haisan.com.br'",
+          '',
+          1,
+          0,
+        )
+        if (uFix && uFix.length > 0) destOk.push(uFix[0].id)
+        else avisos.push('aprovador fixture não encontrado — ninguém recebe')
+      } catch (e9) {
+        avisos.push('falha ao resolver aprovador fixture: ' + String(e9).slice(0, 80))
+      }
+      avisos.push('política FIXTURE: destinatário por e-mail → ' + destOk.length + ' válido(s)')
+    } else if (pols && pols.length > 0) {
       let recipients = []
       try {
         const raw = pols[0].get('recipient_user_ids')
@@ -1191,17 +1279,31 @@ routerAdd(
       for (const uid of recipients || []) {
         let resolvido = null
         try {
-          resolvido = app.findRecordById('users', uid)
+          resolvido = $app.findRecordById('users', uid)
         } catch (e3) {
           if (String(uid).indexOf('@') >= 0) {
             try {
-              resolvido = app.findAuthRecordByEmail('users', String(uid))
+              resolvido =
+                $app.findRecordsByFilter(
+                  $app.findCollectionByNameOrId('users'),
+                  "email='" + String(uid).replace(/'/g, '') + "'",
+                  '',
+                  1,
+                  0,
+                )[0] || null
             } catch (e4) {}
           }
         }
         if (resolvido) destOk.push(resolvido.id)
-        else resumo.avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
+        else avisos.push('destinatário ' + uid + ' não existe mais — não recebe')
       }
+      avisos.push(
+        'política real: ' +
+          (recipients || []).length +
+          ' gravado(s) → ' +
+          destOk.length +
+          ' válido(s)',
+      )
     }
 
     // snapshot novo do dado ATUAL (agregação idêntica)
