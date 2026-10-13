@@ -155,7 +155,14 @@ cronAdd('relatorio_quinzenal', '0 10 * * *', () => {
       } catch (e3) {
         if (String(uid).indexOf('@') >= 0) {
           try {
-            resolvido = app.findAuthRecordByEmail('users', String(uid))
+            resolvido =
+              app.findRecordsByFilter(
+                app.findCollectionByNameOrId('users'),
+                "email='" + String(uid).replace(/'/g, '') + "'",
+                '',
+                1,
+                0,
+              )[0] || null
           } catch (e4) {}
         }
       }
@@ -623,6 +630,7 @@ routerAdd(
       itens_criados: 0,
       avisos: [],
     }
+    const avisos = resumo.avisos
     resumo.politicas = politicas.length
     if (!politicas || politicas.length === 0) {
       resumo.avisos.push('nenhuma política ativa — nada a fazer (gate DH-07)')
@@ -668,7 +676,14 @@ routerAdd(
         } catch (e3) {
           if (String(uid).indexOf('@') >= 0) {
             try {
-              resolvido = app.findAuthRecordByEmail('users', String(uid))
+              resolvido =
+                app.findRecordsByFilter(
+                  app.findCollectionByNameOrId('users'),
+                  "email='" + String(uid).replace(/'/g, '') + "'",
+                  '',
+                  1,
+                  0,
+                )[0] || null
             } catch (e4) {}
           }
         }
