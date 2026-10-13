@@ -126,6 +126,14 @@ routerAdd(
       it.set('status', 'read')
       $app.save(it)
     } catch (e12) {}
+    // prova pós-save: re-lê do banco (não confia no objeto em memória)
+    try {
+      const reLido = $app.findRecordById('inbox_items', it.id)
+      var readNovo = reLido.get('read_at')
+      if (!readNovo && Number(reLido.get('attempts') || 0) >= 1000) {
+        readNovo = String(reLido.get('updated') || '')
+      }
+    } catch (e7) {}
     var readNovo = null
     try {
       readNovo = it.get('read_at')
