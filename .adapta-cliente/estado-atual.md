@@ -7,16 +7,18 @@
 - owner_informativo: nenhuma
 - spec: 04_fase-atual/specs/spec-004.md (SPEC-2-004, CA-2-11)
 - analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md
-- etapa: em_correcao
+- etapa: aguardando_teste_humano
 - autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: FALHOU parcialmente (13/10) — 2 defeitos reportados:
-  - (1) página /relatorios em BRANCO ao clicar "Relatório" → CAUSA RAIZ provada: diálogo de republicação inserido dentro do componente TemplateRelatorio (patch multi-blocos casou no 1º match) → CORRIGIDO v0.0.80, página renderiza (prova: login+lista 4 relatórios no navegador)
-  - (2) job entrega 0 na caixa → CAUSA RAIZ provada: recipients da política fixture = IDs de usuário MORTOS (divergem entre builds; migrações de DADOS não chegam no banco de produção) → CORRIGIDO v0.0.86: job automedica (política fixture resolve o aprovador POR E-MAIL na hora) → prova: job 2× = 4 relatórios + 4 entregas na caixa, item visível em /caixa
-  - (3) "Marcar como lida" não persiste → PATCH /inbox/{id}/read responde 200 (logs) mas o item continua "Não lido"; causa provável: campo read_at não existe no banco de produção (migrações de SCHEMA também não chegam lá) → 3 correções em camadas aplicadas (0024 campo DateField; v0.0.88 self-heal no hook; v0.0.89 marcador status='read' + attempts+=1000 — ambos campos que EXISTEM) → último re-teste ainda "Não lido" (possível cache do bundle pós-publish; re-testar com Ctrl+F5 antes de nova rodada)
-- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.89); TDD local 13 provas
+- teste_humano: reprovado 2× (13/10 manhã/tarde) — 3 defeitos reportados e TODOS corrigidos com causa raiz provada:
+  - (1) página /relatorios em BRANCO → diálogo no componente errado (patch casou no 1º match) → CORRIGIDO v0.0.80
+  - (2) job entrega 0 na caixa → recipients com IDs mortos (divergem entre builds) → CORRIGIDO v0.0.86: automedicação por E-MAIL na política fixture
+  - (3) "Marcar como lida" não gravava → CAUSA RAIZ PROVADA: DateTime zerado do PocketBase chega como STRING VAZIA truthy → o ramo "já lida" entrava na 1ª chamada sem gravar → CORRIGIDO v0.0.92 (comparação como string) → PROVA: PATCH gravou read_at, 2ª chamada idempotente (ja_lida:true, mesma data)
+  - (3b) republicação dava 400 → 2 causas: campo idempotency_key inexistente na produção (self-heal v0.0.93) + uuidV4 não definido inline no callback (v0.0.94) → PROVA: rev 2 criada, entregue na caixa, replay devolveu a MESMA rev; rev 3 com chave nova; 422 sem motivo
+- provas ao vivo (17:03–17:07, backend interno): login 200 · marcar lida 200 (read_at gravado) · idempotência 200 · republish 200 rev2 · replay 200 mesma rev · rev3 200 · 422 sem motivo · caixa 6 itens revs [3,2,1,1,1,1]
+- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.94); TDD local 13 provas
 - skip_projeto: 61465
-- skip_versao: v0.0.89 (b964123), publicada 2026-10-13T16:51:18Z
-- pendente_github: nao (estado sincronizado ee265910 → novo push neste fechamento)
-- ultima_acao: 3 camadas de correção do "marcar como lida" publicadas (v0.0.87–89); re-teste imediato ainda "Não lido"
-- proxima_acao: re-testar "Marcar como lida" com Ctrl+F5 (cache do bundle); se persistir, debugar save() do inbox_items (validação oculta?) e provar persistência via GET após PATCH com logs; depois republicação com motivo + prova de replay; fechamento do card (fase.md/STATUS/changelog) exige teste humano do Josth
-- atualizado_em: 2026-10-13T13:05:00-03:00
+- skip_versao: v0.0.94 (8f4f897), publicada 2026-10-13T17:06:56Z
+- pendente_github: sim (estado + provas + changelog do fechamento)
+- ultima_acao: todas as 3 causas raiz corrigidas e provadas ao vivo; aguardando o teste humano do Josth
+- proxima_acao: Josth testa (caixa: marcar lida; relatorios: republicar com motivo + replay); aprovado → concluir-task (fase.md/STATUS/changelog/aprendizado) + sync GitHub
+- atualizado_em: 2026-10-13T14:10:00-03:00
