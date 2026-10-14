@@ -1,23 +1,22 @@
 # Estado atual — Adapta Cliente
 
 - schema_version: adapta-cliente-state/v2
-- task_id: a70d5ab8-adbf-4259-9bb4-14d9d04a9273
-- champion: José (Josth) — dono do repo josth7
+- task_id: f9a2a3eb-427a-4dfc-ade8-e1219d1e0fc8
 - executor: Mikael
 - owner_informativo: nenhuma
-- spec: 04_fase-atual/specs/spec-004.md (SPEC-2-004, CA-2-11)
-- analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md
-- etapa: concluida
-- autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: aprovado 14/10 11:54 — "pode concluir" (Josth), após 3 rodadas de debug com 6 defeitos corrigidos e causa raiz provada (página branca ×2, entrega 0, marcar-lida não gravava — DateTime zerado truthy, caixa sem login, republish 400, caixa vazia após republish — política real sem destinatários + cópia ao autor)
-- verificacao_automatica: passou — verificação independente do verificador-de-entrega: QA Skip 100% (v0.0.74–v0.0.103), TDD 13 provas, provas ao vivo (entrega 4+4 sem duplicar, marcar-lida persiste + idempotente, republish/replay/422, caixa por usuário com login, prévia completa 0 erros, autor recebe cópia rev6 caixa 6→7), versão no ar = versão testada (v0.0.103 publicada 14/10 14:50 UTC, teste aprovado 14:54 UTC), sem segredo no diff, sem linha vermelha
+- spec: 04_fase-atual/specs/spec-005.md (SPEC-2-005, CA-2-12)
+- analise: .adapta-cliente/analises/f9a2a3eb-perfis-auth.md
+- etapa: aguardando_autorizacao
+- autorizacao_implementacao: ausente
+- teste_humano: pendente
+- verificacao_automatica: pendente
+- aprendizado: pendente
+- sistema: 07-sistemas/sistema-marketing
 - skip_projeto: 61465
-- skip_versao: v0.0.103 (32bf30a), publicada 2026-10-14T14:50:27Z
-- skip_publicacao: publicada:32bf30a em 2026-10-14T14:50:27Z
-- aprendizado: capturado:06_notas/aprendizado-continuo/AP-2026-10-14-1155-datetime-truthy-json-parseado.md
-- pendente_github: nao (commit único do fechamento)
-- limpeza_pendente: rota de diagnóstico /backend/v1/debug-policy em pocketbase/hooks/ping.js — remover na próxima task que alterar hooks (inofensiva, exige auth)
-- pendencia_negocio: política REAL de destinatários vazia até o dono confirmar (DH-07 — workshop 22/10); job automático DESATIVADO até lá
-- ultima_acao: task a70d5ab8 CONCLUÍDA — fase.md [x] done:2026-10-14, STATUS 6/12 (50%), changelog, aprendizado capturado, estado concluida
-- proxima_acao: nenhuma automática — elegíveis para nova seleção: f9a2a3eb (perfis/auth) e b1200b57 (workshop !22/10); a434ca96 reusa a caixa
-- atualizado_em: 2026-10-14T11:58:00-03:00
+- skip_versao: v0.0.104 (578fc62) publicada 2026-10-14T15:00:00Z
+- skip_publicacao: publicada:578fc62 em 2026-10-14T15:00:02Z
+- pendente_github: nao
+- card_anterior: a70d5ab8 CONCLUÍDA 14/10 (fase 6/12 — 50%); limpeza do debug-policy incluída no plano desta task
+- ultima_acao: análise do f9a2a3eb concluída e persistida; baseline provada (2 fixtures, sem papéis/grants, guards ausentes)
+- proxima_acao: aguardar autorização para implementar
+- atualizado_em: 2026-10-14T13:15:00-03:00
