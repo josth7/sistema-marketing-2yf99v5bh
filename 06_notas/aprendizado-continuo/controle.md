@@ -1,5 +1,10 @@
 # Aprendizado contínuo — controle
 
+## AP-2026-10-14-1425 — erros de rotas custom com contrato próprio (card f9a2a3eb, debug 14/10)
+
+- **Sinal reutilizável**: SIM — ver `AP-2026-10-14-1425-erros-custom-contrato.md`
+- Página que chama rota custom `/backend/v1/` deve ler o corpo do erro em `e.response` (SDK v0.26) e interpretar o CONTRATO da rota (`{ok:false, erro, campos, detalhe}`) — o leitor genérico (`e.response?.data`) é formato de validação NATIVA e deixa o 403/422 sem explicação na tela. Cobrir TODAS as ações da tela, não só a testada.
+
 ## AP-2026-10-14-1155 — DateTime zerado truthy + json já parseado (card a70d5ab8, debug 13–14/10)
 
 - **Sinal reutilizável**: SIM — ver `AP-2026-10-14-1155-datetime-truthy-json-parseado.md`
