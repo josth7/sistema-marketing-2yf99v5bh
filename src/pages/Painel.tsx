@@ -21,7 +21,12 @@ import {
 } from 'lucide-react'
 import { estadosIniciais, datasetDemonstrativo, datasetReal } from '@/lib/marketing/fontes'
 import { construirVisao, periodosDisponiveis } from '@/lib/marketing/agregacao'
-import { carregarEstadoFontes, carregarMetricasReais } from '@/lib/marketing/ingestao'
+import {
+  carregarEstadoFontes,
+  carregarMetricasReais,
+  paraRegistroMetricas,
+} from '@/lib/marketing/ingestao'
+import { carregarMetricasComEscopo } from '@/lib/marketing/acessos'
 import type { FonteEstadoRecord } from '@/lib/marketing/ingestao'
 import {
   formatarInteiro,
@@ -225,6 +230,9 @@ export default function PainelPage() {
   const [estadosFontes, setEstadosFontes] = useState<Record<string, FonteEstadoRecord>>({})
   const [carregando, setCarregando] = useState(false)
   const [erroReais, setErroReais] = useState<string | null>(null)
+  // CA-2-13 (5b1de184): leitura real passa pela rota /backend/v1/metricas —
+  // escopo do ator aplicado NO SERVIDOR (read_metrics); sem grant → 403 explicado.
+  const [escopoAviso, setEscopoAviso] = useState<string | null>(null)
 
   const pbUrl = import.meta.env.VITE_POCKETBASE_URL ?? ''
 
@@ -232,9 +240,19 @@ export default function PainelPage() {
   async function carregarReais() {
     setCarregando(true)
     setErroReais(null)
-    const { registros, erro } = await carregarMetricasReais(pbUrl)
-    setReais(registros)
-    setErroReais(erro)
+    setEscopoAviso(null)
+    const res = await carregarMetricasComEscopo()
+    if (res.ok) {
+      setReais(res.itens.map(paraRegistroMetricas))
+      setEscopoAviso(
+        res.escopo.contas[0] === '*'
+          ? null
+          : `Escopo aplicado: contas ${res.escopo.contas.join(', ')} · canais ${res.escopo.canais.join(', ')}`,
+      )
+    } else {
+      setReais([])
+      setErroReais(res.erro)
+    }
     setEstadosFontes(await carregarEstadoFontes(pbUrl))
     setCarregando(false)
   }
@@ -306,14 +324,19 @@ export default function PainelPage() {
 
       <AvisoOrigem origem={usarDemo ? 'demonstracao' : 'api'} />
       <AvisosCanal estadosPb={estadosFontes} />
+      {!usarDemo && escopoAviso && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-800">
+          {escopoAviso}
+        </div>
+      )}
       {!usarDemo && (
         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs text-gray-600">
           <span>
             {carregando
               ? 'Carregando dados reais…'
               : erroReais
-                ? `Falha ao carregar: ${erroReais} (dados anteriores preservados)`
-                : `${reais.length} registros carregados do PocketBase (origem api/csv)`}
+                ? `Acesso negado ou falha: ${erroReais}`
+                : `${reais.length} registros carregados (escopo do seu acesso aplicado no servidor)`}
           </span>
           <Button
             variant="outline"

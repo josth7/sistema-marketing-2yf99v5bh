@@ -393,6 +393,126 @@ routerAdd(
 
 routerAdd(
   'GET',
+  '/backend/v1/metricas',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    // ---- guard read_metrics + escopos do ATOR (inline — JSVM sem helper top-level) ----
+    const hoje = new Date().toISOString().slice(0, 10)
+    const colG = $app.findCollectionByNameOrId('access_grants')
+    const meus = $app.findRecordsByFilter(
+      colG,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '',
+      50,
+      0,
+    )
+    let temRead = false
+    const contas = []
+    const canais = []
+    for (const g of meus) {
+      const ate = String(g.get('valid_until') || '')
+      if (ate !== '' && ate.slice(0, 10) < hoje) continue
+      let acts = []
+      try {
+        const raw = g.get('actions')
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
+      } catch (e2) {}
+      if (acts.indexOf('read_metrics') < 0) continue
+      temRead = true
+      let sa = []
+      let sc = []
+      try {
+        const ra = g.get('scope_accounts')
+        sa =
+          Array.isArray(ra) && ra.length > 0 && typeof ra[0] === 'number'
+            ? JSON.parse(String.fromCharCode.apply(null, ra))
+            : typeof ra === 'string'
+              ? JSON.parse(ra)
+              : ra || []
+      } catch (e3) {}
+      try {
+        const rc = g.get('scope_channels')
+        sc =
+          Array.isArray(rc) && rc.length > 0 && typeof rc[0] === 'number'
+            ? JSON.parse(String.fromCharCode.apply(null, rc))
+            : typeof rc === 'string'
+              ? JSON.parse(rc)
+              : rc || []
+      } catch (e4) {}
+      for (const c of sa) if (contas.indexOf(String(c)) < 0) contas.push(String(c))
+      for (const c of sc) if (canais.indexOf(String(c)) < 0) canais.push(String(c))
+    }
+    if (!temRead) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para ler métricas (read_metrics) — fale com o administrador',
+      })
+    }
+    const temTudoContas = contas.indexOf('*') >= 0
+    const temTudoCanais = canais.indexOf('*') >= 0
+    // ---- filtro de escopo aplicado ANTES de agregar (SPEC-2-005) ----
+    let filtro = ''
+    if (!temTudoContas) {
+      const partes = contas.map((c) => "conta_id='" + c.replace(/'/g, '') + "'")
+      partes.push("conta_id=''") // sem conta = sem escopo associado → NEGADO (deny por padrão)
+      filtro = '(' + partes.join(' || ') + ')'
+    }
+    if (!temTudoCanais) {
+      const partesC = canais.map((c) => "canal='" + c.replace(/'/g, '') + "'")
+      const fCanal = '(' + partesC.join(' || ') + ')'
+      filtro = filtro ? filtro + ' && ' + fCanal : fCanal
+    }
+    const registros = $app.findRecordsByFilter(
+      $app.findCollectionByNameOrId('metricas_diarias'),
+      filtro,
+      '-data',
+      500,
+      0,
+    )
+    const itens = []
+    for (const r of registros) {
+      itens.push({
+        id: r.id,
+        origem: r.get('origem'),
+        canal: r.get('canal'),
+        natureza: r.get('natureza'),
+        conta_id: r.get('conta_id') || '',
+        conta_nome: r.get('conta_nome') || '',
+        campanha_id: r.get('campanha_id'),
+        campanha_nome: r.get('campanha_nome'),
+        objetivo: r.get('objetivo'),
+        objective_raw: r.get('objective_raw') || null,
+        result_type: r.get('result_type') || null,
+        data: r.get('data'),
+        alcance: r.get('alcance'),
+        impressoes: r.get('impressoes'),
+        cliques: r.get('cliques'),
+        gasto: r.get('gasto'),
+        resultados: r.get('resultados'),
+        cpc: r.get('cpc'),
+        cpm: r.get('cpm'),
+        ctr: r.get('ctr'),
+        updated: r.get('updated'),
+      })
+    }
+    return e.json(200, {
+      ok: true,
+      escopo: { contas: temTudoContas ? ['*'] : contas, canais: temTudoCanais ? ['*'] : canais },
+      total: itens.length,
+      itens: itens,
+    })
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'GET',
   '/backend/v1/acessos/audit',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })

@@ -21,11 +21,47 @@
  *
  * JSVM: TODA a lógica INLINE nos callbacks (pool de VM separado).
  */
+// guard de leitura (SPEC-2-005, card 5b1de184): read_reports — inline (JSVM)
+function temReadReports(e) {
+  const hoje = new Date().toISOString().slice(0, 10)
+  const colG = $app.findCollectionByNameOrId('access_grants')
+  const meus = $app.findRecordsByFilter(
+    colG,
+    "user_id='" + e.auth.id + "' && revoked_at=''",
+    '',
+    50,
+    0,
+  )
+  for (const g of meus) {
+    const ate = String(g.get('valid_until') || '')
+    if (ate !== '' && ate.slice(0, 10) < hoje) continue
+    let acts = []
+    try {
+      const raw = g.get('actions')
+      if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+        acts = JSON.parse(String.fromCharCode.apply(null, raw))
+      } else if (typeof raw === 'string') {
+        acts = JSON.parse(raw)
+      } else {
+        acts = raw || []
+      }
+    } catch (e2) {}
+    if (acts.indexOf('read_reports') >= 0) return true
+  }
+  return false
+}
+
 routerAdd(
   'GET',
   '/backend/v1/reports',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    if (!temReadReports(e)) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para ler relatórios (read_reports) — fale com o administrador',
+      })
+    }
     const col = $app.findCollectionByNameOrId('reports')
     const registros = $app.findRecordsByFilter(col, '', '-created', 100, 0)
     const itens = []
@@ -57,6 +93,12 @@ routerAdd(
   '/backend/v1/reports/{id}',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    if (!temReadReports(e)) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para ler relatórios (read_reports) — fale com o administrador',
+      })
+    }
     const id = e.request.pathValue('id')
     let rec
     try {

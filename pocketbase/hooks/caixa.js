@@ -13,11 +13,48 @@
  * - PATCH read de item inexistente → 404
  * - JSVM: lógica INLINE nos callbacks
  */
+// guard de leitura (SPEC-2-005, card 5b1de184): read_reports — inline (JSVM)
+// (a caixa continua POR USUÁRIO: RLS user_id abaixo é mantida)
+function temReadReports(e) {
+  const hoje = new Date().toISOString().slice(0, 10)
+  const colG = $app.findCollectionByNameOrId('access_grants')
+  const meus = $app.findRecordsByFilter(
+    colG,
+    "user_id='" + e.auth.id + "' && revoked_at=''",
+    '',
+    50,
+    0,
+  )
+  for (const g of meus) {
+    const ate = String(g.get('valid_until') || '')
+    if (ate !== '' && ate.slice(0, 10) < hoje) continue
+    let acts = []
+    try {
+      const raw = g.get('actions')
+      if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+        acts = JSON.parse(String.fromCharCode.apply(null, raw))
+      } else if (typeof raw === 'string') {
+        acts = JSON.parse(raw)
+      } else {
+        acts = raw || []
+      }
+    } catch (e2) {}
+    if (acts.indexOf('read_reports') >= 0) return true
+  }
+  return false
+}
+
 routerAdd(
   'GET',
   '/backend/v1/inbox',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    if (!temReadReports(e)) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para ler a caixa de entrada (read_reports) — fale com o administrador',
+      })
+    }
     const colI = $app.findCollectionByNameOrId('inbox_items')
     const itens = $app.findRecordsByFilter(colI, "user_id='" + e.auth.id + "'", '-created', 100, 0)
     const colR = $app.findCollectionByNameOrId('reports')
