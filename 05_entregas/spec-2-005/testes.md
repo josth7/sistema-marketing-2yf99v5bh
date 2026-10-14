@@ -8,7 +8,7 @@
 - Migração 0025: coleções role_catalog (4 papéis candidatos: direction, management, marketing, agency), access_grants (versionamento por (user,role,version), validade, revogação), access_audit (append-only — regras de update/delete nulas).
 - Migração 0026: grants de TESTE explícitos para os 2 fixtures (decisão do dono 14/10) — criador: manage*criteria; aprovador: manage_criteria + approve_criteria + read*\* + manage_decisions. Nenhum grant de pessoa real.
 - Hook acessos.js: temAction inline (lê grants válidos — valid_until vazio ou futuro, revoked_at vazio); rotas GET /backend/v1/acessos/me, GET/POST /grants (só manage_access; approved_by = ator autenticado, não confiável do corpo), POST /grants/{id}/revoke (grava audit), GET /audit (só manage_access).
-- Guards nos módulos: criterios.js (POST/PATCH manage_criteria; approve approve_criteria + regra "quem criou não aprova a si mesmo"; archive manage_criteria), decisoes.js (GET read_decisions; POST/PATCH/close manage_decisions), relatorios.js + caixa.js (GET read_reports; caixa continua POR USUÁRIO — RLS user_id mantida).
+- Guards nos módulos: criterios.js (POST/PATCH manage_criteria; approve approve_criteria + regra "quem criou não aprova a si mesmo"; archive manage_criteria), decisoes.js (GET read_decisions; POST/PATCH/close manage_decisions), relatorios.js + caixa.js (GET requireAuth; caixa continua POR USUÁRIO — RLS user_id mantida).
 - ingestao.js / meta_ingestao_diaria.js: NÃO alterados (autenticação de serviço preservada).
 - ping.js: rota de diagnóstico /backend/v1/debug-policy removida (404 provado); /backend/v1/ping mantido.
 - Frontend: nenhuma tela nova (UI não concede acesso — gestão de grants é do card 5b1de184); mensagens de negação com o porquê.
