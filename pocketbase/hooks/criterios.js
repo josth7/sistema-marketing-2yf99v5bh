@@ -83,7 +83,13 @@ routerAdd(
         let actsC = []
         try {
           const rawC = g.get('actions')
-          actsC = typeof rawC === 'string' ? JSON.parse(rawC) : rawC || []
+          if (Array.isArray(rawC) && rawC.length > 0 && typeof rawC[0] === 'number') {
+            actsC = JSON.parse(String.fromCharCode.apply(null, rawC))
+          } else if (typeof rawC === 'string') {
+            actsC = JSON.parse(rawC)
+          } else {
+            actsC = rawC || []
+          }
         } catch (eC) {}
         if (actsC.indexOf('manage_criteria') >= 0) temManage = true
       }
@@ -270,7 +276,13 @@ routerAdd(
         let actsP = []
         try {
           const rawP = g.get('actions')
-          actsP = typeof rawP === 'string' ? JSON.parse(rawP) : rawP || []
+          if (Array.isArray(rawP) && rawP.length > 0 && typeof rawP[0] === 'number') {
+            actsP = JSON.parse(String.fromCharCode.apply(null, rawP))
+          } else if (typeof rawP === 'string') {
+            actsP = JSON.parse(rawP)
+          } else {
+            actsP = rawP || []
+          }
         } catch (eP) {}
         if (actsP.indexOf('manage_criteria') >= 0) temManageP = true
       }
@@ -441,7 +453,13 @@ routerAdd(
       let actsA = []
       try {
         const rawA = g.get('actions')
-        actsA = typeof rawA === 'string' ? JSON.parse(rawA) : rawA || []
+        if (Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number') {
+          actsA = JSON.parse(String.fromCharCode.apply(null, rawA))
+        } else if (typeof rawA === 'string') {
+          actsA = JSON.parse(rawA)
+        } else {
+          actsA = rawA || []
+        }
       } catch (eA) {}
       if (actsA.indexOf('approve_criteria') >= 0) temApprove = true
     }

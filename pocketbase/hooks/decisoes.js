@@ -76,7 +76,13 @@ routerAdd(
         let actsD = []
         try {
           const rawD = g.get('actions')
-          actsD = typeof rawD === 'string' ? JSON.parse(rawD) : rawD || []
+          if (Array.isArray(rawD) && rawD.length > 0 && typeof rawD[0] === 'number') {
+            actsD = JSON.parse(String.fromCharCode.apply(null, rawD))
+          } else if (typeof rawD === 'string') {
+            actsD = JSON.parse(rawD)
+          } else {
+            actsD = rawD || []
+          }
         } catch (eD) {}
         if (actsD.indexOf('manage_decisions') >= 0) temMngD = true
       }
@@ -221,7 +227,13 @@ routerAdd(
         let actsDP = []
         try {
           const rawDP = g.get('actions')
-          actsDP = typeof rawDP === 'string' ? JSON.parse(rawDP) : rawDP || []
+          if (Array.isArray(rawDP) && rawDP.length > 0 && typeof rawDP[0] === 'number') {
+            actsDP = JSON.parse(String.fromCharCode.apply(null, rawDP))
+          } else if (typeof rawDP === 'string') {
+            actsDP = JSON.parse(rawDP)
+          } else {
+            actsDP = rawDP || []
+          }
         } catch (eDP) {}
         if (actsDP.indexOf('manage_decisions') >= 0) temMngDP = true
       }
@@ -401,7 +413,13 @@ routerAdd(
         let actsDC = []
         try {
           const rawDC = g.get('actions')
-          actsDC = typeof rawDC === 'string' ? JSON.parse(rawDC) : rawDC || []
+          if (Array.isArray(rawDC) && rawDC.length > 0 && typeof rawDC[0] === 'number') {
+            actsDC = JSON.parse(String.fromCharCode.apply(null, rawDC))
+          } else if (typeof rawDC === 'string') {
+            actsDC = JSON.parse(rawDC)
+          } else {
+            actsDC = rawDC || []
+          }
         } catch (eDC) {}
         if (actsDC.indexOf('manage_decisions') >= 0) temMngDC = true
       }
