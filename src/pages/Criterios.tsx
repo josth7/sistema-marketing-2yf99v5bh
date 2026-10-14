@@ -23,6 +23,7 @@ import {
 import { Archive, CheckCircle2, ListPlus, ShieldCheck } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { lerErroCustom } from '@/lib/marketing/erros-custom'
 import {
   CANAIS,
   DIRECOES,
@@ -126,7 +127,7 @@ export default function Criterios() {
       }
       setItens(Array.isArray(res.itens) ? res.itens : [])
     } catch (e) {
-      setErro(getErrorMessage(e))
+      setErro(lerErroCustom(e))
     } finally {
       setCarregando(false)
     }
@@ -164,7 +165,7 @@ export default function Criterios() {
         }
       }
       if (Object.keys(campos).length > 0) setErrosCampo(campos)
-      setAviso(getErrorMessage(e))
+      setAviso(lerErroCustom(e))
     } finally {
       setSalvando(false)
     }
@@ -177,7 +178,9 @@ export default function Criterios() {
       setAviso('Critério aprovado no servidor (ator, data e versão registrados).')
       await carregar()
     } catch (e) {
-      setAviso(getErrorMessage(e))
+      // AP-2026-10-14-1400: mostrar O PORQUÊ da recusa (contrato custom {erro}),
+      // não a mensagem técnica do SDK
+      setAviso(lerErroCustom(e))
     }
   }
 
@@ -188,7 +191,7 @@ export default function Criterios() {
       setAviso('Critério arquivado (a regra anterior aprovada permanece até substituição).')
       await carregar()
     } catch (e) {
-      setAviso(getErrorMessage(e))
+      setAviso(lerErroCustom(e))
     }
   }
 
