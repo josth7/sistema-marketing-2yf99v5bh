@@ -254,6 +254,7 @@ migrate(
       'manage_criteria',
       'approve_criteria',
       'manage_decisions',
+      'manage_access',
     ])
   },
   (app) => {
