@@ -40,7 +40,14 @@ routerAdd(
       let acts = []
       try {
         const raw = g.get('actions')
-        acts = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          // JSVM devolveu os CÓDIGOS de caractere da string JSON (prova /me 14/10)
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
       } catch (e2) {}
       validos.push({
         id: g.id,
@@ -85,7 +92,13 @@ routerAdd(
       let acts = []
       try {
         const raw = g.get('actions')
-        acts = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
       } catch (e2) {}
       if (acts.indexOf('manage_access') >= 0) temManage = true
     }
@@ -101,7 +114,13 @@ routerAdd(
       let acts = []
       try {
         const raw = g.get('actions')
-        acts = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
       } catch (e3) {}
       lista.push({
         id: g.id,
@@ -146,7 +165,13 @@ routerAdd(
       let acts = []
       try {
         const raw = g.get('actions')
-        acts = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
       } catch (e2) {}
       if (acts.indexOf('manage_access') >= 0) temManage = true
     }
@@ -326,7 +351,13 @@ routerAdd(
       let acts = []
       try {
         const raw = g.get('actions')
-        acts = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
       } catch (e2) {}
       if (acts.indexOf('manage_access') >= 0) temManage = true
     }
@@ -381,7 +412,13 @@ routerAdd(
       let acts = []
       try {
         const raw = g.get('actions')
-        acts = typeof raw === 'string' ? JSON.parse(raw) : raw || []
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
       } catch (e2) {}
       if (acts.indexOf('manage_access') >= 0) temManage = true
     }
