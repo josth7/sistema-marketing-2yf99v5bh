@@ -1,4 +1,4 @@
-# Mapa — Sistema Marketing (versão Skip c4991d6 / v0.0.112)
+# Mapa — Sistema Marketing (versão Skip 3bc9303 / v0.0.116)
 
 ## Rotas (src/App.tsx)
 
@@ -29,17 +29,17 @@
 
 ## Hooks backend (pocketbase/hooks/)
 
-| Arquivo                 | Rotas                                                                 | Observação                                                                               |
-| ----------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| acessos.js              | GET/POST /backend/v1/acessos/me, /grants, /grants/{id}/revoke, /audit | guards por action (manage_access); temAction inline; audit append-only                   |
-| criterios.js            | GET/POST/PATCH /backend/v1/alert-criteria (+approve, +archive)        | requireAuth; guards manage/approve_criteria; regra "quem criou não aprova a si mesmo"    |
-| decisoes.js             | GET/POST/PATCH /backend/v1/decisions (+close)                         | requireAuth; guards read/manage_decisions; validação servidor                            |
-| relatorios.js           | GET /backend/v1/reports, GET /{id}, POST /generate                    | requireAuth (guard por action nos módulos de escrita)                                    |
-| relatorio_quinzenal.js  | cronAdd + POST /tick + POST /reports/{id}/republish                   | 3 cópias da lógica (cron, tick, republish); destinatários por E-MAIL; autor recebe cópia |
-| caixa.js                | GET /backend/v1/inbox, PATCH /inbox/{id}/read                         | por usuário (RLS); DateTime zerado = string vazia truthy                                 |
-| ingestao.js             | POST /backend/v1/ingest?fonte=meta/google_ads                         | autenticação de serviço — NÃO MEXER                                                      |
-| meta_ingestao_diaria.js | cron ingestão Meta                                                    | NÃO MEXER                                                                                |
-| ping.js                 | GET /backend/v1/ping                                                  | debug-policy removida em 14/10 (404 provado)                                             |
+| Arquivo                 | Rotas                                                                        | Observação                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| acessos.js              | /acessos/me, /grants, /grants/{id}/revoke, /audit + GET /backend/v1/metricas | guards por action; temAction/escopos inline; /metricas = read_metrics + filtro de escopo |
+| criterios.js            | GET/POST/PATCH /backend/v1/alert-criteria (+approve, +archive)               | requireAuth; guards manage/approve_criteria; regra "quem criou não aprova a si mesmo"    |
+| decisoes.js             | GET/POST/PATCH /backend/v1/decisions (+close)                                | requireAuth; guards read/manage_decisions; validação servidor                            |
+| relatorios.js           | GET /backend/v1/reports, GET /{id}, POST /generate                           | guard read_reports (lista + detalhe)                                                     |
+| relatorio_quinzenal.js  | cronAdd + POST /tick + POST /reports/{id}/republish                          | 3 cópias da lógica (cron, tick, republish); destinatários por E-MAIL; autor recebe cópia |
+| caixa.js                | GET /backend/v1/inbox, PATCH /inbox/{id}/read                                | guard read_reports; por usuário (RLS); DateTime zerado = string vazia truthy             |
+| ingestao.js             | POST /backend/v1/ingest?fonte=meta/google_ads                                | autenticação de serviço — NÃO MEXER                                                      |
+| meta_ingestao_diaria.js | cron ingestão Meta                                                           | NÃO MEXER                                                                                |
+| ping.js                 | GET /backend/v1/ping                                                         | debug-policy removida em 14/10 (404 provado)                                             |
 
 ## Componentes reutilizáveis
 
@@ -54,7 +54,7 @@
 - Campos json: no JSVM devolvem objeto (ou array de char-codes quando gravado como string); no frontend SDK v0.26 já vem parseado (parseJson aceita ambos)
 - Migrações: plain objects {name, type} em new Collection (construtores tipados são descartados)
 - Login: formulário na própria página (padrão Criterios/Caixa/Relatorios)
-- Fixtures: criterios.fixture.criador/aprovador@haisan.com.br, senha Fixture@2026; grants de TESTE (migração 0025 — revogar na matriz real, card 5b1de184)
+- Fixtures: criterios.fixture.criador/aprovador@haisan.com.br, senha Fixture@2026; grants de TESTE (migração 0025 — revogar na matriz real, card 5b1de184); marketing.a@/marketing.b@haisan.com.br (migração 0027 — fixtures de ESCOPO read_metrics)
 
 ## Arquivos gerados que não se editam
 

@@ -51,3 +51,22 @@
 ## Fora do recorte (teto do aceite)
 
 - Nenhuma tela de gestão de acessos, nenhum grant de pessoa real, nenhum convite, nenhuma alteração na ingestão — tudo do card 5b1de184 com matriz aprovada.
+
+## CA-2-13 — provas do card 5b1de184 (14/10, produção v0.0.116 ref 3bc9303)
+
+| #   | Prova                                                           | Resultado                                                                                       |
+| --- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1   | GET /backend/v1/metricas sem token                              | 401                                                                                             |
+| 2   | Aprovador fixture (escopo \*) lê /metricas                      | 200 — 54 registros, contas Meta 274282329866320 + Google 9624533125, canais meta_ads+google_ads |
+| 3   | IDOR: A com grant escopo Meta (v2 criada via /grants com audit) | 200 — SÓ 47 registros Meta, 0 de Google                                                         |
+| 4   | IDOR: B com grant escopo Google                                 | 200 — SÓ 7 registros Google, 0 de Meta                                                          |
+| 5   | Expiração: grant v3 do A com valid_until 2026-10-13             | some do /me e não conta no escopo                                                               |
+| 6   | Revogação: grants do B revogados via /revoke                    | sessão antiga → 0 registros (sem escopo)                                                        |
+| 7   | Relatórios sem read_reports (A)                                 | 403 — "sem permissão para ler relatórios (read_reports) — fale com o administrador"             |
+| 8   | Ingestão de serviço                                             | probe POST → 400 (rota viva, auth de serviço preservada)                                        |
+| 9   | Demo do painel sem login                                        | isolada e intacta (navegador)                                                                   |
+| 10  | Estado final dos fixtures de escopo                             | A e B com grants de teste (escopos ACC_A/ACC_B) → 0 registros reais; aprovador 54               |
+
+- Implementação: migração 0027; rota GET /backend/v1/metricas (escopo aplicado ANTES de agregar; registro sem conta = negado); guards read_reports em relatorios.js e caixa.js; Painel "Dados reais" via rota com escopo + aviso; serviço src/lib/marketing/acessos.ts.
+- QA: v0.0.115 FALHOU nas integrações (função top-level em callback — JSVM) e foi corrigida inline; v0.0.116 100% e publicada.
+- Grants REAIS da matriz: NÃO criados nesta resposta — aguardam teste humano + confirmação dos e-mails pelo dono.
