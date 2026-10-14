@@ -1334,6 +1334,12 @@ routerAdd(
           ' válido(s)',
       )
     }
+    // o AUTOR da republicação sempre recebe (prova o próprio ato na caixa;
+    // destinatários da política entram por cima quando existirem)
+    if (destOk.indexOf(e.auth.id) < 0) {
+      destOk.push(e.auth.id)
+      avisos.push('autor da republicação recebe cópia na caixa')
+    }
 
     // snapshot novo do dado ATUAL (agregação idêntica)
     const colM = $app.findCollectionByNameOrId('metricas_diarias')
