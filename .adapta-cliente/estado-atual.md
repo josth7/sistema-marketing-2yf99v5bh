@@ -9,18 +9,21 @@
 - analise: .adapta-cliente/analises/a70d5ab8-relatorio-quinzenal.md
 - etapa: aguardando_teste_humano
 - autorizacao_implementacao: confirmada 13/10 10:35 — "pode implementar" (Josth)
-- teste_humano: reprovado 2× (13/10) — 5 defeitos reportados/achados e TODOS corrigidos com causa raiz provada:
-  - (1) página /relatorios em BRANCO → diálogo no componente errado (patch casou no 1º match) → CORRIGIDO v0.0.80
-  - (2) job entrega 0 na caixa → recipients com IDs mortos (divergem entre builds) → CORRIGIDO v0.0.86: automedicação por E-MAIL na política fixture
-  - (3) "Marcar como lida" não gravava → CAUSA RAIZ: DateTime zerado do PocketBase chega como STRING VAZIA truthy → ramo "já lida" na 1ª chamada sem gravar → CORRIGIDO v0.0.92 → PROVA: read_at gravado + idempotência (ja_lida:true, mesma data)
-  - (3b) republicação 400 → campo idempotency_key inexistente na produção (self-heal v0.0.93) + uuidV4 não inline no callback (v0.0.94) → PROVA: rev2/replay/rev3/422
-  - (4) caixa "Nenhum relatório recebido ainda" SEM LOGIN → página sem formulário + erro de auth invisível; caixa é POR USUÁRIO (RLS) → CORRIGIDO v0.0.96: login na própria página → PROVA navegador: 6 itens
-  - (5) "Ver prévia" = tela branca (print do Josth 14:44) → CAUSA RAIZ PROVADA no console: TypeError n.map — resumoFactual chamada com args TROCADOS (snap, cob, janela) vs assinatura (inicio, fim, cobertura, warnings) → cobertura recebia NÚMERO → number.map explode; + SDK PB v0.26 já devolve json como OBJETO e parseJson fazia JSON.parse de novo (degradava tudo p/ fixture) → CORRIGIDO v0.0.98 (tituloPeriodo no template + parseJson aceita objeto ou string) → PROVA navegador: prévia abre COMPLETA (resumo, cobertura, PAGO por objetivo com dados reais, decisões, alertas), 0 erros
-- provas ao vivo (17:03–18:20, backend + navegador): login 200 · marcar lida 200 · idempotência 200 · republish rev2/replay/rev3 · 422 · caixa 6 itens · prévia completa sem erro de console
-- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.98); TDD local 13 provas
+- teste_humano: reprovado 3× (13/10 e 14/10) — 6 defeitos reportados/achados, TODOS corrigidos com causa raiz provada:
+  - (1) página /relatorios em BRANCO → diálogo no componente errado → CORRIGIDO v0.0.80
+  - (2) job entrega 0 na caixa → recipients com IDs mortos entre builds → CORRIGIDO v0.0.86 (automedicação por E-MAIL na política fixture)
+  - (3) "Marcar como lida" não gravava → DateTime zerado do PB chega como STRING VAZIA truthy → ramo "já lida" sem gravar → CORRIGIDO v0.0.92 → PROVA: read_at gravado + idempotência
+  - (3b) republicação 400 → idempotency_key inexistente na produção (self-heal v0.0.93) + uuidV4 não inline (v0.0.94) → PROVA: rev2/replay/rev3/422
+  - (4) caixa "Nenhum relatório recebido ainda" SEM LOGIN → página sem formulário + erro de auth invisível; caixa é POR USUÁRIO (RLS) → CORRIGIDO v0.0.96 (login na página) → PROVA navegador: 6 itens
+  - (5) "Ver prévia" = tela branca → resumoFactual com args TROCADOS (number.map explode) + SDK PB v0.26 já devolve json como OBJETO e parseJson re-parseava → CORRIGIDO v0.0.98 → PROVA: prévia abre completa, 0 erros de console
+  - (6) 14/10: republicou (rev 3 na lista) mas NÃO apareceu na caixa → o relatório dele é scope REAL e a política REAL está SEM destinatários (enabled=false, recipients=[] — aguarda DH-07/workshop 22/10); aviso "destinatário 91/93 não existe" = IDs mortos de execução antiga (mistério aberto: debug-policy prova que o JSVM vê [] na política real, mas o republish leu 91/93 — cosmético, não bloqueia) → CORRIGIDO v0.0.102: AUTOR da republicação sempre recebe cópia na caixa (patch caiu primeiro no bloco do CRON por texto idêntico — reaplicado na cópia do republish) → PROVA 14:48: republish → aviso "autor recebe cópia" → caixa 6→7 itens (rev 6 entregue)
+- provas ao vivo (13–14/10, backend + navegador): login 200 · marcar lida 200 · idempotência 200 · republish rev2/3 + replay · 422 sem motivo · caixa por usuário · prévia completa · republish rev 6 com cópia ao autor (6→7 itens)
+- verificacao_automatica: passou — QA Skip 100% (v0.0.74–v0.0.102); TDD local 13 provas
 - skip_projeto: 61465
-- skip_versao: v0.0.98 (30e8cef), publicada 2026-10-13T18:20:07Z
+- skip_versao: v0.0.102 (58a902c), publicada 2026-10-14T14:47:18Z
 - pendente_github: nao (estado sincronizado neste commit)
-- ultima_acao: 5 causas raiz corrigidas e provadas; aguardando o teste humano do Josth
-- proxima_acao: Josth testa (Ctrl+F5: /relatorios → Ver prévia abre; /caixa → entra → itens → marcar lida; Republicar com motivo + replay); aprovado → concluir-task (fase.md/STATUS/changelog/aprendizado)
-- atualizado_em: 2026-10-13T15:25:00-03:00
+- limpeza no fechamento: remover rota de diagnóstico /backend/v1/debug-policy (ping.js) após aprovação
+- pendência de negócio (não é defeito): política REAL de destinatários vazia até o dono confirmar calendário/destinatários (DH-07 — workshop de limiares 22/10); quando preenchida com E-MAILS, o job resolve e-mail→usuário na entrega
+- ultima_acao: 6 causas corrigidas e provadas; aguardando o teste humano do Josth
+- proxima_acao: Josth testa (Ctrl+F5: /relatorios → Republicar com motivo → motivo qualquer → /caixa com o MESMO login → item novo "Revisão N"); aprovado → concluir-task (fase.md/STATUS/changelog/aprendizado + remover debug-policy)
+- atualizado_em: 2026-10-14T11:50:00-03:00
