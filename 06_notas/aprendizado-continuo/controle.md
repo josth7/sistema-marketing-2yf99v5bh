@@ -1,5 +1,12 @@
 # Aprendizado contínuo — controle
 
+## AP-2026-10-14-1155 — DateTime zerado truthy + json já parseado (card a70d5ab8, debug 13–14/10)
+
+- **Sinal reutilizável**: SIM — ver `AP-2026-10-14-1155-datetime-truthy-json-parseado.md`
+- (1) Campo date nunca gravado volta como STRING VAZIA truthy no JSVM — testar com `String(campo || '') !== ''`.
+- (2) SDK v0.26 no frontend devolve campo json como OBJETO — parse seguro aceita objeto antes de JSON.parse.
+- (3) skip_file_patch com SEARCH de texto idêntico em várias cópias do job casa no PRIMEIRO bloco (caindo no CRON em vez da rota) — conferir em qual bloco o patch caiu quando o arquivo tem cópias idênticas.
+
 ## AP-2026-10-13-0840 — Relatório executivo (card 3b491438): 3 sinais reutilizáveis
 
 - **Sinal reutilizável**: SIM
