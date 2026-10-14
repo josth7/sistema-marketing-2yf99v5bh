@@ -65,6 +65,36 @@ routerAdd(
     const body = e.requestInfo().body || {}
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
 
+    // guard de permissão (SPEC-2-005, f9a2a3eb): manage_criteria
+    {
+      const hojeC = new Date().toISOString().slice(0, 10)
+      const colG_C = $app.findCollectionByNameOrId('access_grants')
+      const meusC = $app.findRecordsByFilter(
+        colG_C,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        50,
+        0,
+      )
+      let temManage = false
+      for (const g of meusC) {
+        const ateC = String(g.get('valid_until') || '')
+        if (ateC !== '' && ateC.slice(0, 10) < hojeC) continue
+        let actsC = []
+        try {
+          const rawC = g.get('actions')
+          actsC = typeof rawC === 'string' ? JSON.parse(rawC) : rawC || []
+        } catch (eC) {}
+        if (actsC.indexOf('manage_criteria') >= 0) temManage = true
+      }
+      if (!temManage && !e.hasSuperuserAuth()) {
+        return e.json(403, {
+          ok: false,
+          erro: 'sem permissão para cadastrar critérios (manage_criteria) — fale com o administrador',
+        })
+      }
+    }
+
     // ---- validação dos campos presentes (rascunho pode nascer incompleto) ----
     const LISTAS = {
       metric: [
@@ -221,6 +251,36 @@ routerAdd(
   '/backend/v1/alert-criteria/{id}',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    // guard de permissão (SPEC-2-005, f9a2a3eb): manage_criteria
+    {
+      const hojeP = new Date().toISOString().slice(0, 10)
+      const colG_P = $app.findCollectionByNameOrId('access_grants')
+      const meusP = $app.findRecordsByFilter(
+        colG_P,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        50,
+        0,
+      )
+      let temManageP = false
+      for (const g of meusP) {
+        const ateP = String(g.get('valid_until') || '')
+        if (ateP !== '' && ateP.slice(0, 10) < hojeP) continue
+        let actsP = []
+        try {
+          const rawP = g.get('actions')
+          actsP = typeof rawP === 'string' ? JSON.parse(rawP) : rawP || []
+        } catch (eP) {}
+        if (actsP.indexOf('manage_criteria') >= 0) temManageP = true
+      }
+      if (!temManageP && !e.hasSuperuserAuth()) {
+        return e.json(403, {
+          ok: false,
+          erro: 'sem permissão para editar critérios (manage_criteria) — fale com o administrador',
+        })
+      }
+    }
     const id = e.request.pathValue('id')
     const body = e.requestInfo().body || {}
     const col = $app.findCollectionByNameOrId('alert_criteria')
@@ -361,6 +421,34 @@ routerAdd(
       return e.json(403, {
         ok: false,
         erro: 'quem criou o rascunho não pode aprová-lo — aprovação é de outro responsável',
+      })
+    }
+
+    // ---- guard de permissão (SPEC-2-005, f9a2a3eb): approve_criteria ----
+    const hojeA = new Date().toISOString().slice(0, 10)
+    const colG_A = $app.findCollectionByNameOrId('access_grants')
+    const meusA = $app.findRecordsByFilter(
+      colG_A,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '',
+      50,
+      0,
+    )
+    let temApprove = false
+    for (const g of meusA) {
+      const ateA = String(g.get('valid_until') || '')
+      if (ateA !== '' && ateA.slice(0, 10) < hojeA) continue
+      let actsA = []
+      try {
+        const rawA = g.get('actions')
+        actsA = typeof rawA === 'string' ? JSON.parse(rawA) : rawA || []
+      } catch (eA) {}
+      if (actsA.indexOf('approve_criteria') >= 0) temApprove = true
+    }
+    if (!temApprove && !e.hasSuperuserAuth()) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para aprovar critérios (approve_criteria) — fale com o administrador',
       })
     }
 

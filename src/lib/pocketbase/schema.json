@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-13T16:42:58.046Z",
+  "generatedAt": "2026-10-14T16:29:37.312Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -162,14 +167,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "objective_raw",
@@ -210,7 +220,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["conectado", "nao_conectado", "erro_autenticacao", "sem_dados"]
+          "selectValues": [
+            "conectado",
+            "nao_conectado",
+            "erro_autenticacao",
+            "sem_dados"
+          ]
         },
         {
           "name": "aviso",
@@ -229,17 +244,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"
+      ]
     },
     {
       "name": "alert_criteria",
@@ -269,7 +291,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "approved", "archived"]
+          "selectValues": [
+            "draft",
+            "approved",
+            "archived"
+          ]
         },
         {
           "name": "metric",
@@ -324,7 +350,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["monthly", "calendar_half"]
+          "selectValues": [
+            "monthly",
+            "calendar_half"
+          ]
         },
         {
           "name": "comparison_mode",
@@ -370,14 +399,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -450,7 +484,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["open", "in_review", "closed"]
+          "selectValues": [
+            "open",
+            "in_review",
+            "closed"
+          ]
         },
         {
           "name": "revision",
@@ -500,14 +538,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -604,7 +647,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "ready", "delivered", "failed"]
+          "selectValues": [
+            "draft",
+            "ready",
+            "delivered",
+            "failed"
+          ]
         },
         {
           "name": "origem",
@@ -653,14 +701,25 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -745,14 +804,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -794,7 +858,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["pending", "delivered", "failed"]
+          "selectValues": [
+            "pending",
+            "delivered",
+            "failed"
+          ]
         },
         {
           "name": "attempts",
@@ -825,19 +893,262 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_unica ON inbox_items (report_id, user_id)"
       ]
+    },
+    {
+      "name": "role_catalog",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "role",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "actions",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_role_unico ON role_catalog (role)"
+      ]
+    },
+    {
+      "name": "access_grants",
+      "type": "base",
+      "apiRules": {
+        "list": "user_id = @request.auth.id",
+        "view": "user_id = @request.auth.id",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "role",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "scope_accounts",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scope_channels",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "actions",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valid_from",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valid_until",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "approved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "revoked_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "version",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_grant_unica ON access_grants (user_id, role, version)"
+      ]
+    },
+    {
+      "name": "access_audit",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "at",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "actor",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "acao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "alvo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "detalhe",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

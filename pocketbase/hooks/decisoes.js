@@ -57,6 +57,36 @@ routerAdd(
   '/backend/v1/decisions',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    // guard de permissão (SPEC-2-005, f9a2a3eb): manage_decisions
+    {
+      const hojeD = new Date().toISOString().slice(0, 10)
+      const colG_D = $app.findCollectionByNameOrId('access_grants')
+      const meusD = $app.findRecordsByFilter(
+        colG_D,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        50,
+        0,
+      )
+      let temMngD = false
+      for (const g of meusD) {
+        const ateD = String(g.get('valid_until') || '')
+        if (ateD !== '' && ateD.slice(0, 10) < hojeD) continue
+        let actsD = []
+        try {
+          const rawD = g.get('actions')
+          actsD = typeof rawD === 'string' ? JSON.parse(rawD) : rawD || []
+        } catch (eD) {}
+        if (actsD.indexOf('manage_decisions') >= 0) temMngD = true
+      }
+      if (!temMngD && !e.hasSuperuserAuth()) {
+        return e.json(403, {
+          ok: false,
+          erro: 'sem permissão para cadastrar decisões (manage_decisions) — fale com o administrador',
+        })
+      }
+    }
     const body = e.requestInfo().body || {}
     const col = $app.findCollectionByNameOrId('decisions')
 
@@ -172,6 +202,36 @@ routerAdd(
   '/backend/v1/decisions/{id}',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    // guard de permissão (SPEC-2-005, f9a2a3eb): manage_decisions
+    {
+      const hojeDP = new Date().toISOString().slice(0, 10)
+      const colG_DP = $app.findCollectionByNameOrId('access_grants')
+      const meusDP = $app.findRecordsByFilter(
+        colG_DP,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        50,
+        0,
+      )
+      let temMngDP = false
+      for (const g of meusDP) {
+        const ateDP = String(g.get('valid_until') || '')
+        if (ateDP !== '' && ateDP.slice(0, 10) < hojeDP) continue
+        let actsDP = []
+        try {
+          const rawDP = g.get('actions')
+          actsDP = typeof rawDP === 'string' ? JSON.parse(rawDP) : rawDP || []
+        } catch (eDP) {}
+        if (actsDP.indexOf('manage_decisions') >= 0) temMngDP = true
+      }
+      if (!temMngDP && !e.hasSuperuserAuth()) {
+        return e.json(403, {
+          ok: false,
+          erro: 'sem permissão para editar decisões (manage_decisions) — fale com o administrador',
+        })
+      }
+    }
     const id = e.request.pathValue('id')
     const body = e.requestInfo().body || {}
     const col = $app.findCollectionByNameOrId('decisions')
@@ -322,6 +382,36 @@ routerAdd(
   '/backend/v1/decisions/{id}/close',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    // guard de permissão (SPEC-2-005, f9a2a3eb): manage_decisions
+    {
+      const hojeDC = new Date().toISOString().slice(0, 10)
+      const colG_DC = $app.findCollectionByNameOrId('access_grants')
+      const meusDC = $app.findRecordsByFilter(
+        colG_DC,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        50,
+        0,
+      )
+      let temMngDC = false
+      for (const g of meusDC) {
+        const ateDC = String(g.get('valid_until') || '')
+        if (ateDC !== '' && ateDC.slice(0, 10) < hojeDC) continue
+        let actsDC = []
+        try {
+          const rawDC = g.get('actions')
+          actsDC = typeof rawDC === 'string' ? JSON.parse(rawDC) : rawDC || []
+        } catch (eDC) {}
+        if (actsDC.indexOf('manage_decisions') >= 0) temMngDC = true
+      }
+      if (!temMngDC && !e.hasSuperuserAuth()) {
+        return e.json(403, {
+          ok: false,
+          erro: 'sem permissão para encerrar decisões (manage_decisions) — fale com o administrador',
+        })
+      }
+    }
     const id = e.request.pathValue('id')
     const body = e.requestInfo().body || {}
     const col = $app.findCollectionByNameOrId('decisions')
