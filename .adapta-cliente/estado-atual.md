@@ -1,23 +1,12 @@
-# Estado atual — Adapta Cliente
+# Estado atual — Sistema Marketing (plugin do cliente)
 
-- schema_version: adapta-cliente-state/v2
-- task_id: 5b1de184-925a-4cda-9608-f6aaa9cbb982
-- executor: Mikael
-- owner_informativo: nenhuma
-- spec: 04_fase-atual/specs/spec-005.md (SPEC-2-005, CA-2-13)
-- analise: .adapta-cliente/analises/5b1de184-perfis-permissoes.md
-- mapa: .adapta-cliente/mapas/sistema-marketing.md (v0.0.116)
-- etapa: aguardando_teste_humano
-- autorizacao_implementacao: confirmada 14/10 17:43 — "implemente" (Josth)
-- teste_humano: pendente
-- verificacao_automatica: passou — QA Skip 100% (v0.0.115: integrações pegou função top-level em callback — corrigido inline; v0.0.116 3bc9303 publicada 21:03). Provas ao vivo CA-2-13 (backend interno 14/10): 401 sem token em /metricas · aprovador (escopo \*) vê 54 registros (contas Meta 274282329866320 + Google 9624533125) · IDOR: A com grant escopo Meta vê SÓ 47 registros Meta (0 de Google), B com escopo Google vê SÓ 7 (0 de Meta) · expiração: grant v3 do A com valid_until 13/10 some do /me e não conta no escopo · revogação: grants do B revogados → sessão antiga fica sem escopo (0 registros) · relatórios sem read_reports → 403 explicado (A) · ingestão de serviço intacta (probe 400 = rota viva) · demo do painel isolada (navegador)
-- aprendizado: pendente (fechamento)
-- sistema: 07-sistemas/sistema-marketing
-- skip_projeto: 61465
-- skip_versao: v0.0.116 (3bc9303), publicada 2026-10-14T21:03:26Z
-- skip_publicacao: publicada:3bc9303 em 2026-10-14T21:03:26Z
-- pendente_github: nao
-- decisao_cliente: (1) matriz proposta APROVADA implicitamente pelo "implemente" (Josth 17:43) — grants REAIS ainda NÃO criados: aguardam teste humano e confirmação dos e-mails (josth7@icloud.com? anezia@/jean@?); (2) contas reais e senha temporária: próximo passo após o teste
-- ultima_acao: implementação completa e provada (escopo por conta/canal + guards de leitura + rota /metricas); aguardando teste humano
-- proxima_acao: Josth testa (roteiro enviado) → aprovado → concluir-task (grants REAIS da matriz vêm depois do aceite, pelo dono autorizado)
-- atualizado_em: 2026-10-14T18:10:00-03:00
+- task_ativa: nenhuma (5b1de184 CONCLUÍDA 15/10 — perfis e permissões; passo operacional do dono executado: contas reais 0028 + grants reais da matriz com audit)
+- skip_versao: v0.0.119 (0082c51), publicada 2026-10-15T13:26:04Z
+- skip_publicacao: publicada:0082c51 em 2026-10-15T13:26:04Z
+- fase: 2 — 8/12 (67%)
+- pendente_github: não (último envio e2cdb5b1 provado; registro do passo operacional na fase vai no próximo commit)
+- aprendizado: gravado — AP-2026-10-15-0930-jsvm-top-level-reincidente (06_notas/aprendizado-continuo/)
+- task_selecionada: base visual e navegação (SPEC-2-007, CA-2-16, !16/10) — análise em .adapta-cliente/analises/base-visual-ca2-16.md
+- etapa_nova_task: aguardando_autorizacao
+- proxima_acao: aguardar autorização para implementar
+- atualizado_em: 2026-10-15T13:30:00Z
