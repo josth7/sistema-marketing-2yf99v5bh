@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Users,
 } from 'lucide-react'
+import { CabecalhoPagina, SeloDemonstracao } from '@/components/base/estados'
 import { estadosIniciais, datasetDemonstrativo, datasetReal } from '@/lib/marketing/fontes'
 import { construirVisao, periodosDisponiveis } from '@/lib/marketing/agregacao'
 import {
@@ -297,30 +298,36 @@ export default function PainelPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Painel consolidado</h1>
-          <p className="text-sm text-gray-500">
-            Visão única por período, canal e objetivo — orgânico e pago sempre separados.
-          </p>
-        </div>
+      <CabecalhoPagina
+        titulo="Painel consolidado"
+        descricao="Visão única por período, canal e objetivo — orgânico e pago sempre separados."
+        acoes={
+          <>
+            <Button
+              variant={usarDemo ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setUsarDemo(true)}
+            >
+              <Eye className="mr-1 h-4 w-4" /> Demonstração
+            </Button>
+            <Button
+              variant={!usarDemo ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setUsarDemo(false)}
+            >
+              <Database className="mr-1 h-4 w-4" /> Dados reais
+            </Button>
+          </>
+        }
+      />
+      {usarDemo && (
         <div className="flex items-center gap-2">
-          <Button
-            variant={usarDemo ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setUsarDemo(true)}
-          >
-            <Eye className="mr-1 h-4 w-4" /> Demonstração
-          </Button>
-          <Button
-            variant={!usarDemo ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setUsarDemo(false)}
-          >
-            <Database className="mr-1 h-4 w-4" /> Dados reais
-          </Button>
+          <SeloDemonstracao />
+          <span className="text-xs text-muted-foreground">
+            Dados fictícios para avaliar organização e filtros — não representam resultados reais.
+          </span>
         </div>
-      </div>
+      )}
 
       <AvisoOrigem origem={usarDemo ? 'demonstracao' : 'api'} />
       <AvisosCanal estadosPb={estadosFontes} />

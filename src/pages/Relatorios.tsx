@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { AlertTriangle, FileText, FlaskConical, Scale } from 'lucide-react'
+import { CabecalhoPagina } from '@/components/base/estados'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { tickTeste } from '@/lib/marketing/caixa'
@@ -292,13 +293,10 @@ export default function Relatorios() {
 
   return (
     <div className="flex-1 p-6 md:p-10 space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Relatório executivo (prévia)</h1>
-        <p className="text-sm text-[#6B7280]">
-          Resumo factual da quinzena fechada — sem IA; comparação só quando as janelas são
-          comparáveis; nada é enviado nesta fase (envio automático é o próximo card).
-        </p>
-      </div>
+      <CabecalhoPagina
+        titulo="Relatório executivo (prévia)"
+        descricao="Resumo factual da quinzena fechada — sem IA; comparação só quando as janelas são comparáveis; nada é enviado nesta fase (envio automático é o próximo card)."
+      />
 
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

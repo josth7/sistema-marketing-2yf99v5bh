@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { listarCaixa, marcarLida, type ItemCaixa } from '@/lib/marketing/caixa'
+import { CabecalhoPagina } from '@/components/base/estados'
 
 /**
  * Caixa de entrada (SPEC-2-004, card a70d5ab8, CA-2-11).
@@ -131,17 +132,10 @@ export default function Caixa() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md px-4 py-10">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-[#F1EBFE] flex items-center justify-center">
-            <Inbox className="h-5 w-5 text-[#6C3EF5]" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Caixa de entrada</h1>
-            <p className="text-sm text-muted-foreground">
-              Relatórios executivos entregues para você
-            </p>
-          </div>
-        </div>
+        <CabecalhoPagina
+          titulo="Caixa de entrada"
+          descricao="Relatórios executivos entregues para você"
+        />
         <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <LogIn className="h-4 w-4 text-[#6C3EF5]" />
@@ -187,29 +181,28 @@ export default function Caixa() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-[#F1EBFE] flex items-center justify-center">
-          <Inbox className="h-5 w-5 text-[#6C3EF5]" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Caixa de entrada</h1>
-          <p className="text-sm text-muted-foreground">Relatórios executivos entregues para você</p>
-        </div>
-        <button
-          onClick={() => void carregar()}
-          className="ml-auto flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
-          aria-label="Recarregar caixa de entrada"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Recarregar
-        </button>
-        <button
-          onClick={sair}
-          className="rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          Sair
-        </button>
-      </div>
+      <CabecalhoPagina
+        titulo="Caixa de entrada"
+        descricao="Relatórios executivos entregues para você"
+        acoes={
+          <>
+            <button
+              onClick={() => void carregar()}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
+              aria-label="Recarregar caixa de entrada"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Recarregar
+            </button>
+            <button
+              onClick={sair}
+              className="rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
+            >
+              Sair
+            </button>
+          </>
+        }
+      />
 
       {user && (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">

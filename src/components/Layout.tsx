@@ -1,71 +1,71 @@
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Rocket, BarChart3, ListPlus, Scale, FileText, Inbox } from 'lucide-react'
+import { VERSAO_SISTEMA } from '@/lib/versao'
+
+/**
+ * Layout único do sistema (SPEC-2-007, CA-2-16): cabeçalho com logo, nome e
+ * navegação SÓ para módulos existentes; versão real no rodapé (sai o v1.0.0
+ * fixo); cores só de tokens do tema (bg-background, bg-card, text-muted-*,
+ * primary) + gradientes da marca (--marca-1/--marca-2 definidos em main.css).
+ */
+const ITENS_MENU = [
+  { para: '/painel', rotulo: 'Painel', Icone: BarChart3 },
+  { para: '/criterios', rotulo: 'Critérios', Icone: ListPlus },
+  { para: '/decisoes', rotulo: 'Decisões', Icone: Scale },
+  { para: '/relatorios', rotulo: 'Relatórios', Icone: FileText },
+  { para: '/caixa', rotulo: 'Caixa', Icone: Inbox },
+]
 
 export default function Layout() {
+  const atual = useLocation().pathname
   const currentYear = new Date().getFullYear()
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F9FAFB] text-[#1F2937]">
-      {/* Top Header */}
-      <header className="h-16 border-b border-border bg-white/80 backdrop-blur sticky top-0 z-30 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-[#6C3EF5] to-[#A855F7] flex items-center justify-center text-white shadow-sm">
-            <Rocket className="h-5 w-5" />
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      {/* Cabeçalho */}
+      <header className="h-16 border-b border-border bg-card/80 backdrop-blur sticky top-0 z-30 px-4 md:px-6 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-9 w-9 shrink-0 rounded-lg bg-[linear-gradient(135deg,hsl(var(--marca-1)),hsl(var(--marca-2)))] flex items-center justify-center text-white shadow-sm">
+            <Rocket className="h-5 w-5" aria-hidden="true" />
           </div>
-          <span className="font-semibold text-lg tracking-tight text-[#1F2937]">
-            SISTEMA MARKETING
+          <span className="font-semibold text-base md:text-lg tracking-tight truncate">
+            Sistema Marketing
           </span>
         </div>
-        <nav className="flex items-center gap-1">
-          <a
-            href="/painel"
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          >
-            <BarChart3 className="h-4 w-4" />
-            Painel
-          </a>
-          <a
-            href="/criterios"
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          >
-            <ListPlus className="h-4 w-4" />
-            Critérios
-          </a>
-          <a
-            href="/decisoes"
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          >
-            <Scale className="h-4 w-4" />
-            Decisões
-          </a>
-          <a
-            href="/relatorios"
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          >
-            <FileText className="h-4 w-4" />
-            Relatórios
-          </a>
-          <a
-            href="/caixa"
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          >
-            <Inbox className="h-4 w-4" />
-            Caixa
-          </a>
-          <div className="ml-2 text-xs font-medium text-[#6B7280] bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
-            v1.0.0
-          </div>
+        <nav
+          className="flex items-center gap-0.5 md:gap-1 overflow-x-auto"
+          aria-label="Navegação principal"
+        >
+          {ITENS_MENU.map(({ para, rotulo, Icone }) => {
+            const ativo = atual === para || atual.startsWith(para + '/')
+            return (
+              <Link
+                key={para}
+                to={para}
+                aria-current={ativo ? 'page' : undefined}
+                className={
+                  'flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 md:px-3 py-1.5 text-sm font-medium transition-colors ' +
+                  (ativo
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+                }
+              >
+                <Icone className="h-4 w-4" aria-hidden="true" />
+                {rotulo}
+              </Link>
+            )
+          })}
         </nav>
       </header>
 
-      {/* Main Content Area */}
+      {/* Conteúdo */}
       <main className="flex-1 flex flex-col">
         <Outlet />
       </main>
 
-      {/* Footer */}
-      <footer className="py-4 border-t border-border bg-white text-center text-xs text-[#6B7280]">
-        SISTEMA MARKETING v1.0.0 • {currentYear}
+      {/* Rodapé com a versão real (CA-2-16) */}
+      <footer className="py-3 border-t border-border bg-card text-center text-xs text-muted-foreground">
+        Sistema Marketing · {VERSAO_SISTEMA} · {currentYear}
       </footer>
     </div>
   )

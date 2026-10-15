@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Archive, CheckCircle2, ListPlus, ShieldCheck } from 'lucide-react'
+import { CabecalhoPagina } from '@/components/base/estados'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { lerErroCustom } from '@/lib/marketing/erros-custom'
@@ -228,14 +229,10 @@ export default function Criterios() {
 
   return (
     <div className="flex-1 p-6 md:p-10 space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Critérios de alerta</h1>
-        <p className="text-sm text-[#6B7280]">
-          Cadastro em rascunho — preparação para o workshop de limiares com a Anézia (22/10).
-          Nenhuma regra nasce aprovada: aprovar exige outro responsável e todos os campos
-          obrigatórios.
-        </p>
-      </div>
+      <CabecalhoPagina
+        titulo="Critérios de alerta"
+        descricao="Cadastro em rascunho — preparação para o workshop de limiares com a Anézia (22/10). Nenhuma regra nasce aprovada: aprovar exige outro responsável e todos os campos obrigatórios."
+      />
 
       {user && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">

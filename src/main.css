@@ -54,6 +54,12 @@
     --chart-3: 160 84% 39%;
     --chart-4: 217 91% 60%;
     --chart-5: 0 84% 60%;
+
+    /* Marca e semânticos (SPEC-2-007, CA-2-16) — única origem de cor fora do tema shadcn */
+    --marca-1: 255 90% 60%;
+    --marca-2: 271 91% 65%;
+    --ok: 160 84% 39%;
+    --warn: 38 92% 50%;
   }
 
   body {

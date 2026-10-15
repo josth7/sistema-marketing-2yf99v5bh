@@ -7,6 +7,7 @@
 - pendente_github: não (último envio e2cdb5b1 provado; registro do passo operacional na fase vai no próximo commit)
 - aprendizado: gravado — AP-2026-10-15-0930-jsvm-top-level-reincidente (06_notas/aprendizado-continuo/)
 - task_selecionada: base visual e navegação (SPEC-2-007, CA-2-16, !16/10) — análise em .adapta-cliente/analises/base-visual-ca2-16.md
-- etapa_nova_task: aguardando_autorizacao
-- proxima_acao: aguardar autorização para implementar
+- etapa_nova_task: implementando
+- autorizacao: "implemente" (dono, 15/10 — posterior à análise v0.0.120)
+- proxima_acao: implementar CA-2-16 (tokens, componentes base, cabeçalho/rodapé, selo demo) e parar no teste humano
 - atualizado_em: 2026-10-15T13:30:00Z

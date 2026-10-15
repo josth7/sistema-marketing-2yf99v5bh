@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Archive, CheckCircle2, Scale } from 'lucide-react'
+import { CabecalhoPagina } from '@/components/base/estados'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { rotuloEstado } from '@/lib/marketing/decisoes'
@@ -194,13 +195,10 @@ export default function Decisoes() {
 
   return (
     <div className="flex-1 p-6 md:p-10 space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Decisões com revisão agendada</h1>
-        <p className="text-sm text-[#6B7280]">
-          Toda decisão precisa de responsável e data de revisão futura — o servidor recusa decisão
-          sem prazo. O lembrete automático chega no próximo passo (card a434ca96).
-        </p>
-      </div>
+      <CabecalhoPagina
+        titulo="Decisões com revisão agendada"
+        descricao="Toda decisão precisa de responsável e data de revisão futura — o servidor recusa decisão sem prazo. O lembrete automático chega no próximo passo (card a434ca96)."
+      />
 
       {user && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
