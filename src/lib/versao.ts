@@ -7,4 +7,4 @@
  * cabeçalho. Limitação registrada na evidência do card: atualizar este valor
  * é manual a cada publicação; a fonte canônica continua sendo o Skip.
  */
-export const VERSAO_SISTEMA = 'v0.0.130'
+export const VERSAO_SISTEMA = 'v0.0.134'
