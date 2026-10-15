@@ -155,7 +155,7 @@ function FaixaFontes({ estadosPb }: { estadosPb: Record<string, FonteEstadoRecor
                 <Database className="h-3 w-3" aria-hidden="true" />
               )}
               {LABEL_CANAL[canal]}
-              <span className="font-normal opacity-80">
+              <span className="font-normal">
                 {conectado
                   ? quando
                     ? `· atualizado às ${quando}`
@@ -363,7 +363,7 @@ function TabelaNatureza({ visao }: { visao: ReturnType<typeof construirVisao> })
     return <p className="text-sm text-muted-foreground">Sem registros nesta natureza.</p>
   }
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabela por objetivo">
       <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b text-left text-xs uppercase text-muted-foreground">
