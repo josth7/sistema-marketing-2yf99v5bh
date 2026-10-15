@@ -73,6 +73,29 @@
       sans-serif;
   }
 
+  /* CA-2-19: sem rolagem horizontal da página (tabelas rolam dentro delas) */
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  /* CA-2-19: foco visível em qualquer elemento interativo */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* CA-2-19: alvos de toque ≥ 40px em controles interativos */
+  button,
+  [role='button'],
+  a,
+  input,
+  select,
+  [data-slot='select-trigger'] {
+    min-height: 2.5rem;
+  }
+
   .dark {
     /* Change the colors to match the design system consistent with the dark mode */
     --background: 222.2 84% 4.9%;
