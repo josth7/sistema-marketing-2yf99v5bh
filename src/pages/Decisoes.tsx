@@ -14,7 +14,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Archive, CheckCircle2, Scale } from 'lucide-react'
-import { CabecalhoPagina } from '@/components/base/estados'
+import {
+  CabecalhoPagina,
+  EstadoCarregando,
+  EstadoErro,
+  EstadoVazio,
+} from '@/components/base/estados'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { rotuloEstado } from '@/lib/marketing/decisoes'
@@ -343,13 +348,14 @@ export default function Decisoes() {
         </CardHeader>
         <CardContent>
           {carregando ? (
-            <p className="text-sm text-[#6B7280]">Carregando…</p>
+            <EstadoCarregando linhas={2} />
           ) : erro ? (
-            <p className="text-sm text-red-600">{erro}</p>
+            <EstadoErro mensagem={erro} />
           ) : itens.length === 0 ? (
-            <p className="text-sm text-[#6B7280]">
-              Nenhuma decisão ainda — o formulário acima registra a primeira.
-            </p>
+            <EstadoVazio
+              titulo="Nenhuma decisão ainda"
+              descricao="O formulário acima registra a primeira."
+            />
           ) : (
             <div className="space-y-3">
               {itens.map((it) => (

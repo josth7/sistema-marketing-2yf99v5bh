@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  Inbox,
-  FileText,
-  Check,
-  RefreshCw,
-  AlertCircle,
-  Inbox as InboxIcon,
-  LogIn,
-} from 'lucide-react'
+import { Inbox, FileText, Check, RefreshCw, LogIn } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { listarCaixa, marcarLida, type ItemCaixa } from '@/lib/marketing/caixa'
-import { CabecalhoPagina } from '@/components/base/estados'
+import {
+  CabecalhoPagina,
+  EstadoCarregando,
+  EstadoErro,
+  EstadoVazio,
+} from '@/components/base/estados'
 
 /**
  * Caixa de entrada (SPEC-2-004, card a70d5ab8, CA-2-11).
@@ -210,31 +207,15 @@ export default function Caixa() {
         </div>
       )}
 
-      {erro && (
-        <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-medium">Algo deu errado</p>
-            <p>{erro}</p>
-            <button onClick={() => void carregar()} className="mt-1 underline font-medium">
-              Tentar novamente
-            </button>
-          </div>
-        </div>
-      )}
+      {erro && <EstadoErro mensagem={erro} aoTentar={() => void carregar()} />}
 
       {carregando ? (
-        <div className="rounded-lg border border-border bg-white p-8 text-center text-sm text-muted-foreground">
-          Carregando…
-        </div>
+        <EstadoCarregando linhas={2} />
       ) : itens.length === 0 ? (
-        <div className="rounded-lg border border-border bg-white p-8 text-center">
-          <InboxIcon className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <p className="mt-2 font-medium">Nenhum relatório recebido ainda</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Os relatórios aparecem aqui quando o envio automático for ativado
-          </p>
-        </div>
+        <EstadoVazio
+          titulo="Nenhum relatório recebido ainda"
+          descricao="Os relatórios aparecem aqui quando o envio automático for ativado"
+        />
       ) : (
         <div className="space-y-3">
           {itens.map((item) => (

@@ -21,7 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Archive, CheckCircle2, ListPlus, ShieldCheck } from 'lucide-react'
-import { CabecalhoPagina } from '@/components/base/estados'
+import {
+  CabecalhoPagina,
+  EstadoCarregando,
+  EstadoErro,
+  EstadoVazio,
+} from '@/components/base/estados'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { lerErroCustom } from '@/lib/marketing/erros-custom'
@@ -485,13 +490,14 @@ export default function Criterios() {
         </CardHeader>
         <CardContent>
           {carregando ? (
-            <p className="text-sm text-[#6B7280]">Carregando…</p>
+            <EstadoCarregando linhas={2} />
           ) : erro ? (
-            <p className="text-sm text-red-600">{erro}</p>
+            <EstadoErro mensagem={erro} />
           ) : itens.length === 0 ? (
-            <p className="text-sm text-[#6B7280]">
-              Nenhum critério ainda — o formulário acima cria o primeiro rascunho.
-            </p>
+            <EstadoVazio
+              titulo="Nenhum critério ainda"
+              descricao="O formulário acima cria o primeiro rascunho."
+            />
           ) : (
             <div className="space-y-3">
               {itens.map((it) => (
@@ -501,9 +507,7 @@ export default function Criterios() {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     {badgeEstado(it.state)}
-                    <span className="text-xs text-[#6B7280]">
-                      v{it.version} · {it.uuid.slice(0, 8)}…
-                    </span>
+                    <span className="text-xs text-[#6B7280]">versão {it.version}</span>
                     {it.approved_by && (
                       <span className="text-xs text-emerald-700 flex items-center gap-1">
                         <ShieldCheck className="h-3.5 w-3.5" />

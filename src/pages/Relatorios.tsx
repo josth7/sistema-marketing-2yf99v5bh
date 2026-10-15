@@ -20,7 +20,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { AlertTriangle, FileText, FlaskConical, Scale } from 'lucide-react'
-import { CabecalhoPagina } from '@/components/base/estados'
+import {
+  CabecalhoPagina,
+  EstadoCarregando,
+  EstadoErro,
+  EstadoVazio,
+} from '@/components/base/estados'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { tickTeste } from '@/lib/marketing/caixa'
@@ -402,11 +407,12 @@ export default function Relatorios() {
           </CardHeader>
           <CardContent>
             {carregando ? (
-              <p className="text-sm text-[#6B7280]">Carregando…</p>
+              <EstadoCarregando linhas={2} />
             ) : itens.length === 0 ? (
-              <p className="text-sm text-[#6B7280]">
-                Nenhum relatório gerado ainda — escolha uma quinzena fechada e gere.
-              </p>
+              <EstadoVazio
+                titulo="Nenhum relatório gerado ainda"
+                descricao="Escolha uma quinzena fechada e gere o primeiro relatório."
+              />
             ) : (
               <div className="space-y-3">
                 {itens.map((it) => (
@@ -560,7 +566,7 @@ function TemplateRelatorio(props: {
           <h3 className="text-lg font-semibold">{props.titulo}</h3>
           <p className="text-xs text-[#6B7280]">gerado em {props.geradoEm}</p>
         </div>
-        <Badge variant="outline">template 1.0.0</Badge>
+        <Badge variant="outline">modelo padrão</Badge>
       </div>
 
       <p className="text-sm text-[#374151]">
@@ -649,7 +655,7 @@ function TemplateRelatorio(props: {
       </div>
 
       <p className="text-xs text-[#9CA3AF]">
-        Demonstração: payload de teste renderizado como texto — {payloadDemo}
+        Prévia com dados de demonstração — conteúdo de teste exibido como texto.
       </p>
     </div>
   )
