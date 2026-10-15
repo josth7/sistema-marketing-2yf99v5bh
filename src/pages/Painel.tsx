@@ -686,8 +686,23 @@ export default function PainelPage() {
         </Card>
       ) : (
         <>
-          {/* Linha principal de cartões — seta, cor pelo sentido, "vs. anterior" ou motivo */}
+          {/* Linha principal de cartões — seta, cor pelo sentido, "vs. anterior" ou motivo.
+              CPR entra na linha principal quando um único objetivo está selecionado (RN-01). */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {objetivoUnico && (
+              <Kpi
+                titulo="Custo por resultado"
+                valor={formatarMoeda(cprUnico)}
+                variacao={null}
+                sentido="sobe_ruim"
+                referencia={referencia}
+                motivo={
+                  cprUnico === null
+                    ? 'Indisponível para este objetivo'
+                    : 'Calculado do objetivo selecionado'
+                }
+              />
+            )}
             <Kpi
               titulo="Gasto"
               valor={formatarMoeda(visao.total.gasto)}
@@ -704,25 +719,6 @@ export default function PainelPage() {
               referencia={referencia}
               motivo={motivoComparativo}
             />
-            {objetivoUnico ? (
-              <Kpi
-                titulo="Custo por resultado"
-                valor={formatarMoeda(cprUnico)}
-                variacao={null}
-                sentido="sobe_ruim"
-                referencia={referencia}
-                motivo={cprUnico === null ? 'Indisponível para este objetivo' : null}
-              />
-            ) : (
-              <Kpi
-                titulo="Cliques"
-                valor={formatarInteiro(visao.total.cliques)}
-                variacao={visao.comparativo.cliques}
-                sentido="sobe_bom"
-                referencia={referencia}
-                motivo={motivoComparativo}
-              />
-            )}
             <Kpi
               titulo="Cliques"
               valor={formatarInteiro(visao.total.cliques)}
