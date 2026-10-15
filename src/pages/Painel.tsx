@@ -320,14 +320,7 @@ export default function PainelPage() {
           </>
         }
       />
-      {usarDemo && (
-        <div className="flex items-center gap-2">
-          <SeloDemonstracao />
-          <span className="text-xs text-muted-foreground">
-            Dados fictícios para avaliar organização e filtros — não representam resultados reais.
-          </span>
-        </div>
-      )}
+      {usarDemo && <SeloDemonstracao />}
 
       <AvisoOrigem origem={usarDemo ? 'demonstracao' : 'api'} />
       <AvisosCanal estadosPb={estadosFontes} />
