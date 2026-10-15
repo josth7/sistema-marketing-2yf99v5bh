@@ -189,7 +189,7 @@ function Kpi(props: {
   const suprimido = props.motivo || (v?.semBaseDeComparacao ?? false)
   const pct = v && !v.semBaseDeComparacao ? v.variacaoPercentual : null
   const sobe = pct !== null && pct >= 0
-  const icone = pct === null ? Minus : sobe ? TrendingUp : TrendingDown
+  const Icone = pct === null ? Minus : sobe ? TrendingUp : TrendingDown
   // Cor pelo SENTIDO da métrica (SPEC-2-007): sobe é bom (verde) ou ruim (vermelho);
   // neutro (Gasto) fica cinza. Texto e seta sempre junto — nunca só cor.
   const corClasse =
@@ -208,7 +208,7 @@ function Kpi(props: {
       <CardContent>
         <div className="text-2xl font-semibold tabular-nums text-foreground">{props.valor}</div>
         <div className={`mt-1 flex items-center gap-1 text-xs ${corClasse}`}>
-          <icone.type className="h-3.5 w-3.5" aria-hidden="true" />
+          <Icone className="h-3.5 w-3.5" aria-hidden="true" />
           {suprimido ? (
             <span className="text-muted-foreground">
               {props.motivo ?? 'Sem base de comparação'}
