@@ -214,11 +214,15 @@ export function variacao(atual: number | null, anterior: number | null): Compara
   }
 }
 
-/** Formata variação para exibição respeitando RN-02. */
+/** Formata variação para exibição respeitando RN-02 — pt-BR (vírgula, sinal −). */
 export function formatarVariacao(c: ComparativoPeriodo): string {
   if (c.semBaseDeComparacao) return 'Sem base de comparação'
-  const sinal = c.variacaoPercentual >= 0 ? '+' : ''
-  return `${sinal}${c.variacaoPercentual.toFixed(1)}%`
+  const v = Math.abs(c.variacaoPercentual).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
+  const sinal = c.variacaoPercentual >= 0 ? '+' : '−'
+  return `${sinal}${v}%`
 }
 
 /** Formata número inteiro; null → "—" (indisponível, RN-06). */
@@ -233,8 +237,8 @@ export function formatarMoeda(v: number | null): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-/** Formata percentual; null → "—". */
+/** Formata percentual pt-BR (vírgula); null → "—". */
 export function formatarPercentual(v: number | null): string {
   if (v === null) return '—'
-  return `${v.toFixed(2)}%`
+  return `${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
 }

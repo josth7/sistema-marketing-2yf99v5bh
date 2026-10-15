@@ -8,6 +8,7 @@
 - pendente_github: não (869ee6cf provado)
 - aprendizado: gravado — prova de versão no ar por curl no bundle (06_notas/aprendizado-continuo/controle.md)
 - task_selecionada: reorganizar o painel consolidado (SPEC-2-007, CA-2-17, !21/10) — análise em .adapta-cliente/analises/painel-ca2-17.md
-- etapa_nova_task: aguardando_autorizacao
-- proxima_acao: aguardar autorização para implementar
+- etapa_nova_task: implementando
+- autorizacao: "pode implementar" (dono, 15/10 16:57 — posterior à análise v0.0.124)
+- proxima_acao: implementar CA-2-17 e parar no teste humano
 - atualizado_em: 2026-10-15T16:55:00Z
