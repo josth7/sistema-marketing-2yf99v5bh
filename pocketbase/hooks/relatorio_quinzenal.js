@@ -163,9 +163,19 @@ cronAdd('relatorio_quinzenal', '0 10 * * *', () => {
       let recipients = []
       try {
         const raw = pol.get('recipient_user_ids')
-        recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
+        // AP-2026-10-16 (workshop antecipado): json gravado como string volta do
+        // JSVM como ARRAY DE CHAR-CODES — cada número era tratado como ID de
+        // usuário ("destinatário 91/34/106 não existe"). Parse cobre os 3 formatos.
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          recipients = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          recipients = JSON.parse(raw)
+        } else {
+          recipients = raw || []
+        }
       } catch (e2) {}
       for (const uid of recipients || []) {
+        if (typeof uid !== 'string') continue
         let resolvido = null
         try {
           resolvido = app.findRecordById('users', uid)
@@ -715,9 +725,19 @@ routerAdd(
         let recipients = []
         try {
           const raw = pol.get('recipient_user_ids')
-          recipients = typeof raw === 'string' ? JSON.parse(raw) : raw
+          // AP-2026-10-16 (workshop antecipado): json gravado como string volta do
+          // JSVM como ARRAY DE CHAR-CODES — cada número era tratado como ID de
+          // usuário ("destinatário 91/34/106 não existe"). Parse cobre os 3 formatos.
+          if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+            recipients = JSON.parse(String.fromCharCode.apply(null, raw))
+          } else if (typeof raw === 'string') {
+            recipients = JSON.parse(raw)
+          } else {
+            recipients = raw || []
+          }
         } catch (e2) {}
         for (const uid of recipients || []) {
+          if (typeof uid !== 'string') continue
           let resolvido = null
           try {
             resolvido = app.findRecordById('users', uid)
