@@ -1,15 +1,23 @@
 /// <reference path="../pb_data/types.d.ts" />
 /**
  * Hooks do servidor — alertas por critério + fila de análise
- * (SPEC-2-002, card f7591165, CA-2-06/07).
+ * (SPEC-2-002, card f7591165, CA-2-06/07) + ajustes da ata do workshop
+ * antecipado (16/10, 05_entregas/criterios-alerta-aprovados.md):
  *
- * cronAdd global 'alerta_avaliador_diario' 09:15 UTC — DESABILITADO por padrão
- * (migração 0029 grava disabled=true em _cron_settings; gate CL-003 workshop 22/10).
- * A MESMA lógica vive inline em: callback do cron (cópia A) e rota tick
- * (relógio de teste, cópia B) — padrão do job quinzenal (a70d5ab8).
+ * 1. TIPO DO RESULTADO É DESCRITIVO: a Meta não separa tipo (result_type null
+ *    na fonte) e o Google marca 'conversoes' — o avaliador agrupa por
+ *    canal+objetivo+natureza e registra o tipo da regra como descrição do
+ *    alerta (sem filtrar por um tipo que a fonte não fornece).
+ * 2. BASE MÍNIMA em métricas de razão (custo_por_resultado/cpc/cpm/ctr)
+ *    compara o DENOMINADOR do período anterior (resultados/cliques/impressões);
+ *    em métricas de soma compara o total anterior.
+ *
+ * cronAdd global 'alerta_avaliador_diario' 09:15 UTC — ATIVADO por autorização
+ * do dono (migração 0034; workshop antecipado 16/10). A MESMA lógica vive
+ * inline em: callback do cron (cópia A) e rota tick (cópia B).
  *
  * Avaliador determinístico (sem IA, sem alteração de anúncios):
- * - só critérios state='approved' (draft/archived NUNCA disparam — CA-2-06/07);
+ * - só critérios state='approved' (draft/archived NUNCA disparam);
  * - somente o ÚLTIMO intervalo FECHADO antes de hojeRef, por period_kind:
  *   monthly = mês anterior completo; calendar_half = 1–15 / 16–último dia;
  * - período anterior = intervalo imediatamente anterior do MESMO tipo;
@@ -17,109 +25,19 @@
  *   nos dois períodos — diferença gera motivo de não elegibilidade, sem alerta;
  * - fonte: critérios de usuários fixture (criterios.fixture.*) leem a coleção
  *   ISOLADA alertas_fixtures; critérios reais leem metricas_diarias origem='api'
- *   (dataset demonstrativo NUNCA gera alerta — CA-2-07);
+ *   (dataset demonstrativo NUNCA gera alerta);
  * - fórmula 100*(atual−anterior)/abs(anterior); base anterior null/0 ou
  *   < min_base não dispara; limiar INCLUSIVO (>= threshold p/ increase,
  *   <= −threshold p/ decrease);
- * - grupo = canal+objetivo+result_type+natureza do critério (nunca mistura);
  * - idempotência: UNIQUE (criterion_id, criterion_version, group_key,
- *   period_current_start, period_current_end) + busca antes de gravar —
- *   replay/retry NÃO duplica (CA-2-07);
- * - regra inválida não trava as demais (try/catch por critério, motivo no resumo).
- *
- * Rotas autenticadas:
- *   GET   /backend/v1/alerts            → lista a fila (guard read_alerts)
- *   PATCH /backend/v1/alerts/{id}/state → transição auditada (guard manage_alerts)
- *   POST  /backend/v1/alerts/tick       → relógio de teste {data: AAAA-MM-DD}
- *
- * Transições: open→in_review; in_review→decided (exige decision_id);
- * decided→closed (exige justificativa); fechamento DIRETO de open/in_review
- * só pelo RESPONSÁVEL do alerta com justificativa (auditada no history).
+ *   period_current_start, period_current_end) + busca antes de gravar;
+ * - regra inválida não trava as demais (try/catch por critério).
  */
 
 // ==================== CRON (lógica inline — cópia A) ====================
 cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
   const hojeRef = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const app = $app
-
-  function ultimoDiaDoMes(anoMes) {
-    const partes = String(anoMes).split('-')
-    const ano = Number(partes[0])
-    const mes = Number(partes[1])
-    if (mes === 12) return ano + '-12-31'
-    const prox = new Date(Date.UTC(ano, mes, 1) - 86400000)
-    return prox.toISOString().slice(0, 10)
-  }
-  function addDias(dataISO, n) {
-    return new Date(new Date(dataISO + 'T12:00:00Z').getTime() + n * 86400000)
-      .toISOString()
-      .slice(0, 10)
-  }
-  function duracaoDias(inicio, fim) {
-    return (
-      Math.round(
-        (new Date(fim + 'T00:00:00Z').getTime() - new Date(inicio + 'T00:00:00Z').getTime()) /
-          86400000,
-      ) + 1
-    )
-  }
-  // último intervalo FECHADO antes de hojeRef + o imediatamente anterior (mesmo tipo)
-  function janelas(hojeRef, kind) {
-    const ano = Number(hojeRef.slice(0, 4))
-    const mes = Number(hojeRef.slice(5, 7))
-    const dia = Number(hojeRef.slice(8, 10))
-    function mesAnt(ano, mes) {
-      return mes === 1 ? { ano: ano - 1, mes: 12 } : { ano: ano, mes: mes - 1 }
-    }
-    function pad(n) {
-      return n < 10 ? '0' + n : '' + n
-    }
-    if (kind === 'monthly') {
-      const atual = mesAnt(ano, mes)
-      const anterior = mesAnt(atual.ano, atual.mes)
-      const iniA = atual.ano + '-' + pad(atual.mes) + '-01'
-      const fimA = ultimoDiaDoMes(atual.ano + '-' + pad(atual.mes))
-      const iniP = anterior.ano + '-' + pad(anterior.mes) + '-01'
-      const fimP = ultimoDiaDoMes(anterior.ano + '-' + pad(anterior.mes))
-      return { atual: { inicio: iniA, fim: fimA }, anterior: { inicio: iniP, fim: fimP } }
-    }
-    // calendar_half
-    let atual, anterior
-    if (dia >= 16) {
-      atual = { inicio: ano + '-' + pad(mes) + '-01', fim: ano + '-' + pad(mes) + '-15' }
-      const p = mesAnt(ano, mes)
-      anterior = {
-        inicio: p.ano + '-' + pad(p.mes) + '-16',
-        fim: ultimoDiaDoMes(p.ano + '-' + pad(p.mes)),
-      }
-    } else {
-      const p = mesAnt(ano, mes)
-      atual = {
-        inicio: p.ano + '-' + pad(p.mes) + '-16',
-        fim: ultimoDiaDoMes(p.ano + '-' + pad(p.mes)),
-      }
-      anterior = { inicio: p.ano + '-' + pad(p.mes) + '-01', fim: p.ano + '-' + pad(p.mes) + '-15' }
-    }
-    return { atual: atual, anterior: anterior }
-  }
-  function numOuNull(v) {
-    const n = Number(v)
-    return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : n
-  }
-  function somar(valores) {
-    const presentes = valores.filter(function (v) {
-      return v !== null && v !== undefined
-    })
-    if (presentes.length === 0) return null
-    let s = 0
-    for (const v of presentes) s += v
-    return s
-  }
-  function razao(num, den) {
-    if (num === null || den === null || den === 0) return null
-    return num / den
-  }
-
   const resumo = {
     hojeRef: hojeRef,
     criterios: 0,
@@ -167,7 +85,6 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
           continue
         }
 
-        // fonte: fixture (usuário criterios.fixture.*) → alertas_fixtures; real → api
         let criadorEmail = ''
         try {
           const u = app.findRecordById(colU, String(c.get('created_by') || ''))
@@ -183,6 +100,11 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
         const j = janelas(hojeRef, kind)
         const durA = duracaoDias(j.atual.inicio, j.atual.fim)
         const durP = duracaoDias(j.anterior.inicio, j.anterior.fim)
+        const ehRazao =
+          metric === 'cpc' ||
+          metric === 'cpm' ||
+          metric === 'ctr' ||
+          metric === 'custo_por_resultado'
 
         function agregar(janela) {
           const filtro =
@@ -201,54 +123,56 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
           const doGrupo = []
           const datas = {}
           for (const r of registros) {
-            const rt = r.get('result_type') ? String(r.get('result_type')) : null
-            if ((resultType || null) !== rt) continue
+            // tipo do resultado é DESCRITIVO (ata 16/10): a fonte Meta não separa
+            // tipo e o Google marca 'conversoes' — sem filtro por tipo da regra
             doGrupo.push(r)
             datas[String(r.get('data')).slice(0, 10)] = true
           }
-          const valores = []
-          for (const r of doGrupo) valores.push(numOuNull(r.get(metric)))
+          const gasto = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('gasto'))
+            }),
+          )
+          const cliques = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('cliques'))
+            }),
+          )
+          const impr = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('impressoes'))
+            }),
+          )
+          const res = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('resultados'))
+            }),
+          )
           let total = null
-          if (
-            metric === 'cpc' ||
-            metric === 'cpm' ||
-            metric === 'ctr' ||
-            metric === 'custo_por_resultado'
-          ) {
-            const gasto = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('gasto'))
-              }),
-            )
-            const cliques = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('cliques'))
-              }),
-            )
-            const impr = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('impressoes'))
-              }),
-            )
-            const res = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('resultados'))
-              }),
-            )
-            if (metric === 'cpc') total = razao(gasto, cliques)
-            else if (metric === 'cpm') total = razao((gasto || 0) * 1000, impr)
-            else if (metric === 'ctr') total = impr ? razao((cliques || 0) * 100, impr) : null
-            else total = razao(gasto, res)
+          let den = null
+          if (metric === 'cpc') {
+            total = razao(gasto, cliques)
+            den = cliques
+          } else if (metric === 'cpm') {
+            total = gasto === null ? null : razao(gasto * 1000, impr)
+            den = impr
+          } else if (metric === 'ctr') {
+            total = impr ? razao((cliques || 0) * 100, impr) : null
+            den = impr
+          } else if (metric === 'custo_por_resultado') {
+            total = razao(gasto, res)
+            den = res
           } else {
+            const valores = []
+            for (const r of doGrupo) valores.push(numOuNull(r.get(metric)))
             total = somar(valores)
           }
-          return { total: total, dias: Object.keys(datas).length }
+          return { total: total, dias: Object.keys(datas).length, den: den }
         }
 
         const aggA = agregar(j.atual)
         const aggP = agregar(j.anterior)
 
-        // elegibilidade: durações iguais + coberturas iguais (motivo sem alerta)
         if (durA !== durP) {
           resumo.nao_elegiveis.push({
             criterio: cid,
@@ -268,15 +192,16 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
           })
           continue
         }
-        // base anterior: null/0 ou < min_base não dispara
-        if (aggP.total === null || aggP.total === 0) {
+        // base: razão → denominador anterior; soma → total anterior (ata 16/10)
+        const baseValor = ehRazao ? aggP.den : aggP.total
+        if (baseValor === null || baseValor === 0) {
           resumo.nao_elegiveis.push({ criterio: cid, motivo: 'base anterior ausente ou zero' })
           continue
         }
-        if (minBase !== null && aggP.total < minBase) {
+        if (minBase !== null && baseValor < minBase) {
           resumo.nao_elegiveis.push({
             criterio: cid,
-            motivo: 'base anterior ' + aggP.total + ' < base mínima ' + minBase,
+            motivo: 'base anterior ' + baseValor + ' < base mínima ' + minBase,
           })
           continue
         }
@@ -296,7 +221,6 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
         }
 
         const groupKey = canal + '|' + objetivo + '|' + (resultType || '-') + '|' + natureza
-        // idempotência: já existe alerta deste critério/versão/grupo/período?
         const filtroDup =
           "criterion_id='" +
           cid +
@@ -310,7 +234,7 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
           j.atual.fim +
           "'"
         const existentes = app.findRecordsByFilter(colA, filtroDup, '', 1, 0)
-        if (existentes && existentes.length > 0) continue // replay não duplica
+        if (existentes && existentes.length > 0) continue
 
         const rec = new Record(colA)
         rec.set('criterion_id', cid)
@@ -372,14 +296,88 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
           app.save(rec)
           resumo.alertas_criados++
         } catch (eSave) {
-          // corrida com o índice UNIQUE — replay, não é erro
           resumo.avisos.push('duplicata bloqueada pelo índice: ' + String(eSave).slice(0, 80))
         }
       } catch (eC) {
-        // regra inválida não trava as demais
         resumo.avisos.push('critério ' + String(c && c.id) + ': ' + String(eC).slice(0, 120))
       }
     }
+  }
+
+  function ultimoDiaDoMes(anoMes) {
+    const partes = String(anoMes).split('-')
+    const ano = Number(partes[0])
+    const mes = Number(partes[1])
+    if (mes === 12) return ano + '-12-31'
+    const prox = new Date(Date.UTC(ano, mes, 1) - 86400000)
+    return prox.toISOString().slice(0, 10)
+  }
+  function duracaoDias(inicio, fim) {
+    return (
+      Math.round(
+        (new Date(fim + 'T00:00:00Z').getTime() - new Date(inicio + 'T00:00:00Z').getTime()) /
+          86400000,
+      ) + 1
+    )
+  }
+  function janelas(hojeRef, kind) {
+    const ano = Number(hojeRef.slice(0, 4))
+    const mes = Number(hojeRef.slice(5, 7))
+    const dia = Number(hojeRef.slice(8, 10))
+    function mesAnt(ano, mes) {
+      return mes === 1 ? { ano: ano - 1, mes: 12 } : { ano: ano, mes: mes - 1 }
+    }
+    function pad(n) {
+      return n < 10 ? '0' + n : '' + n
+    }
+    if (kind === 'monthly') {
+      const atual = mesAnt(ano, mes)
+      const anterior = mesAnt(atual.ano, atual.mes)
+      return {
+        atual: {
+          inicio: atual.ano + '-' + pad(atual.mes) + '-01',
+          fim: ultimoDiaDoMes(atual.ano + '-' + pad(atual.mes)),
+        },
+        anterior: {
+          inicio: anterior.ano + '-' + pad(anterior.mes) + '-01',
+          fim: ultimoDiaDoMes(anterior.ano + '-' + pad(anterior.mes)),
+        },
+      }
+    }
+    let atual, anterior
+    if (dia >= 16) {
+      atual = { inicio: ano + '-' + pad(mes) + '-01', fim: ano + '-' + pad(mes) + '-15' }
+      const p = mesAnt(ano, mes)
+      anterior = {
+        inicio: p.ano + '-' + pad(p.mes) + '-16',
+        fim: ultimoDiaDoMes(p.ano + '-' + pad(p.mes)),
+      }
+    } else {
+      const p = mesAnt(ano, mes)
+      atual = {
+        inicio: p.ano + '-' + pad(p.mes) + '-16',
+        fim: ultimoDiaDoMes(p.ano + '-' + pad(p.mes)),
+      }
+      anterior = { inicio: p.ano + '-' + pad(p.mes) + '-01', fim: p.ano + '-' + pad(p.mes) + '-15' }
+    }
+    return { atual: atual, anterior: anterior }
+  }
+  function numOuNull(v) {
+    const n = Number(v)
+    return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : n
+  }
+  function somar(valores) {
+    const presentes = valores.filter(function (v) {
+      return v !== null && v !== undefined
+    })
+    if (presentes.length === 0) return null
+    let s = 0
+    for (const v of presentes) s += v
+    return s
+  }
+  function razao(num, den) {
+    if (num === null || den === null || den === 0) return null
+    return num / den
   }
 })
 
@@ -539,6 +537,11 @@ routerAdd(
         const j = janelas(hojeRef, kind)
         const durA = duracaoDias(j.atual.inicio, j.atual.fim)
         const durP = duracaoDias(j.anterior.inicio, j.anterior.fim)
+        const ehRazao =
+          metric === 'cpc' ||
+          metric === 'cpm' ||
+          metric === 'ctr' ||
+          metric === 'custo_por_resultado'
 
         function agregar(janela) {
           const filtro =
@@ -557,48 +560,49 @@ routerAdd(
           const doGrupo = []
           const datas = {}
           for (const r of registros) {
-            const rt = r.get('result_type') ? String(r.get('result_type')) : null
-            if ((resultType || null) !== rt) continue
             doGrupo.push(r)
             datas[String(r.get('data')).slice(0, 10)] = true
           }
-          const valores = []
-          for (const r of doGrupo) valores.push(numOuNull(r.get(metric)))
+          const gasto = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('gasto'))
+            }),
+          )
+          const cliques = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('cliques'))
+            }),
+          )
+          const impr = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('impressoes'))
+            }),
+          )
+          const res = somar(
+            doGrupo.map(function (r) {
+              return numOuNull(r.get('resultados'))
+            }),
+          )
           let total = null
-          if (
-            metric === 'cpc' ||
-            metric === 'cpm' ||
-            metric === 'ctr' ||
-            metric === 'custo_por_resultado'
-          ) {
-            const gasto = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('gasto'))
-              }),
-            )
-            const cliques = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('cliques'))
-              }),
-            )
-            const impr = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('impressoes'))
-              }),
-            )
-            const res = somar(
-              doGrupo.map(function (r) {
-                return numOuNull(r.get('resultados'))
-              }),
-            )
-            if (metric === 'cpc') total = razao(gasto, cliques)
-            else if (metric === 'cpm') total = razao((gasto || 0) * 1000, impr)
-            else if (metric === 'ctr') total = impr ? razao((cliques || 0) * 100, impr) : null
-            else total = razao(gasto, res)
+          let den = null
+          if (metric === 'cpc') {
+            total = razao(gasto, cliques)
+            den = cliques
+          } else if (metric === 'cpm') {
+            total = gasto === null ? null : razao(gasto * 1000, impr)
+            den = impr
+          } else if (metric === 'ctr') {
+            total = impr ? razao((cliques || 0) * 100, impr) : null
+            den = impr
+          } else if (metric === 'custo_por_resultado') {
+            total = razao(gasto, res)
+            den = res
           } else {
+            const valores = []
+            for (const r of doGrupo) valores.push(numOuNull(r.get(metric)))
             total = somar(valores)
           }
-          return { total: total, dias: Object.keys(datas).length }
+          return { total: total, dias: Object.keys(datas).length, den: den }
         }
 
         const aggA = agregar(j.atual)
@@ -623,14 +627,15 @@ routerAdd(
           })
           continue
         }
-        if (aggP.total === null || aggP.total === 0) {
+        const baseValor = ehRazao ? aggP.den : aggP.total
+        if (baseValor === null || baseValor === 0) {
           resumo.nao_elegiveis.push({ criterio: cid, motivo: 'base anterior ausente ou zero' })
           continue
         }
-        if (minBase !== null && aggP.total < minBase) {
+        if (minBase !== null && baseValor < minBase) {
           resumo.nao_elegiveis.push({
             criterio: cid,
-            motivo: 'base anterior ' + aggP.total + ' < base mínima ' + minBase,
+            motivo: 'base anterior ' + baseValor + ' < base mínima ' + minBase,
           })
           continue
         }
@@ -742,7 +747,6 @@ routerAdd(
   '/backend/v1/alerts',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    // guard read_alerts — INLINE (JSVM: top-level não visível no callback)
     var temRead = false
     {
       const hoje = new Date().toISOString().slice(0, 10)
@@ -830,7 +834,6 @@ routerAdd(
   '/backend/v1/alerts/{id}/state',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    // guard manage_alerts — INLINE
     var temManage = false
     {
       const hojeM = new Date().toISOString().slice(0, 10)
@@ -917,7 +920,6 @@ routerAdd(
           campos: { justificativa: 'encerrar exige justificativa (fica no histórico)' },
         })
       }
-      // fechamento DIRETO (open/in_review → closed) só pelo RESPONSÁVEL
       if (atual === 'open' || atual === 'in_review') {
         const resp = String(rec.get('responsible_user') || '')
         if (resp !== '' && resp !== String(e.auth.id)) {
