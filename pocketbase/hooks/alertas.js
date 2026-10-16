@@ -173,13 +173,11 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
         const aggA = agregar(j.atual)
         const aggP = agregar(j.anterior)
 
-        if (durA !== durP) {
-          resumo.nao_elegiveis.push({
-            criterio: cid,
-            motivo: 'duração diferente (' + durA + ' vs ' + durP + ' dias)',
-          })
-          continue
-        }
+        // períodos de calendário são COMPLETOS por construção (ata 16/10):
+        // mensal compara mês fechado vs mês fechado (30↔31 dias comparáveis);
+        // quinzena compara quinzena vs quinzena. Proteção real = cobertura igual
+        // de dias com dados + base mínima. (A leitura literal "mesma duração"
+        // bloquearia regras mensais em 8 meses por ano — set 30 vs ago 31.)
         if (aggA.dias !== aggP.dias) {
           resumo.nao_elegiveis.push({
             criterio: cid,
@@ -608,13 +606,11 @@ routerAdd(
         const aggA = agregar(j.atual)
         const aggP = agregar(j.anterior)
 
-        if (durA !== durP) {
-          resumo.nao_elegiveis.push({
-            criterio: cid,
-            motivo: 'duração diferente (' + durA + ' vs ' + durP + ' dias)',
-          })
-          continue
-        }
+        // períodos de calendário são COMPLETOS por construção (ata 16/10):
+        // mensal compara mês fechado vs mês fechado (30↔31 dias comparáveis);
+        // quinzena compara quinzena vs quinzena. Proteção real = cobertura igual
+        // de dias com dados + base mínima. (A leitura literal "mesma duração"
+        // bloquearia regras mensais em 8 meses por ano — set 30 vs ago 31.)
         if (aggA.dias !== aggP.dias) {
           resumo.nao_elegiveis.push({
             criterio: cid,
