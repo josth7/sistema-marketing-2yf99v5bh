@@ -1,5 +1,12 @@
 # Aprendizado contínuo — controle
 
+## AP-2026-10-16-1300 — json do JSVM volta como char-codes quando gravado como string (reincidente do 14/10)
+
+- **Sinal reutilizável**: SIM — mesmo mecanismo do AP-2026-10-14-1155 (json já parseado), lado servidor.
+- Campo json gravado como STRING JSON (ex.: `p.set('recipient_user_ids', JSON.stringify(emails))`) volta do JSVM como ARRAY DE CHAR-CODES — o job do relatório tratava cada número como ID de usuário ("destinatário 91/34/106 não existe"; 91='[', 34='"', 106='j' do `["josth7@...`). Parse cobrindo os 3 formatos (array de números → String.fromCharCode + JSON.parse; string → JSON.parse; objeto → direto) nas 2 cópias (cron + tick) em v0.0.151.
+- **Complemento**: skip_file_patch com SEARCH em arquivo de 2 cópias idênticas casa no PRIMEIRO bloco — o fix do avaliador caiu só no cron (cópia A) e o tick (cópia B) seguiu divergente; re-ler o arquivo e conferir contagem de ocorrências após cada patch (reincidente do AP-2026-10-14-1155 item 3).
+- **Complemento 2**: leitura literal "mesma duração" de períodos bloqueava regras mensais em 8 meses por ano (set 30 vs ago 31) — períodos de calendário são completos por construção; proteção real = cobertura igual + base mínima (v0.0.150).
+
 ## AP-2026-10-14-1425 — erros de rotas custom com contrato próprio (card f9a2a3eb, debug 14/10)
 
 - **Sinal reutilizável**: SIM — ver `AP-2026-10-14-1425-erros-custom-contrato.md`
