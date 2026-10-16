@@ -1,15 +1,15 @@
 # Estado atual — Sistema Marketing (plugin do cliente)
 
-- task_ativa: lembrete de decisão (SPEC-2-003, CA-2-09, a434ca96, !29/10)
+- task_ativa: workshop antecipado (16/10) — regras aprovadas + crons ATIVADOS pelo dono
 - etapa_nova_task: aguardando_teste_humano
-- skip_versao: v0.0.145 (ab96e02), publicada 2026-10-16T12:15:09Z
-- skip_publicacao: publicada:ab96e02 em 2026-10-16T12:15:09Z
-- fase: 2 — 12/12 originais + CA-2-19 concluídos; a434ca96 em teste humano; restam workshop (22/10) e demonstração (03/11)
-- implementado: migração 0030 (inbox multi-tipo: tipo/decision_id/dedupe_key) + 0031 (cron lembrete_revisao PAUSADO — gate destinatários reais) + 0032 (report_id opcional) + 0033 (índice UNIQUE parcial); hook lembretes.js (cron 09:30 UTC pausado + tick de teste + cessação por reagendamento/encerramento com dedupe_key decision+revision+data+user); caixa.js estendida (item lembrete traz decisão); página /caixa renderiza "Revisão vencida" + "Abrir decisão"
-- provas: 401; lembrete criado com decisão na caixa; replay 0 duplicatas; 2ª decisão → 2º lembrete; cessação por reagendamento (cancelled preservado) e por encerramento; novo lembrete na data nova; 11 lembretes de decisões fixture antigas vencidas (correto)
-- achados corrigidos: 0032 (report_id required — mutação direta não persiste; migração aplicada não re-executa) e 0033 (UNIQUE parcial p/ lembretes do mesmo usuário)
+- skip_versao: v0.0.152 (rodapé v0.0.151), publicada 2026-10-16T13:1x
+- skip_publicacao: produção https://sistema-marketing-1f51e.goskip.app
+- fase: 2 — 12/12 originais + CA-2-19 + CA-2-09 concluídos; workshop ANTECIPADO e executado 16/10; restam demonstração (03/11)
+- workshop: ata em 05_entregas/criterios-alerta-aprovados.md — 4 regras criadas pela Anézia (manage_criteria) e aprovadas pelo dono (approve_criteria); DH-07 confirmado; 3 crons ativos (alerta_avaliador_diario 09:15 UTC, lembrete_revisao 09:30 UTC, relatorio_quinzenal 10:00 UTC)
+- ajustes do avaliador (ata): tipo do resultado DESCRITIVO (fonte Meta não separa); base de razão = denominador anterior; períodos de calendário completos por construção (sem bloqueio de duração)
+- achados corrigidos: parse recipients char-codes no job quinzenal (2 cópias — "destinatário 91/34/106 não existe"); bloqueio de duração (2 cópias)
+- provas: 4 regras 200/200; avaliador 4 critérios avaliados, 0 alertas reais (base anterior ausente — dados começam 30/09, correto); relatório quinzenal política real 3 destinatários válidos; lembretes 0 (nenhuma decisão real vencida)
 - pendente_github: sim — espelho do código + changelog + fase.md no fechamento (após teste humano)
-- teste_humano: pendente — Josth confere a caixa /caixa (lembrete fixture "Revisar criativos" na conta criterios.fixture.aprovador@haisan.com.br / Fixture@2026)
-- gate: cron PAUSADO (destinatários reais pendentes do workshop 22/10)
+- teste_humano: pendente — Josth confere /criterios (4 regras aprovadas) e /alertas (fila vazia de reais)
 - proxima_acao: teste humano do dono; fechamento (GitHub + changelog + fase.md) após "funcionou"
-- atualizado_em: 2026-10-16T12:20:00Z
+- atualizado_em: 2026-10-16T13:20:00Z
