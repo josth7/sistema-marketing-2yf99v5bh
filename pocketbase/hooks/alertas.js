@@ -933,7 +933,18 @@ routerAdd(
     let hist = []
     try {
       const h = rec.get('history')
-      if (h && typeof h === 'string' && h.length > 2) hist = JSON.parse(h)
+      // AP-2026-10-14-1155: json no JSVM volta PARSEADO — array de objetos OU
+      // array de char-codes (string codificada). Ler só como string apagava
+      // o histórico anterior a cada transição (achado pela prova ao vivo).
+      if (Array.isArray(h)) {
+        if (h.length > 0 && typeof h[0] === 'number') {
+          hist = JSON.parse(String.fromCharCode.apply(null, h))
+        } else {
+          hist = h
+        }
+      } else if (typeof h === 'string' && h.length > 2) {
+        hist = JSON.parse(h)
+      }
     } catch (_) {}
     const entrada = {
       at: new Date().toISOString(),
