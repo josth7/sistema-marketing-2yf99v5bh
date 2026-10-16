@@ -75,6 +75,23 @@ routerAdd(
       } catch (e2) {
         rel = null
       }
+      // lembrete (a434ca96): dados da decisão vinculada
+      let decisao = null
+      const tipoItem = String(it.get('tipo') || 'relatorio')
+      if (tipoItem === 'lembrete' || tipoItem === 'cancelled') {
+        try {
+          const d = $app.findRecordById('decisions', String(it.get('decision_id') || ''))
+          decisao = {
+            id: d.id,
+            title: d.get('title'),
+            review_date: d.get('review_date'),
+            state: d.get('state'),
+            revision: d.get('revision'),
+          }
+        } catch (eD) {
+          decisao = null
+        }
+      }
       // read_at pode não existir no banco de produção (migrações de schema não
       // chegam lá — prova 13/10): sintetiza a partir do marcador attempts>=1000
       let readAt = null
@@ -90,8 +107,10 @@ routerAdd(
       }
       lista.push({
         id: it.id,
+        tipo: tipoItem,
         report_id: it.get('report_id'),
         relatorio: rel,
+        decisao: decisao,
         scope: it.get('scope') || null,
         status: it.get('status'),
         attempts: it.get('attempts'),

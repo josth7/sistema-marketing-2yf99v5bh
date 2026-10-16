@@ -8,6 +8,7 @@ import pb from '@/lib/pocketbase/client'
 
 export interface ItemCaixa {
   id: string
+  tipo?: 'relatorio' | 'lembrete' | 'cancelled'
   report_id: string
   relatorio: {
     id: string
@@ -18,6 +19,13 @@ export interface ItemCaixa {
     template_version: string
     report_revision: number
     warnings: unknown
+  } | null
+  decisao?: {
+    id: string
+    title: string
+    review_date: string | null
+    state: string
+    revision: number
   } | null
   scope: string | null
   status: string

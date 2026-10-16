@@ -229,6 +229,16 @@ export default function Caixa() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {item.tipo === 'lembrete' && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                        Lembrete
+                      </span>
+                    )}
+                    {item.tipo === 'cancelled' && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                        Cancelado
+                      </span>
+                    )}
                     {!item.read_at && (
                       <span className="rounded-full bg-[#6C3EF5]/10 px-2 py-0.5 text-xs font-semibold text-[#6C3EF5]">
                         Não lido
@@ -243,21 +253,51 @@ export default function Caixa() {
                       Entregue em {dataBR(item.delivered_at)}
                     </span>
                   </div>
-                  <p className="mt-1 font-medium truncate">{rotuloQuinzena(item)}</p>
-                  {item.relatorio && item.relatorio.report_revision > 1 && (
-                    <p className="text-xs text-muted-foreground">
-                      Revisão {item.relatorio.report_revision} (republicado)
-                    </p>
+                  {item.tipo === 'lembrete' || item.tipo === 'cancelled' ? (
+                    <>
+                      <p className="mt-1 font-medium truncate">
+                        {item.decisao
+                          ? 'Revisão vencida: ' + item.decisao.title
+                          : 'Lembrete de revisão'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.decisao
+                          ? 'Decisão com data de revisão em ' +
+                            (item.decisao.review_date ?? '—') +
+                            ' — registre a revisão ou reagende em Decisões.'
+                          : 'Decisão não encontrada.'}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-1 font-medium truncate">{rotuloQuinzena(item)}</p>
+                      {item.relatorio && item.relatorio.report_revision > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          Revisão {item.relatorio.report_revision} (republicado)
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => void abrirRelatorio(item)}
-                    className="flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Ver relatório
-                  </button>
+                  {(item.tipo === 'lembrete' || item.tipo === 'cancelled') && item.decisao && (
+                    <a
+                      href="/decisoes"
+                      className="flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Abrir decisão
+                    </a>
+                  )}
+                  {item.tipo !== 'lembrete' && item.tipo !== 'cancelled' && (
+                    <button
+                      onClick={() => void abrirRelatorio(item)}
+                      className="flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Ver relatório
+                    </button>
+                  )}
                   {!item.read_at && (
                     <button
                       onClick={() => void aoMarcarLida(item)}
