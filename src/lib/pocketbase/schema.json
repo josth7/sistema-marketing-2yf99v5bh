@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T12:14:27.395Z",
+  "generatedAt": "2026-10-16T12:15:02.279Z",
   "collections": [
     {
       "name": "users",
@@ -932,7 +932,7 @@
         }
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_unica ON inbox_items (report_id, user_id)"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_unica_rel ON inbox_items (report_id, user_id) WHERE report_id != ''"
       ]
     },
     {
