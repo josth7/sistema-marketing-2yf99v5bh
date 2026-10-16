@@ -7,6 +7,7 @@ import Criterios from './pages/Criterios'
 import Decisoes from './pages/Decisoes'
 import Relatorios from './pages/Relatorios'
 import Caixa from './pages/Caixa'
+import Alertas from './pages/Alertas'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/decisoes" element={<Decisoes />} />
           <Route path="/relatorios" element={<Relatorios />} />
           <Route path="/caixa" element={<Caixa />} />
+          <Route path="/alertas" element={<Alertas />} />
           {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
           <Route path="*" element={<NotFound />} />
         </Route>

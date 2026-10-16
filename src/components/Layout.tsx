@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Rocket, BarChart3, ListPlus, Scale, FileText, Inbox } from 'lucide-react'
+import { Rocket, BarChart3, ListPlus, Scale, FileText, Inbox, BellRing } from 'lucide-react'
 import { VERSAO_SISTEMA } from '@/lib/versao'
 
 /**
@@ -11,6 +11,7 @@ import { VERSAO_SISTEMA } from '@/lib/versao'
 const ITENS_MENU = [
   { para: '/painel', rotulo: 'Painel', Icone: BarChart3 },
   { para: '/criterios', rotulo: 'Critérios', Icone: ListPlus },
+  { para: '/alertas', rotulo: 'Alertas', Icone: BellRing },
   { para: '/decisoes', rotulo: 'Decisões', Icone: Scale },
   { para: '/relatorios', rotulo: 'Relatórios', Icone: FileText },
   { para: '/caixa', rotulo: 'Caixa', Icone: Inbox },
