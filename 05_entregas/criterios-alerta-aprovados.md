@@ -32,6 +32,10 @@
 - Lembretes: job executado (0 criados — nenhuma decisão real vencida)
 - 2 achados corrigidos durante a ativação: parse de recipients char-codes no job quinzenal (2 cópias) e remoção do bloqueio de duração (2 cópias do avaliador)
 
+## Correção de registro (16/10, após o fechamento)
+
+Na preparação da validação antecipada da Anézia, 6 regras de TESTE (fixtures das provas do card f7591165) estavam misturadas às 4 regras reais na tela /criterios. A limpeza (arquivamento) errou o filtro de IDs e arquivou junto as regras reais "resultados" e "gasto". **Nada foi apagado** — histórico intacto. As duas foram recriadas com o MESMO conteúdo da ata e aprovadas pelo dono no mesmo dia (16/10); as versões originais ficam arquivadas como registro. Estado final conferido na tela e via API: exatamente 4 regras aprovadas (resultados/leads/meta_ads −20% quinzenal · gasto/meta_ads +30% mensal · custo_por_resultado/leads/meta_ads +25% mensal · cliques/trafico/google_ads −30% quinzenal) + fixtures e versões antigas arquivadas. Capturas em artifacts (tela logada como anezia@haisan.com.br).
+
 ## Próximos passos
 
 - A Anézia valida as 4 regras (tela /criterios) — ajuste vira nova versão draft, prova antiga intacta

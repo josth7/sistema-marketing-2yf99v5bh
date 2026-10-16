@@ -1,6 +1,6 @@
-# Guia — Validação das regras pela Anézia (22/10)
+# Guia — Validação das regras pela Anézia (ANTECIPADA — pode ser hoje)
 
-**Objetivo:** a Anézia confere as 4 regras de alerta aprovadas pelo dono em 16/10 e valida (ou pede ajuste). Nada de código pendente — é conferência de negócio.
+**Objetivo:** a Anézia confere as 4 regras de alerta aprovadas pelo dono em 16/10 e valida (ou pede ajuste). Nada de código pendente — é conferência de negócio. O dono autorizou antecipar: **não precisa esperar 22/10**.
 
 ## Como ela entra
 
