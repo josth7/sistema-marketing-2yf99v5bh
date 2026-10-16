@@ -18,13 +18,16 @@ migrate(
   (app) => {
     const col = app.findCollectionByNameOrId('inbox_items')
 
-    // report_id era required (0018) — lembrete não tem relatório; relaxar
+    // report_id era required (0018) — lembrete não tem relatório; relaxar.
+    // AP-2026-10-16: getByName devolve o campo, mas MUTAR required direto não
+    // persiste — recriar o campo (remove+add) preserva dados e grava o novo valor.
     try {
       const fRep = col.fields.getByName('report_id')
       if (fRep && fRep.required) {
-        fRep.required = false
+        col.fields.removeByName('report_id')
+        col.fields.add(new TextField({ name: 'report_id', max: 30 }))
         app.save(col)
-        console.log('migração 0030: report_id.required relaxado (lembrete sem relatório)')
+        console.log('migração 0030: report_id recriado sem required (lembrete sem relatório)')
       }
     } catch (eR) {
       console.log('migração 0030: report_id não ajustado — ' + String(eR).slice(0, 120))
