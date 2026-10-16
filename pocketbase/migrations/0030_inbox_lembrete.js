@@ -18,6 +18,18 @@ migrate(
   (app) => {
     const col = app.findCollectionByNameOrId('inbox_items')
 
+    // report_id era required (0018) — lembrete não tem relatório; relaxar
+    try {
+      const fRep = col.fields.getByName('report_id')
+      if (fRep && fRep.required) {
+        fRep.required = false
+        app.save(col)
+        console.log('migração 0030: report_id.required relaxado (lembrete sem relatório)')
+      }
+    } catch (eR) {
+      console.log('migração 0030: report_id não ajustado — ' + String(eR).slice(0, 120))
+    }
+
     let temTipo = false
     try {
       temTipo = !!col.fields.getByName('tipo')
