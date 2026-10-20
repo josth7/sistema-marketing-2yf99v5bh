@@ -25,7 +25,8 @@
  * não pega no QA/runtime); sem Intl (UTC-3 fixo); json pode voltar como objeto
  * ou array de char-codes (parser tolerante). Segredos via $secrets.get
  * ($os.env NÃO existe no JSVM — lição AP-2026-10-20). routerAdd SEM middleware
- * null explícito (4º arg null lança na carga — lição AP-2026-10-20b).
+ * null explícito (4º arg null lança na carga — lição AP-2026-10-20b). Query da
+ * request: e.request.requestURI (e.request.url().rawQuery lança — lição 20/10).
  *
  * Cron `analise_periodo_fechado` (10:30 UTC) — neste card só REENTREGA (RN-08),
  * atualiza canal_estado e faz push opcional; criação de evento automático (RN-03)
@@ -233,7 +234,9 @@ routerAdd('GET', '/backend/v1/analises/eventos', (e) => {
     return recusar401('timestamp ausente ou fora da janela de 300s')
   }
   const caminho = '/backend/v1/analises/eventos'
-  const query = e.request.url().rawQuery || ''
+  const requestURI = String(e.request.requestURI || '')
+  const posQ = requestURI.indexOf('?')
+  const query = posQ >= 0 ? requestURI.slice(posQ + 1) : ''
   const material = tsHeader + '.GET.' + caminho + '.' + query
   const esperada = $security.hs256(material, seg)
   let igual = false
@@ -955,7 +958,7 @@ routerAdd('POST', '/backend/v1/fixtures/seed-canal', (e) => {
 
 // ---------- POST /backend/v1/fixtures/push (alvo de push para provas) ----------
 routerAdd('POST', '/backend/v1/fixtures/push', (e) => {
-  const status = Number(e.request.url().query().get('status') || '500')
+  const status = Number(e.request.url.query().get('status') || '500')
   return e.json(status, { ok: false, fixture: 'push', status: status })
 })
 
