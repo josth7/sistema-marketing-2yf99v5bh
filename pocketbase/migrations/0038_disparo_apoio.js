@@ -84,13 +84,28 @@ migrate(
       if (us && us.length > 0) {
         const gs = app.findRecordsByFilter(
           colG,
-          "user_id='" +
-            us[0].id +
-            "' && revoked_at='' && note='fixtures fase 3 — canal de análise'",
+          "user_id='" + us[0].id + "' && revoked_at='' && note~'fixtures fase 3'",
           '',
           1,
           0,
         )
+        if (!gs || gs.length === 0) {
+          // fallback: grant fixture de escopo (0027) — cria o grant da fase 3
+          const g = new Record(colG)
+          g.set('user_id', us[0].id)
+          g.set('role', 'marketing')
+          g.set('actions', JSON.stringify(['read_analyses', 'request_analysis']))
+          g.set('scope_accounts', JSON.stringify(['ACC_A']))
+          g.set('scope_channels', JSON.stringify(['meta_ads']))
+          g.set('valid_from', '')
+          g.set('approved_at', new Date().toISOString())
+          g.set('version', 1)
+          g.set('note', 'fixtures fase 3 — canal de análise (0038)')
+          app.save(g)
+          console.log(
+            'migração 0038: grant fixture fase 3 criado p/ marketing.a (ACC_A/meta_ads + request_analysis)',
+          )
+        }
         if (gs && gs.length > 0) {
           const g = gs[0]
           let acts = []

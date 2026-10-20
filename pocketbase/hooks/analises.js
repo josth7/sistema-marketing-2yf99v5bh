@@ -80,7 +80,7 @@ cronAdd('analise_periodo_fechado', '30 10 * * *', () => {
       const colM3 = app.findCollectionByNameOrId('metricas_diarias')
       const regs3 = app.findRecordsByFilter(
         colM3,
-        "data >= '" + inicio3 + "' && data <= '" + fim3 + "'" + " && origem='api'",
+        "data >= '" + inicio3 + "' && data <= '" + fim3 + " 23:59:59.999Z'" + " && origem='api'",
         'data',
         2000,
         0,
@@ -1307,7 +1307,7 @@ routerAdd('POST', '/backend/v1/analises/tick', (e) => {
       const colM3 = app.findCollectionByNameOrId('metricas_fixtures')
       const regs3 = app.findRecordsByFilter(
         colM3,
-        "data >= '" + inicio3 + "' && data <= '" + fim3 + "'" + '',
+        "data >= '" + inicio3 + "' && data <= '" + fim3 + " 23:59:59.999Z'" + '',
         'data',
         2000,
         0,
