@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T13:09:43.943Z",
+  "generatedAt": "2026-10-20T18:46:50.743Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -162,14 +167,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "objective_raw",
@@ -210,7 +220,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["conectado", "nao_conectado", "erro_autenticacao", "sem_dados"]
+          "selectValues": [
+            "conectado",
+            "nao_conectado",
+            "erro_autenticacao",
+            "sem_dados"
+          ]
         },
         {
           "name": "aviso",
@@ -229,17 +244,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_fontes_canal ON fontes_estado (canal)"
+      ]
     },
     {
       "name": "alert_criteria",
@@ -269,7 +291,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "approved", "archived"]
+          "selectValues": [
+            "draft",
+            "approved",
+            "archived"
+          ]
         },
         {
           "name": "metric",
@@ -324,7 +350,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["monthly", "calendar_half"]
+          "selectValues": [
+            "monthly",
+            "calendar_half"
+          ]
         },
         {
           "name": "comparison_mode",
@@ -370,14 +399,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -450,7 +484,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["open", "in_review", "closed"]
+          "selectValues": [
+            "open",
+            "in_review",
+            "closed"
+          ]
         },
         {
           "name": "revision",
@@ -500,14 +538,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -604,7 +647,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "ready", "delivered", "failed"]
+          "selectValues": [
+            "draft",
+            "ready",
+            "delivered",
+            "failed"
+          ]
         },
         {
           "name": "origem",
@@ -653,14 +701,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "idempotency_key",
@@ -751,14 +804,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -794,7 +852,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["pending", "delivered", "failed"]
+          "selectValues": [
+            "pending",
+            "delivered",
+            "failed"
+          ]
         },
         {
           "name": "attempts",
@@ -825,21 +887,30 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "tipo",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["relatorio", "lembrete", "cancelled"]
+          "selectValues": [
+            "relatorio",
+            "lembrete",
+            "cancelled"
+          ]
         },
         {
           "name": "decision_id",
@@ -910,17 +981,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX IF NOT EXISTS idx_role_unico ON role_catalog (role)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_role_unico ON role_catalog (role)"
+      ]
     },
     {
       "name": "access_grants",
@@ -1012,14 +1090,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1073,14 +1156,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -1228,7 +1316,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["open", "in_review", "decided", "closed"]
+          "selectValues": [
+            "open",
+            "in_review",
+            "decided",
+            "closed"
+          ]
         },
         {
           "name": "history",
@@ -1241,14 +1334,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1332,19 +1430,531 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_alertas_fix_unica ON alertas_fixtures (canal, objetivo, result_type, natureza, data)"
       ]
+    },
+    {
+      "name": "analysis_events",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "uuid",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "gatilho_ref",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "period_start",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "period_end",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "scope",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipos_esperados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_resumo",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_relatorio",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_externos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "instrucoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_parciais",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_parcial",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "dedupe_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tentativas_push",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ciclos_reentrega",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "delivered_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "concluded_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fixture",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_events_dedupe ON analysis_events (dedupe_key)",
+        "CREATE INDEX IF NOT EXISTS idx_analysis_events_estado ON analysis_events (estado)"
+      ]
+    },
+    {
+      "name": "analyses",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "uuid",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "event_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "analysis_events"
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "alvo_ref",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "period_start",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "period_end",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "scope",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conteudo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "evidencias",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modelo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gerado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "dados_parciais",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hash_conteudo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fixture",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_analyses_trio ON analyses (event_id, tipo, alvo_ref)"
+      ]
+    },
+    {
+      "name": "analysis_policy",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "fixture",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "approved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approval_record",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_eventos_automaticos_por_mes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "permitir_solicitacao_manual",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "max_manuais_por_mes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scope_padrao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dominios_destino_permitidos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "instrucoes_padrao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "janela_cobertura_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "timezone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_policy_fixture ON analysis_policy (fixture)"
+      ]
+    },
+    {
+      "name": "canal_estado",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "ultimo_consumo_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ciclos_sem_consumo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recusas_401_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recusas_401_ultimas_24h",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "janela_24h_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segredo_configurado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atualizado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_ultimo_bloqueio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": []
     }
   ]
 }
