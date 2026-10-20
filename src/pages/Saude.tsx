@@ -65,8 +65,15 @@ export default function Saude() {
     setCarregando(true)
     setErro('')
     try {
-      const res = await pb.send<CanalEstado>('/backend/v1/analises/canal-estado', { method: 'GET' })
-      setCanal(res && res.ok !== false ? res : null)
+      const res = await fetch(pb.buildURL('/backend/v1/analises/canal-estado'), {
+        method: 'GET',
+        headers: { Authorization: pb.authStore.token },
+      })
+      const dados = (await res.json()) as { ok?: boolean; canal?: CanalEstado | null }
+      if (!res.ok || dados.ok === false) {
+        throw new Error('não foi possível carregar o estado do canal')
+      }
+      setCanal(dados.canal ?? null)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'não foi possível carregar o estado do canal')
     } finally {
