@@ -14,7 +14,7 @@
  *   Recusa → recusas_401_total/24h incrementam (canal_estado).
  *
  * SEGREDO (fonte única ativa por vez — "nunca aceita dois segredos"):
- *   1) $os.env('MAESTRO_SHARED_SECRET') — o definitivo, gravado pelo dono no
+ *   1) $secrets.get('MAESTRO_SHARED_SECRET') — o definitivo, gravado pelo dono no
  *      painel de segredos do Skip; quando presente, IGNORA o de teste;
  *   2) canal_estado.segredo_teste — valor inicial de TESTE gravado pelo
  *      executor via rota fixture (X-Fixture-Secret) enquanto o definitivo não
@@ -23,12 +23,13 @@
  *
  * JSVM (lições do projeto): TODA lógica INLINE nos callbacks (helper top-level
  * não pega no QA/runtime); sem Intl (UTC-3 fixo); json pode voltar como objeto
- * ou array de char-codes (parser tolerante).
+ * ou array de char-codes (parser tolerante). Segredos via $secrets.get
+ * ($os.env NÃO existe no JSVM — lição AP-2026-10-20).
  *
  * Cron `analise_periodo_fechado` (10:30 UTC) — neste card só REENTREGA (RN-08),
  * atualiza canal_estado e faz push opcional; criação de evento automático (RN-03)
  * e pedido manual (RN-07) são do card "Disparar". DESABILITADO até o gate.
- * Rotas de teste exigem X-Fixture-Secret = $os.env('FIXTURE_TICK_SECRET') e só
+ * Rotas de teste exigem X-Fixture-Secret = $secrets.get('FIXTURE_TICK_SECRET') e só
  * atuam sobre registros fixture=true; sem o cabeçalho → 404.
  */
 
@@ -74,7 +75,7 @@ cronAdd('analise_periodo_fechado', '30 10 * * *', () => {
     // push opcional (1 tentativa por execução; teto tentativas_push = 3)
     const url = (function () {
       try {
-        const v = $os.env('MAESTRO_WEBHOOK_URL')
+        const v = $secrets.get('MAESTRO_WEBHOOK_URL')
         return v ? String(v) : ''
       } catch (eU) {
         return ''
@@ -83,7 +84,7 @@ cronAdd('analise_periodo_fechado', '30 10 * * *', () => {
     if (url && Number(ev.get('tentativas_push') || 0) < 3) {
       const seg = (function () {
         try {
-          const v = $os.env('MAESTRO_SHARED_SECRET')
+          const v = $secrets.get('MAESTRO_SHARED_SECRET')
           return v ? String(v) : ''
         } catch (eS) {
           return ''
@@ -190,7 +191,7 @@ routerAdd(
 
     let seg = ''
     try {
-      const v = $os.env('MAESTRO_SHARED_SECRET')
+      const v = $secrets.get('MAESTRO_SHARED_SECRET')
       if (v) seg = String(v)
     } catch (eS) {}
     if (!seg && canal) seg = String(canal.get('segredo_teste') || '')
@@ -307,7 +308,7 @@ routerAdd(
     if (recsC && recsC.length > 0) canal = recsC[0]
     let seg = ''
     try {
-      const v = $os.env('MAESTRO_SHARED_SECRET')
+      const v = $secrets.get('MAESTRO_SHARED_SECRET')
       if (v) seg = String(v)
     } catch (eS) {}
     if (!seg && canal) seg = String(canal.get('segredo_teste') || '')
@@ -437,7 +438,7 @@ routerAdd(
     if (recsC && recsC.length > 0) canal = recsC[0]
     let seg = ''
     try {
-      const v = $os.env('MAESTRO_SHARED_SECRET')
+      const v = $secrets.get('MAESTRO_SHARED_SECRET')
       if (v) seg = String(v)
     } catch (eS) {}
     if (!seg && canal) seg = String(canal.get('segredo_teste') || '')
@@ -576,7 +577,7 @@ routerAdd(
     if (recsC && recsC.length > 0) canal = recsC[0]
     let seg = ''
     try {
-      const v = $os.env('MAESTRO_SHARED_SECRET')
+      const v = $secrets.get('MAESTRO_SHARED_SECRET')
       if (v) seg = String(v)
     } catch (eS) {}
     if (!seg && canal) seg = String(canal.get('segredo_teste') || '')
@@ -733,7 +734,7 @@ routerAdd(
   (e) => {
     const esperado = (function () {
       try {
-        const v = $os.env('FIXTURE_TICK_SECRET')
+        const v = $secrets.get('FIXTURE_TICK_SECRET')
         return v ? String(v) : ''
       } catch (eS) {
         return ''
@@ -765,12 +766,12 @@ routerAdd(
         }
         continue
       }
-      // push: URL de teste (body.push_url) tem precedência no tick; senão env
+      // push: URL de teste (body.push_url) tem precedência no tick; senão segredo de plataforma
       const url =
         String(body.push_url || '') ||
         (function () {
           try {
-            const v = $os.env('MAESTRO_WEBHOOK_URL')
+            const v = $secrets.get('MAESTRO_WEBHOOK_URL')
             return v ? String(v) : ''
           } catch (eU) {
             return ''
@@ -779,7 +780,7 @@ routerAdd(
       if (url && Number(ev.get('tentativas_push') || 0) < 3) {
         const seg = (function () {
           try {
-            const v = $os.env('MAESTRO_SHARED_SECRET')
+            const v = $secrets.get('MAESTRO_SHARED_SECRET')
             if (v) return String(v)
           } catch (eS) {}
           const colC = app.findCollectionByNameOrId('canal_estado')
@@ -869,7 +870,7 @@ routerAdd(
   (e) => {
     const esperado = (function () {
       try {
-        const v = $os.env('FIXTURE_TICK_SECRET')
+        const v = $secrets.get('FIXTURE_TICK_SECRET')
         return v ? String(v) : ''
       } catch (eS) {
         return ''
@@ -916,7 +917,7 @@ routerAdd(
   (e) => {
     const esperado = (function () {
       try {
-        const v = $os.env('FIXTURE_TICK_SECRET')
+        const v = $secrets.get('FIXTURE_TICK_SECRET')
         return v ? String(v) : ''
       } catch (eS) {
         return ''
@@ -1011,7 +1012,7 @@ routerAdd(
   (e) => {
     const esperado = (function () {
       try {
-        const v = $os.env('FIXTURE_TICK_SECRET')
+        const v = $secrets.get('FIXTURE_TICK_SECRET')
         return v ? String(v) : ''
       } catch (eS) {
         return ''
