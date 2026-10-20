@@ -9,6 +9,7 @@ import Relatorios from './pages/Relatorios'
 import Caixa from './pages/Caixa'
 import Alertas from './pages/Alertas'
 import Saude from './pages/Saude'
+import Analises from './pages/Analises'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/caixa" element={<Caixa />} />
           <Route path="/alertas" element={<Alertas />} />
           <Route path="/saude-canal" element={<Saude />} />
+          <Route path="/analises" element={<Analises />} />
           {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
           <Route path="*" element={<NotFound />} />
         </Route>

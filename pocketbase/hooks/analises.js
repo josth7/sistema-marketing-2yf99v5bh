@@ -294,6 +294,340 @@ routerAdd('GET', '/backend/v1/analises/eventos', (e) => {
   return e.json(200, { ok: true, itens: itens })
 })
 
+// ==================== POST /backend/v1/analises (grava análise — canal assinado) ====================
+routerAdd('POST', '/backend/v1/analises', (e) => {
+  const app = $app
+  const colC = app.findCollectionByNameOrId('canal_estado')
+  let canal = null
+  const recsC = app.findRecordsByFilter(colC, '', '', 1, 0)
+  if (recsC && recsC.length > 0) canal = recsC[0]
+  let seg = ''
+  try {
+    const v = $secrets.get('MAESTRO_SHARED_SECRET')
+    if (v) seg = String(v)
+  } catch (eS) {}
+  if (!seg && canal) seg = String(canal.get('segredo_teste') || '')
+  if (!seg) {
+    if (canal) {
+      canal.set('segredo_configurado', false)
+      canal.set('atualizado_em', new Date().toISOString())
+      app.save(canal)
+    }
+    return e.json(503, {
+      ok: false,
+      erro: 'canal_indisponivel',
+      detalhe: 'segredo não configurado',
+    })
+  }
+  if (canal) canal.set('segredo_configurado', true)
+  const tsHeader = String(e.request.header.get('X-Maestro-Timestamp') || '')
+  const sigHeader = String(e.request.header.get('X-Maestro-Signature') || '')
+  const agora = Math.floor(Date.now() / 1000)
+  const ts = Number(tsHeader)
+  const recusar401 = function (motivo) {
+    if (canal) {
+      const agoraISO = new Date().toISOString()
+      const inicio = String(canal.get('janela_24h_inicio') || '')
+      let total24 = Number(canal.get('recusas_401_ultimas_24h') || 0)
+      const tInicio = inicio === '' ? NaN : new Date(inicio.replace(' ', 'T')).getTime()
+      if (!Number.isFinite(tInicio) || Date.now() - tInicio > 24 * 3600 * 1000) {
+        canal.set('janela_24h_inicio', agoraISO)
+        total24 = 0
+      }
+      canal.set('recusas_401_total', Number(canal.get('recusas_401_total') || 0) + 1)
+      canal.set('recusas_401_ultimas_24h', total24 + 1)
+      canal.set('atualizado_em', agoraISO)
+      app.save(canal)
+    }
+    return e.json(401, { ok: false, erro: motivo })
+  }
+  if (!tsHeader || !Number.isFinite(ts) || Math.abs(agora - ts) > 300) {
+    return recusar401('timestamp ausente ou fora da janela de 300s')
+  }
+  const caminho = '/backend/v1/analises'
+  const info = e.requestInfo()
+  const body = info.body
+  let corpo = ''
+  if (body !== null && body !== undefined) {
+    if (typeof body === 'object') {
+      const chaves = Object.keys(body)
+      if (chaves.length > 0) corpo = jsonCanonico(body)
+    } else if (typeof body === 'string' && body.length > 0) {
+      corpo = body
+    }
+  }
+  const material = tsHeader + '.POST.' + caminho + '.' + corpo
+  const esperada = $security.hs256(material, seg)
+  let igual = false
+  try {
+    igual = $security.equal(esperada, sigHeader)
+  } catch (eEq) {
+    if (esperada.length === sigHeader.length) {
+      let diff = 0
+      for (let i = 0; i < esperada.length; i++) {
+        diff |= esperada.charCodeAt(i) ^ sigHeader.charCodeAt(i)
+      }
+      igual = diff === 0
+    }
+  }
+  if (!igual) return recusar401('assinatura inválida')
+  if (canal) app.save(canal)
+
+  // ---- validação de entrada (CA-3-02) ----
+  const parseTol = function (raw) {
+    try {
+      if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number')
+        return JSON.parse(String.fromCharCode.apply(null, raw))
+      if (typeof raw === 'string') return raw === '' ? null : JSON.parse(raw)
+      return raw || null
+    } catch (eP) {
+      return null
+    }
+  }
+  const b = body || {}
+  const eventRef = String(b.event_id || '').trim()
+  const tipo = String(b.tipo || '').trim()
+  const alvoRef = String(b.alvo_ref || '').trim()
+  const conteudo = String(b.conteudo || '')
+  const modelo = String(b.modelo || '').slice(0, 120)
+  const evidencias = b.evidencias
+  const erros = {}
+  if (eventRef === '') erros.event_id = 'obrigatório'
+  if (tipo === '') erros.tipo = 'obrigatório'
+  else if (tipo.length > 40) erros.tipo = 'máx. 40'
+  if (alvoRef.length > 64) erros.alvo_ref = 'máx. 64'
+  const conteudoTrim = conteudo.trim()
+  if (conteudoTrim === '') erros.conteudo = 'obrigatório'
+  else if (conteudoTrim.length > 8000) erros.conteudo = 'máx. 8000 caracteres'
+  if (Object.keys(erros).length > 0) {
+    return e.json(422, { ok: false, erro: 'entrada inválida', campos: erros })
+  }
+  // evento existe?
+  let ev
+  try {
+    ev = app.findRecordById('analysis_events', eventRef)
+  } catch (_) {
+    return e.json(404, { ok: false, erro: 'evento não encontrado' })
+  }
+  const estadoEv = String(ev.get('estado') || '')
+  if (estadoEv === 'concluido') {
+    return e.json(409, { ok: false, erro: 'evento concluído — não aceita novas análises' })
+  }
+  // alvo dentro do período/escopo do evento
+  if (alvoRef !== '') {
+    const pStart = String(ev.get('period_start') || '')
+    const pEnd = String(ev.get('period_end') || '')
+    const scope = parseTol(ev.get('scope')) || {}
+    const contas = Array.isArray(scope.contas) ? scope.contas : []
+    if (contas.indexOf('*') < 0 && contas.length > 0) {
+      let dentro = false
+      for (const c of contas) {
+        if (alvoRef.indexOf(String(c)) >= 0) dentro = true
+      }
+      if (!dentro) {
+        return e.json(422, {
+          ok: false,
+          erro: 'alvo fora do escopo do evento',
+          campos: { alvo_ref: 'fora do escopo' },
+        })
+      }
+    }
+    if (pStart && pEnd) {
+      const datas = alvoRef.match(/\d{4}-\d{2}-\d{2}/g) || []
+      for (const d of datas) {
+        if (d < pStart || d > pEnd) {
+          return e.json(422, {
+            ok: false,
+            erro: 'alvo fora do período do evento',
+            campos: { alvo_ref: 'fora do período ' + pStart + ' → ' + pEnd },
+          })
+        }
+      }
+    }
+  }
+  // replay: mesmo trio (evento, tipo, alvo) com texto IGUAL devolve a mesma análise
+  const colA = app.findCollectionByNameOrId('analyses')
+  const mesmoTrio = app.findRecordsByFilter(
+    colA,
+    "event_id='" +
+      eventRef +
+      "' && tipo='" +
+      tipo.replace(/'/g, '') +
+      "' && alvo_ref='" +
+      alvoRef.replace(/'/g, '') +
+      "'",
+    '-created',
+    1,
+    0,
+  )
+  if (mesmoTrio && mesmoTrio.length > 0) {
+    const anterior = mesmoTrio[0]
+    const conteudoAnterior = String(anterior.get('conteudo') || '')
+    if (conteudoAnterior === conteudo) {
+      return e.json(200, {
+        ok: true,
+        replay: true,
+        analysis_id: anterior.id,
+        uuid: anterior.get('uuid'),
+        estado: anterior.get('estado'),
+      })
+    }
+    return e.json(409, {
+      ok: false,
+      erro: 'mesmo trio (evento, tipo, alvo) com texto diferente',
+      analysis_id: anterior.id,
+    })
+  }
+  // grava a análise (origem ia, rascunho, trilha)
+  const agoraISO = new Date().toISOString()
+  const ana = new Record(colA)
+  ana.set(
+    'uuid',
+    'ana-' + agoraISO.replace(/[-:TZ.]/g, '') + '-' + Math.floor(Math.random() * 900 + 100),
+  )
+  ana.set('event_id', ev.id)
+  ana.set('tipo', tipo)
+  ana.set('alvo_ref', alvoRef)
+  ana.set('period_start', ev.get('period_start'))
+  ana.set('period_end', ev.get('period_end'))
+  ana.set('scope', ev.get('scope') || JSON.stringify({}))
+  ana.set('conteudo', conteudoTrim)
+  ana.set(
+    'evidencias',
+    typeof evidencias === 'string' ? evidencias : JSON.stringify(evidencias || []),
+  )
+  ana.set('modelo', modelo)
+  ana.set('gerado_em', agoraISO)
+  ana.set('origem', 'ia')
+  ana.set('estado', 'rascunho')
+  ana.set('versao', 1)
+  ana.set('fixture', ev.get('fixture') === true)
+  app.save(ana)
+  return e.json(201, {
+    ok: true,
+    replay: false,
+    analysis_id: ana.id,
+    uuid: ana.get('uuid'),
+    estado: 'rascunho',
+  })
+
+  function jsonCanonico(v) {
+    if (v === null || v === undefined) return ''
+    if (typeof v !== 'object') return JSON.stringify(v)
+    if (Array.isArray(v)) {
+      const partes = []
+      for (const item of v) partes.push(jsonCanonico(item))
+      return '[' + partes.join(',') + ']'
+    }
+    const chaves = Object.keys(v).sort()
+    const partes = []
+    for (const k of chaves) partes.push(JSON.stringify(k) + ':' + jsonCanonico(v[k]))
+    return '{' + partes.join(',') + '}'
+  }
+})
+
+// ==================== GET /backend/v1/analises (lista autenticada p/ tela) ====================
+routerAdd('GET', '/backend/v1/analises', (e) => {
+  if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+  const app = $app
+  const hoje = new Date().toISOString().slice(0, 10)
+  const colG = app.findCollectionByNameOrId('access_grants')
+  const meus = app.findRecordsByFilter(
+    colG,
+    "user_id='" + e.auth.id + "' && revoked_at=''",
+    '',
+    50,
+    0,
+  )
+  let temRead = false
+  for (const g of meus) {
+    const ate = String(g.get('valid_until') || '')
+    if (ate !== '' && ate.slice(0, 10) < hoje) continue
+    let acts = []
+    try {
+      const raw = g.get('actions')
+      if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+        acts = JSON.parse(String.fromCharCode.apply(null, raw))
+      } else if (typeof raw === 'string') {
+        acts = JSON.parse(raw)
+      } else {
+        acts = raw || []
+      }
+    } catch (e2) {}
+    if (acts.indexOf('read_analyses') >= 0) {
+      temRead = true
+      break
+    }
+  }
+  if (!temRead) {
+    return e.json(403, {
+      ok: false,
+      erro: 'sem permissão para ler análises (read_analyses) — fale com o administrador',
+    })
+  }
+  const colA = app.findCollectionByNameOrId('analyses')
+  const registros = app.findRecordsByFilter(colA, '', '-created', 100, 0)
+  const itens = []
+  for (const a of registros) {
+    let evid = []
+    try {
+      const raw = a.get('evidencias')
+      evid =
+        Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number'
+          ? JSON.parse(String.fromCharCode.apply(null, raw))
+          : typeof raw === 'string'
+            ? JSON.parse(raw)
+            : raw || []
+    } catch (eE) {}
+    itens.push({
+      id: a.id,
+      uuid: a.get('uuid'),
+      event_id: a.get('event_id'),
+      tipo: a.get('tipo'),
+      alvo_ref: a.get('alvo_ref'),
+      period_start: a.get('period_start'),
+      period_end: a.get('period_end'),
+      conteudo: a.get('conteudo'),
+      evidencias: evid,
+      modelo: a.get('modelo'),
+      gerado_em: a.get('gerado_em'),
+      origem: a.get('origem'),
+      estado: a.get('estado'),
+      versao: a.get('versao'),
+      fixture: a.get('fixture') === true,
+    })
+  }
+  return e.json(200, { ok: true, itens: itens })
+})
+
+// ==================== GET /backend/v1/analises/canal-estado (saúde p/ tela, autenticado) ====================
+routerAdd(
+  'GET',
+  '/backend/v1/analises/canal-estado',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const app = $app
+    const colC = app.findCollectionByNameOrId('canal_estado')
+    const recs = app.findRecordsByFilter(colC, '', '', 1, 0)
+    if (!recs || recs.length === 0) {
+      return e.json(200, { ok: true, canal: null })
+    }
+    const c = recs[0]
+    return e.json(200, {
+      ok: true,
+      canal: {
+        ultimo_consumo_em: c.get('ultimo_consumo_em'),
+        ciclos_sem_consumo: c.get('ciclos_sem_consumo'),
+        recusas_401_total: c.get('recusas_401_total'),
+        recusas_401_ultimas_24h: c.get('recusas_401_ultimas_24h'),
+        segredo_configurado: c.get('segredo_configurado'),
+        atualizado_em: c.get('atualizado_em'),
+      },
+    })
+  },
+  $apis.requireAuth(),
+)
+
 // ==================== POST .../consumir ====================
 routerAdd('POST', '/backend/v1/analises/eventos/{id}/consumir', (e) => {
   const id = e.request.pathValue('id')
@@ -696,34 +1030,6 @@ routerAdd(
     ev.set('ultimo_erro', '')
     app.save(ev)
     return e.json(200, { ok: true, event_id: ev.get('uuid'), estado: 'pendente' })
-  },
-  $apis.requireAuth(),
-)
-
-// ==================== GET /backend/v1/analises/canal-estado (saúde p/ tela, autenticado) ====================
-routerAdd(
-  'GET',
-  '/backend/v1/analises/canal-estado',
-  (e) => {
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    const app = $app
-    const colC = app.findCollectionByNameOrId('canal_estado')
-    const recs = app.findRecordsByFilter(colC, '', '', 1, 0)
-    if (!recs || recs.length === 0) {
-      return e.json(200, { ok: true, canal: null })
-    }
-    const c = recs[0]
-    return e.json(200, {
-      ok: true,
-      canal: {
-        ultimo_consumo_em: c.get('ultimo_consumo_em'),
-        ciclos_sem_consumo: c.get('ciclos_sem_consumo'),
-        recusas_401_total: c.get('recusas_401_total'),
-        recusas_401_ultimas_24h: c.get('recusas_401_ultimas_24h'),
-        segredo_configurado: c.get('segredo_configurado'),
-        atualizado_em: c.get('atualizado_em'),
-      },
-    })
   },
   $apis.requireAuth(),
 )

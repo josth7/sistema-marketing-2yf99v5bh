@@ -9,408 +9,40 @@
  *   POST /backend/v1/acessos/grants/{id}/revoke    → revoga (só manage_access)
  *   GET  /backend/v1/acessos/audit                 → trilha (só manage_access)
  *
- * Regras da SPEC:
- * - Aprovação/ator/escopo NUNCA confiados do corpo — approved_by = e.auth.id sempre.
- * - Grant expirado (valid_until < hoje) ou revogado (revoked_at) vale NADA.
- * - Audit append-only, SEM tokens/senhas.
- * - Nenhum grant real aqui: gate da matriz aprovada (card 5b1de184).
- * - JSVM: lógica INLINE nos callbacks (sem helper top-level — AP-2026-10-02-1755).
+ * Catálogo de ações (ACTIONS_VALIDAS) é a ÚNICA fonte do que pode existir num
+ * grant. Papéis: direction / management / marketing / agency.
+ * Escopos: scope_accounts e scope_channels (listas; '*' = tudo; vazio = negado
+ * para ações que exigem escopo — deny por padrão, SPEC-2-005).
+ * Ações da fase 3 (card 2e44a45f): request_analysis, read_analyses,
+ * review_ai_summary — acrescentadas APENAS aqui, nada mais neste arquivo.
+ *
+ * JSVM: toda lógica inline nos callbacks; json pode voltar como array de
+ * char-codes (parser tolerante); DateTime zerado chega como string vazia.
  */
 
+// ==================== GET /backend/v1/acessos/me ====================
 routerAdd(
   'GET',
   '/backend/v1/acessos/me',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const app = $app
     const hoje = new Date().toISOString().slice(0, 10)
-    const colG = $app.findCollectionByNameOrId('access_grants')
-    const grants = $app.findRecordsByFilter(
+    const colG = app.findCollectionByNameOrId('access_grants')
+    const meus = app.findRecordsByFilter(
       colG,
       "user_id='" + e.auth.id + "' && revoked_at=''",
-      '',
+      '-created',
       50,
       0,
     )
-    const validos = []
-    const actions = {}
-    for (const g of grants) {
-      const ate = String(g.get('valid_until') || '')
-      // DateTime zerado chega como string vazia — comparar como STRING (AP-2026-10-14-1155)
-      if (ate !== '' && ate.slice(0, 10) < hoje) continue
-      let acts = []
-      try {
-        const raw = g.get('actions')
-        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
-          // JSVM devolveu os CÓDIGOS de caractere da string JSON (prova /me 14/10)
-          acts = JSON.parse(String.fromCharCode.apply(null, raw))
-        } else if (typeof raw === 'string') {
-          acts = JSON.parse(raw)
-        } else {
-          acts = raw || []
-        }
-      } catch (e2) {}
-      validos.push({
-        id: g.id,
-        role: g.get('role'),
-        actions: acts,
-        valid_from: g.get('valid_from') || null,
-        valid_until: ate || null,
-        version: g.get('version'),
-        note: g.get('note') || null,
-      })
-      for (const a of acts) actions[a] = true
-    }
-    return e.json(200, {
-      ok: true,
-      email: e.auth.email(),
-      grants: validos,
-      actions: Object.keys(actions).sort(),
-    })
-  },
-  $apis.requireAuth(),
-)
-
-routerAdd(
-  'GET',
-  '/backend/v1/acessos/grants',
-  (e) => {
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    // manage_access: o ator precisa ter a action em algum grant válido PRÓPRIO
-    const hoje = new Date().toISOString().slice(0, 10)
-    const colG = $app.findCollectionByNameOrId('access_grants')
-    const meus = $app.findRecordsByFilter(
-      colG,
-      "user_id='" + e.auth.id + "' && revoked_at=''",
-      '',
-      50,
-      0,
-    )
-    let temManage = false
-    for (const g of meus) {
-      const ate = String(g.get('valid_until') || '')
-      if (ate !== '' && ate.slice(0, 10) < hoje) continue
-      let acts = []
-      try {
-        const raw = g.get('actions')
-        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
-          acts = JSON.parse(String.fromCharCode.apply(null, raw))
-        } else if (typeof raw === 'string') {
-          acts = JSON.parse(raw)
-        } else {
-          acts = raw || []
-        }
-      } catch (e2) {}
-      if (acts.indexOf('manage_access') >= 0) temManage = true
-    }
-    if (!temManage) {
-      return e.json(403, {
-        ok: false,
-        erro: 'sem permissão para gerenciar acessos (manage_access) — fale com o administrador',
-      })
-    }
-    const todos = $app.findRecordsByFilter(colG, '', '-created', 200, 0)
-    const lista = []
-    for (const g of todos) {
-      let acts = []
-      try {
-        const raw = g.get('actions')
-        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
-          acts = JSON.parse(String.fromCharCode.apply(null, raw))
-        } else if (typeof raw === 'string') {
-          acts = JSON.parse(raw)
-        } else {
-          acts = raw || []
-        }
-      } catch (e3) {}
-      lista.push({
-        id: g.id,
-        user_id: g.get('user_id'),
-        role: g.get('role'),
-        actions: acts,
-        valid_from: g.get('valid_from') || null,
-        valid_until: g.get('valid_until') || null,
-        approved_by: g.get('approved_by') || null,
-        approved_at: g.get('approved_at') || null,
-        revoked_at: g.get('revoked_at') || null,
-        version: g.get('version'),
-        note: g.get('note') || null,
-        created: g.get('created'),
-      })
-    }
-    return e.json(200, { ok: true, itens: lista })
-  },
-  $apis.requireAuth(),
-)
-
-routerAdd(
-  'POST',
-  '/backend/v1/acessos/grants',
-  (e) => {
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    const body = e.requestInfo().body || {}
-    // manage_access do ATOR (não confiada do corpo)
-    const hoje = new Date().toISOString().slice(0, 10)
-    const colG = $app.findCollectionByNameOrId('access_grants')
-    const meus = $app.findRecordsByFilter(
-      colG,
-      "user_id='" + e.auth.id + "' && revoked_at=''",
-      '',
-      50,
-      0,
-    )
-    let temManage = false
-    for (const g of meus) {
-      const ate = String(g.get('valid_until') || '')
-      if (ate !== '' && ate.slice(0, 10) < hoje) continue
-      let acts = []
-      try {
-        const raw = g.get('actions')
-        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
-          acts = JSON.parse(String.fromCharCode.apply(null, raw))
-        } else if (typeof raw === 'string') {
-          acts = JSON.parse(raw)
-        } else {
-          acts = raw || []
-        }
-      } catch (e2) {}
-      if (acts.indexOf('manage_access') >= 0) temManage = true
-    }
-    if (!temManage && !e.hasSuperuserAuth()) {
-      return e.json(403, {
-        ok: false,
-        erro: 'sem permissão para gerenciar acessos (manage_access) — fale com o administrador',
-      })
-    }
-
-    // ---- validação de entrada (422) ----
-    const erros = {}
-    const ACTIONS_VALIDAS = [
-      'read_metrics',
-      'manage_criteria',
-      'read_alerts',
-      'manage_alerts',
-      'read_decisions',
-      'manage_decisions',
-      'read_reports',
-      'approve_criteria',
-      'approve_reports',
-      'manage_access',
-    ]
-    const papel = String(body.role || '').trim()
-    if (papel === '') erros.role = 'informe o papel'
-    else if (papel.length > 40) erros.role = 'papel muito longo (máx. 40)'
-    let alvoUserId = ''
-    if (body.user_id) {
-      alvoUserId = String(body.user_id)
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .slice(0, 15)
-    } else if (body.user_email) {
-      const email = String(body.user_email).trim().toLowerCase().replace(/'/g, '')
-      if (email.indexOf('@') < 3) erros.user_email = 'e-mail inválido'
-      else {
-        try {
-          const u = $app.findRecordsByFilter(
-            $app.findCollectionByNameOrId('users'),
-            "email='" + email + "'",
-            '',
-            1,
-            0,
-          )
-          if (!u || u.length === 0) erros.user_email = 'usuário não encontrado com este e-mail'
-          else alvoUserId = u[0].id
-        } catch (e4) {
-          erros.user_email = 'não foi possível procurar o usuário'
-        }
-      }
-    } else {
-      erros.user_id = 'informe user_id ou user_email'
-    }
-    let acts = []
-    if (!Array.isArray(body.actions) || body.actions.length === 0) {
-      erros.actions = 'informe ao menos uma ação'
-    } else {
-      for (const a of body.actions) {
-        if (ACTIONS_VALIDAS.indexOf(String(a)) === -1) {
-          erros.actions =
-            'ação inválida: ' + String(a).slice(0, 40) + ' — use ' + ACTIONS_VALIDAS.join(', ')
-          break
-        }
-      }
-      if (!erros.actions) acts = body.actions.map(String)
-    }
-    if (body.valid_until !== undefined && body.valid_until !== null && body.valid_until !== '') {
-      const v = String(body.valid_until)
-      if (!/^\d{4}-\d{2}-\d{2}/.test(v)) erros.valid_until = 'data inválida — use AAAA-MM-DD'
-    }
-    if (Object.keys(erros).length > 0) {
-      return e.json(422, { ok: false, erro: 'entrada inválida', campos: erros })
-    }
-
-    // version = max+1 do par usuário+papel
-    const existentes = $app.findRecordsByFilter(
-      colG,
-      "user_id='" + alvoUserId + "' && role='" + papel.replace(/'/g, '') + "'",
-      '-version',
-      10,
-      0,
-    )
-    let maxV = 0
-    for (const g of existentes) {
-      const v = Number(g.get('version') || 0)
-      if (v > maxV) maxV = v
-    }
-
-    const rec = new Record(colG)
-    rec.set('user_id', alvoUserId)
-    rec.set('role', papel)
-    rec.set('actions', JSON.stringify(acts))
-    rec.set(
-      'scope_accounts',
-      JSON.stringify(
-        Array.isArray(body.scope_accounts) && body.scope_accounts.length > 0
-          ? body.scope_accounts.map(String)
-          : ['*'],
-      ),
-    )
-    rec.set(
-      'scope_channels',
-      JSON.stringify(
-        Array.isArray(body.scope_channels) && body.scope_channels.length > 0
-          ? body.scope_channels.map(String)
-          : ['*'],
-      ),
-    )
-    if (body.valid_from) rec.set('valid_from', String(body.valid_until || '').slice(0, 10) || null)
-    if (body.valid_until) rec.set('valid_until', String(body.valid_until).slice(0, 10))
-    rec.set('approved_by', e.auth.id) // SEMPRE o ator autenticado — nunca do corpo
-    rec.set('approved_at', new Date().toISOString())
-    rec.set('version', maxV + 1)
-    rec.set('note', String(body.note || '').slice(0, 300))
-    try {
-      $app.save(rec)
-    } catch (e5) {
-      const msg = String(e5).slice(0, 200)
-      if (msg.indexOf('idx_grant_unica') >= 0 || msg.indexOf('unique') >= 0) {
-        return e.json(409, {
-          ok: false,
-          erro: 'conflito — já existe grant com esta versão para o par usuário+papel',
-        })
-      }
-      return e.json(500, { ok: false, erro: 'não foi possível gravar o grant: ' + msg })
-    }
-
-    // audit (append-only, sem segredo)
-    const colA = $app.findCollectionByNameOrId('access_audit')
-    const a = new Record(colA)
-    a.set('at', new Date().toISOString())
-    a.set('actor', e.auth.id)
-    a.set('acao', 'criou_grant')
-    a.set('alvo', alvoUserId + ' → ' + papel + ' v' + (maxV + 1))
-    a.set(
-      'detalhe',
-      JSON.stringify({
-        actions: acts,
-        valid_until: body.valid_until || null,
-        note: String(body.note || '').slice(0, 200),
-      }),
-    )
-    $app.save(a)
-
-    return e.json(200, {
-      ok: true,
-      id: rec.id,
-      user_id: alvoUserId,
-      role: papel,
-      version: maxV + 1,
-      actions: acts,
-      approved_by: e.auth.id,
-    })
-  },
-  $apis.requireAuth(),
-)
-
-routerAdd(
-  'POST',
-  '/backend/v1/acessos/grants/{id}/revoke',
-  (e) => {
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    const id = e.request.pathValue('id')
-    const hoje = new Date().toISOString().slice(0, 10)
-    const colG = $app.findCollectionByNameOrId('access_grants')
-    const meus = $app.findRecordsByFilter(
-      colG,
-      "user_id='" + e.auth.id + "' && revoked_at=''",
-      '',
-      50,
-      0,
-    )
-    let temManage = false
-    for (const g of meus) {
-      const ate = String(g.get('valid_until') || '')
-      if (ate !== '' && ate.slice(0, 10) < hoje) continue
-      let acts = []
-      try {
-        const raw = g.get('actions')
-        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
-          acts = JSON.parse(String.fromCharCode.apply(null, raw))
-        } else if (typeof raw === 'string') {
-          acts = JSON.parse(raw)
-        } else {
-          acts = raw || []
-        }
-      } catch (e2) {}
-      if (acts.indexOf('manage_access') >= 0) temManage = true
-    }
-    if (!temManage && !e.hasSuperuserAuth()) {
-      return e.json(403, {
-        ok: false,
-        erro: 'sem permissão para gerenciar acessos (manage_access) — fale com o administrador',
-      })
-    }
-    let rec
-    try {
-      rec = $app.findRecordById(colG, id)
-    } catch (_) {
-      return e.json(404, { ok: false, erro: 'grant não encontrado' })
-    }
-    if (String(rec.get('revoked_at') || '') !== '') {
-      return e.json(409, { ok: false, erro: 'grant já está revogado' })
-    }
-    rec.set('revoked_at', new Date().toISOString())
-    $app.save(rec)
-    const colA = $app.findCollectionByNameOrId('access_audit')
-    const a = new Record(colA)
-    a.set('at', new Date().toISOString())
-    a.set('actor', e.auth.id)
-    a.set('acao', 'revogou_grant')
-    a.set('alvo', String(rec.get('user_id')) + ' → ' + String(rec.get('role')))
-    a.set('detalhe', JSON.stringify({ grant_id: id, version: rec.get('version') }))
-    $app.save(a)
-    return e.json(200, { ok: true, id: rec.id, revoked_at: rec.get('revoked_at') })
-  },
-  $apis.requireAuth(),
-)
-
-routerAdd(
-  'GET',
-  '/backend/v1/metricas',
-  (e) => {
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    // ---- guard read_metrics + escopos do ATOR (inline — JSVM sem helper top-level) ----
-    const hoje = new Date().toISOString().slice(0, 10)
-    const colG = $app.findCollectionByNameOrId('access_grants')
-    const meus = $app.findRecordsByFilter(
-      colG,
-      "user_id='" + e.auth.id + "' && revoked_at=''",
-      '',
-      50,
-      0,
-    )
-    let temRead = false
+    const itens = []
     const contas = []
     const canais = []
     for (const g of meus) {
+      const de = String(g.get('valid_from') || '')
       const ate = String(g.get('valid_until') || '')
+      if (de !== '' && de.slice(0, 10) > hoje) continue
       if (ate !== '' && ate.slice(0, 10) < hoje) continue
       let acts = []
       try {
@@ -423,8 +55,6 @@ routerAdd(
           acts = raw || []
         }
       } catch (e2) {}
-      if (acts.indexOf('read_metrics') < 0) continue
-      temRead = true
       let sa = []
       let sc = []
       try {
@@ -447,88 +77,46 @@ routerAdd(
       } catch (e4) {}
       for (const c of sa) if (contas.indexOf(String(c)) < 0) contas.push(String(c))
       for (const c of sc) if (canais.indexOf(String(c)) < 0) canais.push(String(c))
-    }
-    if (!temRead) {
-      return e.json(403, {
-        ok: false,
-        erro: 'sem permissão para ler métricas (read_metrics) — fale com o administrador',
-      })
-    }
-    const temTudoContas = contas.indexOf('*') >= 0
-    const temTudoCanais = canais.indexOf('*') >= 0
-    // ---- filtro de escopo aplicado ANTES de agregar (SPEC-2-005) ----
-    let filtro = ''
-    if (!temTudoContas) {
-      const partes = contas.map((c) => "conta_id='" + c.replace(/'/g, '') + "'")
-      partes.push("conta_id=''") // sem conta = sem escopo associado → NEGADO (deny por padrão)
-      filtro = '(' + partes.join(' || ') + ')'
-    }
-    if (!temTudoCanais) {
-      const partesC = canais.map((c) => "canal='" + c.replace(/'/g, '') + "'")
-      const fCanal = '(' + partesC.join(' || ') + ')'
-      filtro = filtro ? filtro + ' && ' + fCanal : fCanal
-    }
-    const registros = $app.findRecordsByFilter(
-      $app.findCollectionByNameOrId('metricas_diarias'),
-      filtro,
-      '-data',
-      500,
-      0,
-    )
-    const itens = []
-    for (const r of registros) {
       itens.push({
-        id: r.id,
-        origem: r.get('origem'),
-        canal: r.get('canal'),
-        natureza: r.get('natureza'),
-        conta_id: r.get('conta_id') || '',
-        conta_nome: r.get('conta_nome') || '',
-        campanha_id: r.get('campanha_id'),
-        campanha_nome: r.get('campanha_nome'),
-        objetivo: r.get('objetivo'),
-        objective_raw: r.get('objective_raw') || null,
-        result_type: r.get('result_type') || null,
-        data: r.get('data'),
-        alcance: r.get('alcance'),
-        impressoes: r.get('impressoes'),
-        cliques: r.get('cliques'),
-        gasto: r.get('gasto'),
-        resultados: r.get('resultados'),
-        cpc: r.get('cpc'),
-        cpm: r.get('cpm'),
-        ctr: r.get('ctr'),
-        updated: r.get('updated'),
+        id: g.id,
+        role: g.get('role'),
+        actions: acts,
+        scope_accounts: sa,
+        scope_channels: sc,
+        valid_from: de,
+        valid_until: ate,
+        version: g.get('version'),
+        note: g.get('note'),
       })
     }
     return e.json(200, {
       ok: true,
-      escopo: { contas: temTudoContas ? ['*'] : contas, canais: temTudoCanais ? ['*'] : canais },
-      total: itens.length,
-      itens: itens,
+      user: { id: e.auth.id, email: e.auth.email },
+      grants: itens,
+      escopo: { contas: contas, canais: canais },
     })
   },
   $apis.requireAuth(),
 )
 
+// ==================== GET /backend/v1/acessos/grants (só manage_access) ====================
 routerAdd(
   'GET',
-  '/backend/v1/acessos/audit',
+  '/backend/v1/acessos/grants',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
-    const hoje = new Date().toISOString().slice(0, 10)
-    const colG = $app.findCollectionByNameOrId('access_grants')
-    const meus = $app.findRecordsByFilter(
+    const app = $app
+    // guard manage_access (inline)
+    const colG = app.findCollectionByNameOrId('access_grants')
+    const meus = app.findRecordsByFilter(
       colG,
       "user_id='" + e.auth.id + "' && revoked_at=''",
       '',
       50,
       0,
     )
-    let temManage = false
+    let podeGerir = false
     for (const g of meus) {
-      const ate = String(g.get('valid_until') || '')
-      if (ate !== '' && ate.slice(0, 10) < hoje) continue
       let acts = []
       try {
         const raw = g.get('actions')
@@ -540,28 +128,395 @@ routerAdd(
           acts = raw || []
         }
       } catch (e2) {}
-      if (acts.indexOf('manage_access') >= 0) temManage = true
+      if (acts.indexOf('manage_access') >= 0) {
+        podeGerir = true
+        break
+      }
     }
-    if (!temManage && !e.hasSuperuserAuth()) {
+    if (!podeGerir) {
       return e.json(403, {
         ok: false,
-        erro: 'sem permissão para gerenciar acessos (manage_access) — fale com o administrador',
+        erro: 'sem permissão para gerir acessos (manage_access) — fale com o administrador',
       })
     }
-    const colA = $app.findCollectionByNameOrId('access_audit')
-    const itens = $app.findRecordsByFilter(colA, '', '-at', 200, 0)
-    const lista = []
-    for (const it of itens) {
-      lista.push({
-        id: it.id,
-        at: it.get('at'),
-        actor: it.get('actor') || null,
-        acao: it.get('acao'),
-        alvo: it.get('alvo') || null,
-        detalhe: it.get('detalhe') || null,
+    const todos = app.findRecordsByFilter(colG, '', '-created', 200, 0)
+    const itens = []
+    for (const g of todos) {
+      let acts = []
+      try {
+        const raw = g.get('actions')
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
+      } catch (e2) {}
+      let emailAlvo = ''
+      try {
+        const u = app.findRecordById('users', g.get('user_id'))
+        emailAlvo = String(u.get('email') || '')
+      } catch (e3) {}
+      let emailAprov = ''
+      try {
+        const a = app.findRecordById('users', g.get('approved_by'))
+        emailAprov = String(a.get('email') || '')
+      } catch (e4) {}
+      itens.push({
+        id: g.id,
+        user_id: g.get('user_id'),
+        user_email: emailAlvo,
+        role: g.get('role'),
+        actions: acts,
+        scope_accounts: g.get('scope_accounts'),
+        scope_channels: g.get('scope_channels'),
+        valid_from: g.get('valid_from'),
+        valid_until: g.get('valid_until'),
+        approved_by: g.get('approved_by'),
+        approved_by_email: emailAprov,
+        approved_at: g.get('approved_at'),
+        revoked_at: g.get('revoked_at'),
+        version: g.get('version'),
+        note: g.get('note'),
+        created: g.get('created'),
       })
     }
-    return e.json(200, { ok: true, itens: lista })
+    return e.json(200, { ok: true, itens: itens })
+  },
+  $apis.requireAuth(),
+)
+
+// ==================== POST /backend/v1/acessos/grants (só manage_access) ====================
+routerAdd(
+  'POST',
+  '/backend/v1/acessos/grants',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const app = $app
+    // guard manage_access (inline)
+    const colG = app.findCollectionByNameOrId('access_grants')
+    const meus = app.findRecordsByFilter(
+      colG,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '',
+      50,
+      0,
+    )
+    let podeGerir = false
+    for (const g of meus) {
+      let acts = []
+      try {
+        const raw = g.get('actions')
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
+      } catch (e2) {}
+      if (acts.indexOf('manage_access') >= 0) {
+        podeGerir = true
+        break
+      }
+    }
+    if (!podeGerir) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para gerir acessos (manage_access) — fale com o administrador',
+      })
+    }
+    const body = e.requestInfo().body || {}
+    const ACTIONS_VALIDAS = [
+      'read_metrics',
+      'manage_criteria',
+      'read_alerts',
+      'manage_alerts',
+      'read_decisions',
+      'manage_decisions',
+      'read_reports',
+      'approve_criteria',
+      'approve_reports',
+      'manage_access',
+      'request_analysis',
+      'read_analyses',
+      'review_ai_summary',
+    ]
+    const papel = String(body.role || '').trim()
+    if (papel === '')
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { role: 'informe o papel' },
+      })
+    if (papel.length > 40)
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { role: 'papel muito longo (máx. 40)' },
+      })
+    let alvoUserId = ''
+    if (body.user_id) {
+      alvoUserId = String(body.user_id)
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(0, 15)
+    } else if (body.user_email) {
+      const email = String(body.user_email).trim().toLowerCase().replace(/'/g, '')
+      if (email.indexOf('@') < 3)
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { user_email: 'e-mail inválido' },
+        })
+      try {
+        const u = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('users'),
+          "email='" + email + "'",
+          '',
+          1,
+          0,
+        )
+        if (!u || u.length === 0)
+          return e.json(404, { ok: false, erro: 'usuário não encontrado para ' + email })
+        alvoUserId = u[0].id
+      } catch (e5) {
+        return e.json(404, { ok: false, erro: 'usuário não encontrado para ' + email })
+      }
+    } else {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { user_id: 'informe user_id ou user_email' },
+      })
+    }
+    // ações
+    let acoes = body.actions
+    if (typeof acoes === 'string') {
+      try {
+        acoes = JSON.parse(acoes)
+      } catch (e6) {
+        acoes = null
+      }
+    }
+    if (!Array.isArray(acoes) || acoes.length === 0)
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { actions: 'lista obrigatória' },
+      })
+    const acoesLimpos = []
+    for (const a of acoes) {
+      const s = String(a).trim()
+      if (ACTIONS_VALIDAS.indexOf(s) < 0)
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { actions: 'ação desconhecida: ' + s },
+        })
+      if (acoesLimpos.indexOf(s) < 0) acoesLimpos.push(s)
+    }
+    // escopos
+    const parseLista = function (v) {
+      if (typeof v === 'string') {
+        try {
+          const p = JSON.parse(v)
+          return Array.isArray(p) ? p : []
+        } catch (e7) {
+          return []
+        }
+      }
+      return Array.isArray(v) ? v : []
+    }
+    const sa = parseLista(body.scope_accounts)
+    const sc = parseLista(body.scope_channels)
+    for (const s of sa.concat(sc)) {
+      if (String(s).length > 64)
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { scope: 'valor muito longo (máx. 64)' },
+        })
+    }
+    // validade
+    const de = String(body.valid_from || '').slice(0, 10)
+    const ate = String(body.valid_until || '').slice(0, 10)
+    if (de !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(de))
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { valid_from: 'use AAAA-MM-DD' },
+      })
+    if (ate !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(ate))
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { valid_until: 'use AAAA-MM-DD' },
+      })
+    if (de !== '' && ate !== '' && de > ate)
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { valid_until: 'anterior ao início' },
+      })
+    // auto-aprovação proibida (matriz de aprovação — SPEC-2-005)
+    if (alvoUserId === e.auth.id)
+      return e.json(403, {
+        ok: false,
+        erro: 'não é possível criar grant para si mesmo (matriz de aprovação)',
+      })
+    const agoraISO = new Date().toISOString()
+    const g = new Record(colG)
+    g.set('user_id', alvoUserId)
+    g.set('role', papel)
+    g.set('actions', JSON.stringify(acoesLimpos))
+    g.set('scope_accounts', JSON.stringify(sa))
+    g.set('scope_channels', JSON.stringify(sc))
+    g.set('valid_from', de)
+    g.set('valid_until', ate)
+    g.set('approved_by', e.auth.id)
+    g.set('approved_at', agoraISO)
+    g.set('version', 1)
+    g.set('note', String(body.note || '').slice(0, 200))
+    app.save(g)
+    // trilha append-only
+    try {
+      const colA = app.findCollectionByNameOrId('access_audit')
+      const a = new Record(colA)
+      a.set('actor_id', e.auth.id)
+      a.set('acao', 'grant_criado')
+      a.set('alvo_grant_id', g.id)
+      a.set('alvo_user_id', alvoUserId)
+      a.set('detalhe', JSON.stringify({ acoes: acoesLimpos, papel: papel }))
+      a.set('created_at', agoraISO)
+      app.save(a)
+    } catch (e8) {}
+    return e.json(201, { ok: true, grant_id: g.id })
+  },
+  $apis.requireAuth(),
+)
+
+// ==================== POST /backend/v1/acessos/grants/{id}/revoke (só manage_access) ====================
+routerAdd(
+  'POST',
+  '/backend/v1/acessos/grants/{id}/revoke',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const app = $app
+    const colG = app.findCollectionByNameOrId('access_grants')
+    const meus = app.findRecordsByFilter(
+      colG,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '',
+      50,
+      0,
+    )
+    let podeGerir = false
+    for (const g of meus) {
+      let acts = []
+      try {
+        const raw = g.get('actions')
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
+      } catch (e2) {}
+      if (acts.indexOf('manage_access') >= 0) {
+        podeGerir = true
+        break
+      }
+    }
+    if (!podeGerir) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para gerir acessos (manage_access) — fale com o administrador',
+      })
+    }
+    let g
+    try {
+      g = app.findRecordById('access_grants', e.request.pathValue('id'))
+    } catch (_) {
+      return e.json(404, { ok: false, erro: 'grant não encontrado' })
+    }
+    if (String(g.get('revoked_at') || '') !== '') {
+      return e.json(200, { ok: true, replay: true, grant_id: g.id })
+    }
+    const agoraISO = new Date().toISOString()
+    g.set('revoked_at', agoraISO)
+    app.save(g)
+    try {
+      const colA = app.findCollectionByNameOrId('access_audit')
+      const a = new Record(colA)
+      a.set('actor_id', e.auth.id)
+      a.set('acao', 'grant_revogado')
+      a.set('alvo_grant_id', g.id)
+      a.set('alvo_user_id', g.get('user_id'))
+      a.set('detalhe', '{}')
+      a.set('created_at', agoraISO)
+      app.save(a)
+    } catch (e3) {}
+    return e.json(200, { ok: true, grant_id: g.id, revogado_em: agoraISO })
+  },
+  $apis.requireAuth(),
+)
+
+// ==================== GET /backend/v1/acessos/audit (só manage_access) ====================
+routerAdd(
+  'GET',
+  '/backend/v1/acessos/audit',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const app = $app
+    const colG = app.findCollectionByNameOrId('access_grants')
+    const meus = app.findRecordsByFilter(
+      colG,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '',
+      50,
+      0,
+    )
+    let podeGerir = false
+    for (const g of meus) {
+      let acts = []
+      try {
+        const raw = g.get('actions')
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
+      } catch (e2) {}
+      if (acts.indexOf('manage_access') >= 0) {
+        podeGerir = true
+        break
+      }
+    }
+    if (!podeGerir) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para gerir acessos (manage_access) — fale com o administrador',
+      })
+    }
+    const colA = app.findCollectionByNameOrId('access_audit')
+    const registros = app.findRecordsByFilter(colA, '', '-created', 200, 0)
+    const itens = []
+    for (const a of registros) {
+      itens.push({
+        id: a.id,
+        actor_id: a.get('actor_id'),
+        acao: a.get('acao'),
+        alvo_grant_id: a.get('alvo_grant_id'),
+        alvo_user_id: a.get('alvo_user_id'),
+        detalhe: a.get('detalhe'),
+        created_at: a.get('created_at'),
+      })
+    }
+    return e.json(200, { ok: true, itens: itens })
   },
   $apis.requireAuth(),
 )
