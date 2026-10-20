@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20T19:39:07.658Z",
+  "generatedAt": "2026-10-20T20:06:02.834Z",
   "collections": [
     {
       "name": "users",
@@ -1952,6 +1952,144 @@
             "onCreate",
             "onUpdate"
           ]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "metricas_fixtures",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "canal",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conta_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conta_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "campanha_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "campanha_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "objetivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "natureza",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "alcance",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "impressoes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliques",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gasto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultados",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fixture",
+          "type": "bool",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX IF NOT EXISTS idx_mfix_data_canal ON metricas_fixtures (data, canal)"
+      ]
+    },
+    {
+      "name": "canal_avisos",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "motivo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_em",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
