@@ -887,16 +887,17 @@ routerAdd('POST', '/backend/v1/fixtures/seed-canal', (e) => {
     return e.json(404, { ok: false, erro: 'rota não encontrada' })
   }
   const app = $app
+  const body = e.requestInfo().body || {}
+  const serie = String(body.serie || '')
   const colE = app.findCollectionByNameOrId('analysis_events')
-  const dedupe = 'fixture|periodo_fechado|2026-10-16|2026-10-31|*'
+  const dedupe = 'fixture|periodo_fechado|2026-10-16|2026-10-31|*' + (serie ? '|' + serie : '')
   const existentes = app.findRecordsByFilter(colE, "dedupe_key='" + dedupe + "'", '', 1, 0)
   let ev
   if (existentes && existentes.length > 0) {
     ev = existentes[0]
   } else {
     ev = new Record(colE)
-    ev.set('uuid', 'evt-fixture-canal-001')
-    ev.set('tipo', 'periodo_fechado')
+    ev.set('uuid', 'evt-fixture-canal-001' + (serie ? '-' + serie : ''))    ev.set('tipo', 'periodo_fechado')
     ev.set('period_start', '2026-10-16')
     ev.set('period_end', '2026-10-31')
     ev.set('scope', JSON.stringify({ contas: [], canais: [] }))
