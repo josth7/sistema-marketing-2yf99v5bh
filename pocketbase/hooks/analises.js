@@ -897,7 +897,8 @@ routerAdd('POST', '/backend/v1/fixtures/seed-canal', (e) => {
     ev = existentes[0]
   } else {
     ev = new Record(colE)
-    ev.set('uuid', 'evt-fixture-canal-001' + (serie ? '-' + serie : ''))    ev.set('tipo', 'periodo_fechado')
+    ev.set('uuid', 'evt-fixture-canal-001' + (serie ? '-' + serie : ''))
+    ev.set('tipo', 'periodo_fechado')
     ev.set('period_start', '2026-10-16')
     ev.set('period_end', '2026-10-31')
     ev.set('scope', JSON.stringify({ contas: [], canais: [] }))
@@ -930,7 +931,7 @@ routerAdd('POST', '/backend/v1/fixtures/seed-canal', (e) => {
     analise = trio[0]
   } else {
     analise = new Record(colA)
-    analise.set('uuid', 'ana-fixture-canal-001')
+    analise.set('uuid', 'ana-fixture-canal-001' + (serie ? '-' + serie : ''))
     analise.set('event_id', ev.id)
     analise.set('tipo', 'diagnostico_periodo')
     analise.set('alvo_ref', '')
