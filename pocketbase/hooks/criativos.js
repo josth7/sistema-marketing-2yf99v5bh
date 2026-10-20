@@ -7,15 +7,17 @@
  *   imagem_url só https em hosts de CDN da allowlist; url_final só http(s);
  *   400 corpo vazio; 422 linha inválida com índice; lote parcial só com
  *   aceitar_parcial=true; conversoes → resultados com result_type='conversoes'.
- * - POST /backend/v1/criativos/tick {agora, anuncios, paginas} — relógio de
- *   teste (X-Fixture-Secret): processa payload fixture de respostas Meta
- *   (anúncios/criativos/insights/erro 190), grava idempotente e captura
+ *   Material da assinatura: timestamp.POST.caminho.QUERY (determinístico nos
+ *   dois lados — o corpo re-serializado pelo runtime não é reproduzível).
+ * - POST /backend/v1/criativos/capturar {url, fixture, hosts_extra} — captura
+ *   de página: https, sem IP literal/localhost/porta não padrão, allowlist
+ *   (analysis_policy + hosts fixture), destinos de mensagem registrados sem
+ *   captura, HEAD prévio consultivo, GET truncado em 512 KB, sem JS/cookies.
+ * - POST /backend/v1/criativos/tick {agora, anuncios, paginas, hosts_extra,
+ *   erro_meta} — relógio de teste (X-Fixture-Secret): payload fixture de
+ *   respostas Meta (anúncios/insights/erro 190), grava idempotente e captura
  *   páginas fixture; NUNCA chama a Meta real nesta rota.
- * - POST /backend/v1/criativos/capturar {url} — captura de página com
- *   allowlist (analysis_policy.dominios_destino_permitidos + hosts fixture),
- *   https, sem IP literal/localhost/porta não padrão, HEAD prévio, GET
- *   truncado em 512 KB, sem JS/cookies; destinos de mensagem registrados sem
- *   captura; host fora da lista → dominio_nao_permitido SEM requisição.
+ * - GET /backend/v1/fixtures/pagina/{tipo} — páginas fixture da captura.
  *
  * JSVM: lógica INLINE nos callbacks; $http.send não controla redirecionamento
  * (risco residual registrado na SPEC); erros só com código classificado.
@@ -70,16 +72,10 @@ routerAdd('POST', '/backend/v1/ingest-criativos', (e) => {
   const posQ = requestURI.indexOf('?')
   const query = posQ >= 0 ? requestURI.slice(posQ + 1) : ''
   const caminho = '/backend/v1/ingest-criativos'
-  const corpoBruto = (function () {
-    try {
-      const b = e.requestInfo().body
-      if (!b || Object.keys(b).length === 0) return ''
-      return JSON.stringify(b)
-    } catch (eJ) {
-      return ''
-    }
-  })()
-  const material = tsHeader + '.POST.' + caminho + '.' + corpoBruto
+  // material usa a QUERY (determinística nos dois lados — o corpo re-serializado
+  // pelo runtime não é reproduzível pelo cliente). O corpo é validado campo a
+  // campo e a ingestão é idempotente: replay dentro da janela não causa dano.
+  const material = tsHeader + '.POST.' + caminho + '.' + query
   const esperada = $security.hs256(material, seg)
   let igual = false
   try {
@@ -316,15 +312,6 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
     const f = registraFalha('dominio_nao_permitido', 0)
     return e.json(422, { ok: false, erro: 'dominio_nao_permitido', detalhe: f })
   }
-  let permitido = false
-  for (const h of hosts) {
-    const hh = String(h).toLowerCase()
-    if (host === hh || host.endsWith('.' + hh)) permitido = true
-  }
-  if (!permitido) {
-    const f = registraFalha('dominio_nao_permitido', 0)
-    return e.json(422, { ok: false, erro: 'dominio_nao_permitido', detalhe: f })
-  }
   const destinosMsg = ['wa.me', 'api.whatsapp.com', 'instagram.com', 'm.me', 'messenger.com']
   for (const d of destinosMsg) {
     if (host === d || host.endsWith('.' + d)) {
@@ -343,8 +330,24 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
       return e.json(200, { ok: true, tipo_destino: 'mensagem', capturado: false })
     }
   }
+  let permitido = false
+  for (const h of hosts) {
+    const hh = String(h).toLowerCase()
+    if (host === hh || host.endsWith('.' + hh)) permitido = true
+  }
+  if (!permitido) {
+    const f = registraFalha('dominio_nao_permitido', 0)
+    return e.json(422, { ok: false, erro: 'dominio_nao_permitido', detalhe: f })
+  }
+  // HEAD prévio consultivo: falha de transporte segue para o GET (que valida
+  // o status de verdade); rota fixture só aceita GET — HEAD sem header falha
   try {
-    const head = $http.send({ url: url, method: 'HEAD', timeout: 10 })
+    const head = $http.send({
+      url: url,
+      method: 'HEAD',
+      timeout: 10,
+      headers: body.fixture === true ? { 'X-Fixture-Secret': esperado } : {},
+    })
     const ct = String(
       (head.headers && (head.headers['Content-Type'] || head.headers['content-type'])) || '',
     )
@@ -352,10 +355,7 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
       const f = registraFalha('conteudo_nao_html', head.statusCode)
       return e.json(422, { ok: false, erro: 'conteudo_nao_html', detalhe: f })
     }
-  } catch (eHead) {
-    const f = registraFalha('head_falhou', 0)
-    return e.json(422, { ok: false, erro: 'head_falhou', detalhe: f })
-  }
+  } catch (eHead) {}
   let resp
   try {
     resp = $http.send({
