@@ -700,6 +700,34 @@ routerAdd(
   $apis.requireAuth(),
 )
 
+// ==================== GET /backend/v1/analises/canal-estado (saúde p/ tela, autenticado) ====================
+routerAdd(
+  'GET',
+  '/backend/v1/analises/canal-estado',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const app = $app
+    const colC = app.findCollectionByNameOrId('canal_estado')
+    const recs = app.findRecordsByFilter(colC, '', '', 1, 0)
+    if (!recs || recs.length === 0) {
+      return e.json(200, { ok: true, canal: null })
+    }
+    const c = recs[0]
+    return e.json(200, {
+      ok: true,
+      canal: {
+        ultimo_consumo_em: c.get('ultimo_consumo_em'),
+        ciclos_sem_consumo: c.get('ciclos_sem_consumo'),
+        recusas_401_total: c.get('recusas_401_total'),
+        recusas_401_ultimas_24h: c.get('recusas_401_ultimas_24h'),
+        segredo_configurado: c.get('segredo_configurado'),
+        atualizado_em: c.get('atualizado_em'),
+      },
+    })
+  },
+  $apis.requireAuth(),
+)
+
 // ==================== ROTAS DE TESTE (X-Fixture-Secret) ====================
 
 // ---------- POST /backend/v1/analises/tick (relógio de teste) ----------
