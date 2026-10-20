@@ -358,7 +358,12 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
   }
   let resp
   try {
-    resp = $http.send({ url: url, method: 'GET', timeout: 10 })
+    resp = $http.send({
+      url: url,
+      method: 'GET',
+      timeout: 10,
+      headers: body.fixture === true ? { 'X-Fixture-Secret': esperado } : {},
+    })
   } catch (eGet) {
     const msg = String(eGet)
     const f = registraFalha(msg.indexOf('timeout') >= 0 ? 'timeout' : 'transporte', 0)
@@ -588,7 +593,12 @@ routerAdd('POST', '/backend/v1/criativos/tick', (e) => {
             resumo.avisos.push('dominio_nao_permitido: ' + host2)
             return
           }
-          const resp2 = $http.send({ url: url, method: 'GET', timeout: 10 })
+          const resp2 = $http.send({
+            url: url,
+            method: 'GET',
+            timeout: 10,
+            headers: { 'X-Fixture-Secret': esperado },
+          })
           let html2 = String(resp2.body || '')
           const total2 = html2.length
           const trunc2 = total2 > 524288
