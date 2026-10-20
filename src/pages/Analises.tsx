@@ -9,10 +9,13 @@ import {
 } from '@/components/base/estados'
 
 /**
- * Análises da IA (SPEC-3-001, card 2e44a45f, CA-3-02).
+ * Análises da IA (SPEC-3-001, cards 2e44a45f + "Disparar", CA-3-02/03).
  * Lista em modo leitura, filtrada pelo escopo do grant do leitor (read_analyses
  * é exigido no servidor). Todo item traz o rótulo "Gerado por IA — validar antes
  * de decidir" (REGRA: a IA não decide, só informa com fatos citáveis).
+ * Botão "Solicitar análise" (RN-07): cria o evento solicitacao_manual do último
+ * período fechado — servidor exige request_analysis, aplica escopo do grant,
+ * teto mensal e marca dados parciais com motivo.
  * Sem ação em campanhas; somente leitura.
  */
 
@@ -57,6 +60,8 @@ export default function Analises() {
   const [itens, setItens] = useState<AnaliseItem[]>([])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
+  const [pedindo, setPedindo] = useState(false)
+  const [avisoPedido, setAvisoPedido] = useState('')
 
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) return
@@ -78,6 +83,49 @@ export default function Analises() {
       setCarregando(false)
     }
   }, [])
+
+  const solicitar = useCallback(async () => {
+    if (!pb.authStore.isValid) return
+    setPedindo(true)
+    setAvisoPedido('')
+    try {
+      const res = await fetch(pb.buildURL('/backend/v1/analises/eventos'), {
+        method: 'POST',
+        headers: { Authorization: pb.authStore.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const dados = (await res.json()) as {
+        ok?: boolean
+        replay?: boolean
+        erro?: string
+        detalhe?: string
+        evento?: {
+          period_start?: string
+          period_end?: string
+          dados_parciais?: boolean
+          motivo_parcial?: string
+        }
+      }
+      if (!res.ok || dados.ok === false) {
+        throw new Error(
+          dados.detalhe
+            ? `${dados.erro ?? 'erro'} (${dados.detalhe})`
+            : (dados.erro ?? 'não foi possível pedir a análise'),
+        )
+      }
+      const ev = dados.evento ?? {}
+      setAvisoPedido(
+        dados.replay
+          ? 'Já existe um pedido para este período — nada duplicado.'
+          : `Pedido registrado (${ev.period_start ?? ''} → ${ev.period_end ?? ''})${ev.dados_parciais ? ' — dados parciais: ' + (ev.motivo_parcial ?? '') : ''}. O diagnóstico da IA aparece nesta tela quando o agente gravar.`,
+      )
+      await carregar()
+    } catch (e2) {
+      setAvisoPedido('Erro: ' + (e2 instanceof Error ? e2.message : 'falha no pedido'))
+    } finally {
+      setPedindo(false)
+    }
+  }, [carregar])
 
   useEffect(() => {
     if (user) void carregar()
@@ -162,6 +210,13 @@ export default function Analises() {
         acoes={
           <>
             <button
+              onClick={() => void solicitar()}
+              disabled={pedindo}
+              className="flex items-center gap-1.5 rounded-md bg-[#6C3EF5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5b32d4] disabled:opacity-60"
+            >
+              {pedindo ? 'Pedindo…' : 'Solicitar análise'}
+            </button>
+            <button
               onClick={() => void carregar()}
               disabled={carregando}
               className="flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
@@ -184,6 +239,12 @@ export default function Analises() {
         Logado como <strong>{String(user.email ?? '')}</strong>
       </div>
 
+      {avisoPedido && (
+        <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
+          {avisoPedido}
+        </div>
+      )}
+
       {erro && <EstadoErro mensagem={erro} aoTentar={() => void carregar()} />}
 
       {carregando && itens.length === 0 ? (
@@ -191,7 +252,7 @@ export default function Analises() {
       ) : itens.length === 0 && !erro ? (
         <EstadoVazio
           titulo="Nenhuma análise ainda"
-          descricao="Análises aparecem aqui quando o agente de IA grava um diagnóstico ou parecer pelo canal assinado."
+          descricao="Análises aparecem aqui quando o agente de IA grava um diagnóstico ou parecer pelo canal assinado — ou quando você pede uma análise e o agente responde."
         />
       ) : (
         <div className="space-y-3">
