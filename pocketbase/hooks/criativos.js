@@ -667,6 +667,43 @@ routerAdd('POST', '/backend/v1/criativos/tick', (e) => {
   return e.json(200, { ok: true, tick: resumo })
 })
 
+// ==================== diagnóstico do transporte de captura (fixture) ====================
+routerAdd('POST', '/backend/v1/criativos/diag', (e) => {
+  const esperado = (function () {
+    try {
+      const v = $secrets.get('FIXTURE_TICK_SECRET')
+      return v ? String(v) : ''
+    } catch (eS) {
+      return ''
+    }
+  })()
+  const recebido = String(e.request.header.get('X-Fixture-Secret') || '')
+  if (esperado === '' || recebido === '' || esperado !== recebido) {
+    return e.json(404, { ok: false, erro: 'rota não encontrada' })
+  }
+  const url = String((e.requestInfo().body || {}).url || '')
+  try {
+    const r = $http.send({
+      url: url,
+      method: 'GET',
+      timeout: 10,
+      headers: { 'X-Fixture-Secret': esperado },
+    })
+    const body = r.body
+    return e.json(200, {
+      ok: true,
+      status: r.statusCode,
+      tipo_body: typeof body,
+      eh_array: Array.isArray(body),
+      len: String(body).length,
+      preview: String(body).slice(0, 120),
+      ct: String((r.headers && (r.headers['Content-Type'] || r.headers['content-type'])) || ''),
+    })
+  } catch (eD) {
+    return e.json(200, { ok: false, erro: String(eD).slice(0, 120) })
+  }
+})
+
 // ==================== rotas fixture de página (alvo da captura) ====================
 routerAdd('GET', '/backend/v1/fixtures/pagina/{tipo}', (e) => {
   const esperado = (function () {
