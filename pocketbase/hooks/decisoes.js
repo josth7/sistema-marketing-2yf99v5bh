@@ -179,6 +179,70 @@ routerAdd(
       }
     }
 
+    // ---- referência de análise no mesmo escopo (SPEC-3-002, RN-17) ----
+    if (body.source_analysis_id) {
+      let analise = null
+      try {
+        analise = $app.findRecordById('analyses', body.source_analysis_id)
+      } catch (_) {
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { source_analysis_id: 'análise de referência não encontrada' },
+        })
+      }
+      // escopo do criador: a análise precisa estar no escopo do grant read_analyses
+      // (campo actions contém read_analyses; scope_accounts cobre o alvo ou '*')
+      const colG2 = $app.findCollectionByNameOrId('access_grants')
+      const grants2 = $app.findRecordsByFilter(
+        colG2,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        50,
+        0,
+      )
+      let temAcesso2 = false
+      for (const g of grants2) {
+        let acoes2 = []
+        try {
+          const rawA = g.get('actions')
+          acoes2 =
+            Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawA))
+              : typeof rawA === 'string'
+                ? JSON.parse(rawA)
+                : rawA || []
+        } catch (eA2) {}
+        if (Array.isArray(acoes2) && acoes2.indexOf('read_analyses') < 0) continue
+        let esc2 = []
+        try {
+          const raw2 = g.get('scope_accounts')
+          esc2 =
+            Array.isArray(raw2) && raw2.length > 0 && typeof raw2[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, raw2))
+              : typeof raw2 === 'string'
+                ? JSON.parse(raw2)
+                : raw2 || []
+        } catch (eS2) {}
+        if (!Array.isArray(esc2)) esc2 = []
+        if (esc2.indexOf('*') >= 0) {
+          temAcesso2 = true
+          break
+        }
+        const alvoAn2 = String(analise.get('alvo_ref') || '')
+        for (const c of esc2) {
+          if (alvoAn2.indexOf(String(c)) >= 0) temAcesso2 = true
+        }
+        if (temAcesso2) break
+      }
+      if (!temAcesso2) {
+        return e.json(403, {
+          ok: false,
+          erro: 'análise de referência está fora do escopo do usuário',
+        })
+      }
+    }
+
     const rec = new Record(col)
     rec.set('uuid', uuidV4())
     rec.set('title', body.title)
@@ -193,6 +257,7 @@ routerAdd(
     rec.set('updated_at', new Date().toISOString())
     if (body.scope) rec.set('scope', body.scope)
     if (body.source_alert_id) rec.set('source_alert_id', body.source_alert_id)
+    if (body.source_analysis_id) rec.set('source_analysis_id', body.source_analysis_id)
     rec.set(
       'history',
       JSON.stringify([{ at: new Date().toISOString(), ator: e.auth.id, acao: 'criou_decisao' }]),
