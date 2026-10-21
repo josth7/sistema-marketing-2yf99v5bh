@@ -373,16 +373,13 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
     const f = registraFalha('http_' + resp.statusCode, resp.statusCode)
     return e.json(422, { ok: false, erro: f.motivo, detalhe: f })
   }
-  let html = String(resp.body || '')
-  // fixture serve JSON com o HTML no corpo (e.html do JSVM devolve corpo vazio
-  // pelo transporte de teste) — quando o content-type é json, extrair a string
-  const ctGet = String(
-    (resp.headers && (resp.headers['Content-Type'] || resp.headers['content-type'])) || '',
-  )
-  if (ctGet.indexOf('application/json') >= 0 && html.length > 0 && html.charAt(0) === '"') {
-    try {
-      html = String(JSON.parse(html))
-    } catch (eP) {}
+  // JSVM: corpo de resposta pode vir como ARRAY DE CHAR-CODES (prova diag v0.0.183)
+  let html = ''
+  const rb = resp.body
+  if (Array.isArray(rb)) {
+    html = String.fromCharCode.apply(null, rb)
+  } else {
+    html = String(rb || '')
   }
   const total = html.length
   const truncado = total > 524288
