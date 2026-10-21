@@ -199,6 +199,7 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
   const conteudo = String(b.conteudo || '')
   const modelo = String(b.modelo || '').slice(0, 120)
   const evidencias = b.evidencias
+  let resumo_info = null
   const erros = {}
   if (eventRef === '') erros.event_id = 'obrigatório'
   if (tipo === '') erros.tipo = 'obrigatório'
@@ -332,6 +333,138 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
       })
     }
   }
+  // RN-22 (SPEC-3-003): resumo_relatorio cria report_ai_summaries + caixa dos revisores
+  if (tipo === 'resumo_relatorio') {
+    // alvo_ref = gatilho_ref do evento = report_id (obrigatório)
+    if (alvoRef === '') {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { alvo_ref: 'obrigatório para resumo_relatorio (report_id)' },
+      })
+    }
+    let rep = null
+    try {
+      rep = app.findRecordById('reports', alvoRef)
+    } catch (_) {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { alvo_ref: 'relatório não encontrado' },
+      })
+    }
+    // resumo já existe p/ este relatório?
+    const colSum = app.findCollectionByNameOrId('report_ai_summaries')
+    const exSum = app.findRecordsByFilter(
+      colSum,
+      "report_id='" + rep.id + "' && event_id='" + ev.id + "'",
+      '',
+      1,
+      0,
+    )
+    if (exSum && exSum.length > 0) {
+      const anterior = exSum[0]
+      const estadoAnt = String(anterior.get('estado') || '')
+      if (estadoAnt === 'aprovado' || estadoAnt === 'editado') {
+        return e.json(409, {
+          ok: false,
+          erro: 'analise_ja_registrada',
+          detalhe: 'resumo já ' + estadoAnt,
+        })
+      }
+      // aguardando_revisao: replay com texto igual → 200; diferente → 409
+      const rascAnt = String(anterior.get('rascunho') || '')
+      if (rascAnt === conteudoTrim) {
+        return e.json(200, {
+          ok: true,
+          replay: true,
+          analysis_id: anterior.get('analysis_id'),
+          summary_id: anterior.id,
+          estado: estadoAnt,
+        })
+      }
+      return e.json(409, {
+        ok: false,
+        erro: 'analise_ja_registrada',
+        detalhe: 'resumo aguardando revisão com texto diferente',
+      })
+    }
+    // política de resumo (fixture ou real)
+    const colPolS = app.findCollectionByNameOrId('ai_summary_policy')
+    const fixtureEv = ev.get('fixture') === true
+    const polsS = app.findRecordsByFilter(
+      colPolS,
+      fixtureEv ? 'fixture=true' : 'fixture=false',
+      '',
+      1,
+      0,
+    )
+    const polS = polsS && polsS.length > 0 ? polsS[0] : null
+    const prazoHoras = polS ? Number(polS.get('prazo_revisao_horas') || 48) : 48
+    const prazoISO = new Date(Date.now() + prazoHoras * 3600 * 1000).toISOString()
+    const agoraISO2 = new Date().toISOString()
+    const sum = new Record(colSum)
+    sum.set(
+      'uuid',
+      'sum-' + agoraISO2.replace(/[-:TZ.]/g, '') + '-' + Math.floor(Math.random() * 900 + 100),
+    )
+    sum.set('report_id', rep.id)
+    sum.set('event_id', ev.id)
+    sum.set('estado', 'aguardando_revisao')
+    sum.set('rascunho', conteudoTrim)
+    sum.set('prazo_revisao_em', prazoISO)
+    sum.set('fixture', fixtureEv)
+    app.save(sum)
+    // vincula a análise ao resumo (depois do save p/ ter o id)
+    // (analysis_id é setado na análise abaixo via update)
+    // itens de caixa revisao_resumo — só revisores com grant review_ai_summary válido
+    const colGrS = app.findCollectionByNameOrId('access_grants')
+    const colU2 = app.findCollectionByNameOrId('users')
+    const colInbox = app.findCollectionByNameOrId('inbox_items')
+    const grantsS = app.findRecordsByFilter(colGrS, "revoked_at=''", '', 200, 0)
+    const revisores = {}
+    for (const g of grantsS) {
+      let acoes2 = []
+      try {
+        const rawA = g.get('actions')
+        acoes2 =
+          Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number'
+            ? JSON.parse(String.fromCharCode.apply(null, rawA))
+            : typeof rawA === 'string'
+              ? JSON.parse(rawA)
+              : rawA || []
+      } catch (eA2) {}
+      if (Array.isArray(acoes2) && acoes2.indexOf('review_ai_summary') < 0) continue
+      // validade
+      const vu = String(g.get('valid_until') || '')
+      if (vu && new Date(vu.replace(' ', 'T')).getTime() < Date.now()) continue
+      const uid = String(g.get('user_id') || '')
+      if (!uid) continue
+      revisores[uid] = true
+    }
+    let itensCriados = 0
+    for (const uid in revisores) {
+      // usuário fixture? só encaminha a usuários fixture quando o evento é fixture
+      const us2 = app.findRecordsByFilter(colU2, "id='" + uid + "'", '', 1, 0)
+      if (!us2 || us2.length === 0) continue
+      const emailU = String(us2[0].get('email') || '')
+      const ehFixture = emailU.indexOf('.fixture.') >= 0
+      if (fixtureEv && !ehFixture) continue
+      if (!fixtureEv && ehFixture) continue
+      const dedupeKey = sum.id + '+' + uid
+      const exItem = app.findRecordsByFilter(colInbox, "dedupe_key='" + dedupeKey + "'", '', 1, 0)
+      if (exItem && exItem.length > 0) continue
+      const item = new Record(colInbox)
+      item.set('report_id', rep.id)
+      item.set('user_id', uid)
+      item.set('scope', 'revisao_resumo')
+      item.set('status', 'pendente')
+      item.set('dedupe_key', dedupeKey)
+      app.save(item)
+      itensCriados++
+    }
+    resumo_info = { summary_id: sum.id, itens: itensCriados, prazo: prazoISO }
+  }
   // replay: mesmo trio com texto IGUAL devolve a mesma análise
   const colA = app.findCollectionByNameOrId('analyses')
   let mesmoTrio = null
@@ -398,11 +531,21 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
   } catch (eSave) {
     return e.json(500, { ok: false, erro: 'falha_gravacao', detalhe: String(eSave).slice(0, 200) })
   }
+  // vincula o resumo à análise criada
+  if (resumo_info) {
+    try {
+      const colSum2 = app.findCollectionByNameOrId('report_ai_summaries')
+      const sumRec = app.findRecordById(colSum2, resumo_info.summary_id)
+      sumRec.set('analysis_id', ana.id)
+      app.save(sumRec)
+    } catch (eLink) {}
+  }
   return e.json(201, {
     ok: true,
     replay: false,
     analysis_id: ana.id,
     uuid: ana.get('uuid'),
     estado: 'rascunho',
+    resumo: resumo_info,
   })
 })
