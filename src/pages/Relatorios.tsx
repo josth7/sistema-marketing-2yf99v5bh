@@ -132,6 +132,24 @@ export default function Relatorios() {
   const [repResultado, setRepResultado] = useState<string | null>(null)
   const [tickRodando, setTickRodando] = useState(false)
   const [tickResultado, setTickResultado] = useState<string | null>(null)
+  // ---- resumo de IA (SPEC-3-003 card 2) ----
+  const [resumo, setResumo] = useState<{
+    id: string
+    estado: string
+    rascunho: string
+    texto_publicado: string | null
+    revisado_por: string | null
+    revisado_em: string | null
+    revisao_nota: string | null
+    prazo_revisao_em: string | null
+    rotulo: string
+  } | null>(null)
+  const [podeRevisar, setPodeRevisar] = useState(false)
+  const [resumoTexto, setResumoTexto] = useState('')
+  const [resumoNota, setResumoNota] = useState('')
+  const [resumoEnviando, setResumoEnviando] = useState(false)
+  const [resumoMsg, setResumoMsg] = useState<string | null>(null)
+  const [resumoErro, setResumoErro] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) {
@@ -213,6 +231,9 @@ export default function Relatorios() {
   const abrir = async (id: string) => {
     setAberto(id)
     setAviso(null)
+    setResumo(null)
+    setResumoMsg(null)
+    setResumoErro(null)
     try {
       const res = (await pb.send(`/backend/v1/reports/${id}`, { method: 'GET' })) as {
         item?: RelatorioDetalhe
@@ -221,8 +242,57 @@ export default function Relatorios() {
     } catch (e) {
       setAviso(lerErro(e).erro)
       setDetalhe(null)
+    }
+    // resumo de IA do relatório (SPEC-3-003)
+    try {
+      const r = (await pb.send(`/backend/v1/reports/${id}/resumo`, { method: 'GET' })) as {
+        resumo?: {
+          id: string
+          estado: string
+          rascunho: string
+          texto_publicado: string | null
+          revisado_por: string | null
+          revisado_em: string | null
+          revisao_nota: string | null
+          prazo_revisao_em: string | null
+          rotulo: string
+        }
+        pode_revisar?: boolean
+      }
+      setResumo(r.resumo ?? null)
+      setPodeRevisar(r.pode_revisar === true)
+      setResumoTexto(r.resumo?.estado === 'aguardando_revisao' ? r.resumo.rascunho : '')
+    } catch {
+      setResumo(null)
     } finally {
       setAberto(null)
+    }
+  }
+
+  const revisarResumo = async (acao: 'aprovar' | 'editar' | 'rejeitar') => {
+    if (!detalhe) return
+    setResumoEnviando(true)
+    setResumoErro(null)
+    setResumoMsg(null)
+    try {
+      const body: Record<string, string> = { acao }
+      if (acao === 'editar') body.texto = resumoTexto
+      if (acao === 'rejeitar') body.nota = resumoNota
+      const r = (await pb.send(`/backend/v1/reports/${detalhe.id}/resumo/revisar`, {
+        method: 'POST',
+        body,
+      })) as { estado?: string; report_revision?: number; resumo_revisao_registro?: string }
+      setResumoMsg(
+        r.estado === 'rejeitado'
+          ? 'Resumo rejeitado — nada circula.'
+          : 'Resumo ' + (r.estado ?? '') + ' — revisão ' + (r.report_revision ?? '') + ' entregue.',
+      )
+      await abrir(detalhe.id)
+      await carregar()
+    } catch (e) {
+      setResumoErro(lerErro(e).erro)
+    } finally {
+      setResumoEnviando(false)
     }
   }
 
@@ -484,6 +554,81 @@ export default function Relatorios() {
                     'sem alertas'
                   }
                 />
+                {resumo && (
+                  <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="bg-amber-200 text-amber-900">{resumo.rotulo}</Badge>
+                      <Badge variant="secondary">{resumo.estado}</Badge>
+                    </div>
+                    {resumo.estado === 'aguardando_revisao' && podeRevisar && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-[#6B7280]">
+                          Checklist: cada frase é verificável no relatório? Sem recomendação de
+                          ação? Sem dado externo? (prazo:{' '}
+                          {String(resumo.prazo_revisao_em ?? '').slice(0, 16)})
+                        </p>
+                        <textarea
+                          className="w-full rounded border border-gray-300 p-2 text-sm"
+                          rows={5}
+                          value={resumoTexto}
+                          onChange={(ev) => setResumoTexto(ev.target.value)}
+                        />
+                        <Input
+                          placeholder="Nota (obrigatória para rejeitar)"
+                          value={resumoNota}
+                          onChange={(ev) => setResumoNota(ev.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => revisarResumo('aprovar')}
+                            disabled={resumoEnviando}
+                          >
+                            Aprovar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => revisarResumo('editar')}
+                            disabled={
+                              resumoEnviando ||
+                              resumoTexto.trim() === '' ||
+                              resumoTexto.length > 2500
+                            }
+                          >
+                            Salvar e publicar editado
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => revisarResumo('rejeitar')}
+                            disabled={resumoEnviando || resumoNota.trim() === ''}
+                          >
+                            Rejeitar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {resumo.estado !== 'aguardando_revisao' && (
+                      <p className="text-sm whitespace-pre-wrap">
+                        {resumo.texto_publicado || resumo.rascunho}
+                      </p>
+                    )}
+                    {resumo.revisado_em && (
+                      <p className="text-xs text-[#6B7280]">
+                        revisado em {String(resumo.revisado_em).slice(0, 10)}
+                        {resumo.revisao_nota ? ' — ' + resumo.revisao_nota : ''}
+                      </p>
+                    )}
+                    {resumoMsg && <p className="text-sm text-green-700">{resumoMsg}</p>}
+                    {resumoErro && <p className="text-sm text-red-700">{resumoErro}</p>}
+                  </div>
+                )}
+                {!resumo && (
+                  <p className="mt-2 text-xs text-[#6B7280]">
+                    Resumo de IA indisponível para este relatório.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
