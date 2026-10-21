@@ -29,7 +29,14 @@ routerAdd('POST', '/backend/v1/fixtures/push', (e) => {
     'uuid',
     'evt-fix-' + agoraISO.replace(/[-:TZ.]/g, '') + '-' + Math.floor(Math.random() * 900 + 100),
   )
-  ev.set('origem', 'push_fixture')
+  ev.set('origem', String(body.origem || 'push_fixture'))
+  ev.set(
+    'uuid',
+    'evt-fix-' +
+      new Date().toISOString().replace(/[-:TZ.]/g, '') +
+      '-' +
+      Math.floor(Math.random() * 900 + 100),
+  )
   ev.set('tipo', String(body.tipo || 'diagnostico_periodo'))
   ev.set('period_start', String(body.period_start || '2026-10-01'))
   ev.set('period_end', String(body.period_end || '2026-10-15'))
