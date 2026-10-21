@@ -351,7 +351,9 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
     const ct = String(
       (head.headers && (head.headers['Content-Type'] || head.headers['content-type'])) || '',
     )
-    if (ct && ct.indexOf('text/html') < 0) {
+    // fixture serve application/json com HTML no corpo — só recusar quando o
+    // tipo é conhecido e não é html nem json
+    if (ct && ct.indexOf('text/html') < 0 && ct.indexOf('application/json') < 0) {
       const f = registraFalha('conteudo_nao_html', head.statusCode)
       return e.json(422, { ok: false, erro: 'conteudo_nao_html', detalhe: f })
     }
