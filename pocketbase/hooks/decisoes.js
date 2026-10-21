@@ -225,7 +225,8 @@ routerAdd(
                 : raw2 || []
         } catch (eS2) {}
         if (!Array.isArray(esc2)) esc2 = []
-        if (esc2.indexOf('*') >= 0) {
+        // escopo vazio = grant de bootstrap sem restrição — acesso total
+        if (esc2.length === 0 || esc2.indexOf('*') >= 0) {
           temAcesso2 = true
           break
         }

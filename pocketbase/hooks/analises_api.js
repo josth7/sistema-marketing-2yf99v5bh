@@ -52,6 +52,8 @@ routerAdd('GET', '/backend/v1/analises', (e) => {
             : raw || []
     } catch (eS2) {}
     if (!Array.isArray(esc)) esc = []
+    // escopo vazio = grant de bootstrap sem restrição (ex.: dono, fase 3) — acesso total
+    if (esc.length === 0) temTudo = true
     if (esc.indexOf('*') >= 0) temTudo = true
     for (const c of esc) contasGrant.push(String(c))
   }
