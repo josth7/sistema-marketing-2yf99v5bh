@@ -1,29 +1,109 @@
 /// <reference path="../pb_data/types.d.ts" />
 /**
- * Hooks do canal Maestro↔sistema — PARTE 1 (SPEC-3-001, card 6b8c8de9).
- * PARTE 2 (tick RN-03/reentrega + fixtures) está em analises_canal.js.
- *
- * SEGURANÇA (RN-01): toda rota do Maestro valida
- *   material = timestamp + "." + MÉTODO + "." + caminho_com_id + "." + corpo
- *   GET: corpo = query string EXATAMENTE como recebida (sem query = "")
- *   POST: corpo = JSON canônico (chaves ordenadas, sem espaços) do pedido
- *   assinado com HMAC-SHA256 do segredo compartilhado (MAESTRO_SHARED_SECRET),
- *   janela de ±300s, comparação constante, unicode LITERAL no JSON canônico.
- *
- * RN-02: pull (pendente → entregue), consumo com reentrega (RN-08: 3 ciclos →
- * erro_definitivo), conclusão idempotente (RN-09), erro com motivo (RN-10).
- * RN-07: pedido manual POST /analises/eventos (request_analysis + escopo do
- * grant + teto mensal + dados_parciais com motivo + replay idempotente).
- * RN-11 (SPEC-3-002): parecer de campanha/criativo exige >= 1 evidência válida
- * (metrica/imagem/copy/página existentes no período do evento) — 422
- * parecer_sem_evidencia. dados_externos (SPEC-3-002): o evento carrega os
- * anúncios do período com criativo/página/métricas — DADO para a IA, nunca
- * instrução (RN-04/RN-16).
- *
- * JSVM: lógica INLINE nos callbacks; $os.env NÃO existe — segredos via
- * $secrets.get; e.request.url().rawQuery lança — query via e.request.requestURI;
- * routerAdd sem 4º argumento (middleware null lança na carga).
+ * Rotas de canal (SPEC-3-001): pull GET /analises/eventos (assinado) e
+ * POST /analises (IA grava, com RN-11 da SPEC-3-002). Divisão só para caber
+ * no transporte de gravação. Consumir/concluir/erro estão em analises_api.js.
  */
+
+// ==================== GET /backend/v1/analises/eventos (pull) ====================
+routerAdd('GET', '/backend/v1/analises/eventos', (e) => {
+  const app = $app
+  const colC = app.findCollectionByNameOrId('canal_estado')
+  let canal = null
+  const recsC = app.findRecordsByFilter(colC, '', '', 1, 0)
+  if (recsC && recsC.length > 0) canal = recsC[0]
+
+  let seg = ''
+  try {
+    const v = $secrets.get('MAESTRO_SHARED_SECRET')
+    if (v) seg = String(v)
+  } catch (eS) {}
+  if (!seg && canal) seg = String(canal.get('segredo_teste') || '')
+  if (!seg) {
+    return e.json(503, {
+      ok: false,
+      erro: 'canal_indisponivel',
+      detalhe: 'segredo não configurado',
+    })
+  }
+  const tsHeader = String(e.request.header.get('X-Maestro-Timestamp') || '')
+  const sigHeader = String(e.request.header.get('X-Maestro-Signature') || '')
+  const agora = Math.floor(Date.now() / 1000)
+  const ts = Number(tsHeader)
+  const recusar401 = function (motivo) {
+    if (canal) {
+      const agoraISO = new Date().toISOString()
+      const inicio = String(canal.get('janela_24h_inicio') || '')
+      let total24 = Number(canal.get('recusas_401_ultimas_24h') || 0)
+      const tInicio = inicio === '' ? NaN : new Date(inicio.replace(' ', 'T')).getTime()
+      if (!Number.isFinite(tInicio) || Date.now() - tInicio > 24 * 3600 * 1000) {
+        canal.set('janela_24h_inicio', agoraISO)
+        total24 = 0
+      }
+      canal.set('recusas_401_total', Number(canal.get('recusas_401_total') || 0) + 1)
+      canal.set('recusas_401_ultimas_24h', total24 + 1)
+      canal.set('atualizado_em', agoraISO)
+      app.save(canal)
+    }
+    return e.json(401, { ok: false, erro: motivo })
+  }
+  if (!tsHeader || !Number.isFinite(ts) || Math.abs(agora - ts) > 300) {
+    return recusar401('timestamp ausente ou fora da janela de 300s')
+  }
+  const requestURI = String(e.request.requestURI || '')
+  const posQ = requestURI.indexOf('?')
+  const query = posQ >= 0 ? requestURI.slice(posQ + 1) : ''
+  const caminho = '/backend/v1/analises/eventos'
+  const material = tsHeader + '.GET.' + caminho + '.' + query
+  const esperada = $security.hs256(material, seg)
+  let igual = false
+  try {
+    igual = $security.equal(esperada, sigHeader)
+  } catch (eEq) {
+    if (esperada.length === sigHeader.length) {
+      let diff = 0
+      for (let i = 0; i < esperada.length; i++) {
+        diff |= esperada.charCodeAt(i) ^ sigHeader.charCodeAt(i)
+      }
+      igual = diff === 0
+    }
+  }
+  if (!igual) return recusar401('assinatura inválida')
+  if (canal) {
+    canal.set('ultimo_consumo_em', new Date().toISOString())
+    canal.set('ciclos_sem_consumo', 0)
+    canal.set('atualizado_em', new Date().toISOString())
+    app.save(canal)
+  }
+  const parseTol = function (raw) {
+    try {
+      if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number')
+        return JSON.parse(String.fromCharCode.apply(null, raw))
+      if (typeof raw === 'string') return raw === '' ? null : JSON.parse(raw)
+      return raw || null
+    } catch (eP) {
+      return null
+    }
+  }
+  const colE = app.findCollectionByNameOrId('analysis_events')
+  const pendentes = app.findRecordsByFilter(colE, "estado='pendente'", '-created', 20, 0)
+  const itens = []
+  for (const ev of pendentes) {
+    itens.push({
+      id: ev.id,
+      uuid: ev.get('uuid'),
+      origem: ev.get('origem'),
+      period_start: ev.get('period_start'),
+      period_end: ev.get('period_end'),
+      scope: parseTol(ev.get('scope')),
+      tipos_esperados: parseTol(ev.get('tipos_esperados')),
+      instrucoes: ev.get('instrucoes') || '',
+      payload_resumo: parseTol(ev.get('payload_resumo')),
+      dados_externos: parseTol(ev.get('dados_externos')),
+    })
+  }
+  return e.json(200, { ok: true, itens: itens })
+})
 
 // ==================== POST /backend/v1/analises (IA grava análise — canal assinado) ====================
 routerAdd('POST', '/backend/v1/analises', (e) => {
