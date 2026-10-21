@@ -53,6 +53,39 @@ routerAdd('POST', '/backend/v1/fixtures/push', (e) => {
   return e.json(200, { ok: true, event_id: ev.id })
 })
 
+// ==================== POST /backend/v1/fixtures/seed-resumo (SPEC-3-003: relógio de teste) ====================
+// Cria resumo fixture com prazo customizado (prova RN-25 prazo vencido) ou estado custom.
+routerAdd('POST', '/backend/v1/fixtures/seed-resumo', (e) => {
+  const esperado = (function () {
+    try {
+      const v = $secrets.get('FIXTURE_TICK_SECRET')
+      return v ? String(v) : ''
+    } catch (eS) {
+      return ''
+    }
+  })()
+  const recebido = String(e.request.header.get('X-Fixture-Secret') || '')
+  if (esperado === '' || recebido === '' || esperado !== recebido) {
+    return e.json(404, { ok: false, erro: 'rota não encontrada' })
+  }
+  const app = $app
+  const body = e.requestInfo().body || {}
+  const colS = app.findCollectionByNameOrId('report_ai_summaries')
+  const agoraISO = new Date().toISOString()
+  const sum = new Record(colS)
+  sum.set(
+    'uuid',
+    'sum-fix-' + agoraISO.replace(/[-:TZ.]/g, '') + '-' + Math.floor(Math.random() * 900 + 100),
+  )
+  sum.set('report_id', String(body.report_id || ''))
+  sum.set('estado', String(body.estado || 'aguardando_revisao'))
+  sum.set('rascunho', String(body.rascunho || 'Resumo fixture para prova de prazo.'))
+  sum.set('prazo_revisao_em', String(body.prazo_revisao_em || agoraISO))
+  sum.set('fixture', true)
+  app.save(sum)
+  return e.json(200, { ok: true, summary_id: sum.id })
+})
+
 // ==================== GET /backend/v1/fixtures/canal-estado (teste) ====================
 routerAdd('GET', '/backend/v1/fixtures/canal-estado', (e) => {
   const esperado = (function () {
