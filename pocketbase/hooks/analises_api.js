@@ -22,17 +22,25 @@ routerAdd('GET', '/backend/v1/analises', (e) => {
   const colG = app.findCollectionByNameOrId('access_grants')
   const grants = app.findRecordsByFilter(
     colG,
-    "user_id='" + e.auth.id + "' && revoked_at='' && action='read_analyses'",
+    "user_id='" + e.auth.id + "' && revoked_at=''",
     '',
     50,
     0,
   )
-  if (!grants || grants.length === 0) {
-    return e.json(403, { ok: false, erro: 'sem permissão de read_analyses' })
-  }
   let contasGrant = []
   let temTudo = false
   for (const g of grants) {
+    let acoes = []
+    try {
+      const rawA = g.get('actions')
+      acoes =
+        Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number'
+          ? JSON.parse(String.fromCharCode.apply(null, rawA))
+          : typeof rawA === 'string'
+            ? JSON.parse(rawA)
+            : rawA || []
+    } catch (eA) {}
+    if (Array.isArray(acoes) && acoes.indexOf('read_analyses') < 0) continue
     let esc = []
     try {
       const raw = g.get('scope_accounts')
@@ -46,6 +54,9 @@ routerAdd('GET', '/backend/v1/analises', (e) => {
     if (!Array.isArray(esc)) esc = []
     if (esc.indexOf('*') >= 0) temTudo = true
     for (const c of esc) contasGrant.push(String(c))
+  }
+  if (!temTudo && contasGrant.length === 0) {
+    return e.json(403, { ok: false, erro: 'sem permissão de read_analyses' })
   }
   const colA = app.findCollectionByNameOrId('analyses')
   const registros = app.findRecordsByFilter(colA, '', '-created', 100, 0)
