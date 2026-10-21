@@ -204,12 +204,7 @@ cronAdd('relatorio_quinzenal', '0 10 * * *', () => {
           ' válido(s)',
       )
     }
-    // o AUTOR da republicação sempre recebe (prova o próprio ato na caixa;
-    // destinatários da política entram por cima quando existirem)
-    if (destOk.indexOf(e.auth.id) < 0) {
-      destOk.push(e.auth.id)
-      avisos.push('autor da republicação recebe cópia na caixa')
-    }
+    // no CRON não há "autor" (e.auth não existe aqui) — sem cópia automática
 
     for (const f of fechadas) {
       const filtroChave =

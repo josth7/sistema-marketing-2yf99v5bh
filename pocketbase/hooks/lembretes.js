@@ -94,7 +94,7 @@ cronAdd('lembrete_revisao', '30 9 * * *', () => {
     // ---- vencidas: review_date < hojeRef, state != closed ----
     const abertas = app.findRecordsByFilter(
       colD,
-      "state!='closed' && review_date!='' && review_date<'",
+      "state!='closed' && review_date!=''",
       '-created',
       200,
       0,
