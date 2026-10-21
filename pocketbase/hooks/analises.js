@@ -328,19 +328,24 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
   }
   // replay: mesmo trio com texto IGUAL devolve a mesma análise
   const colA = app.findCollectionByNameOrId('analises')
-  const mesmoTrio = app.findRecordsByFilter(
-    colA,
-    "event_id='" +
-      eventRef +
-      "' && tipo='" +
-      tipo.replace(/'/g, '') +
-      "' && alvo_ref='" +
-      alvoRef.replace(/'/g, '') +
-      "'",
-    '-created',
-    1,
-    0,
-  )
+  let mesmoTrio = null
+  try {
+    mesmoTrio = app.findRecordsByFilter(
+      colA,
+      "event_id='" +
+        eventRef +
+        "' && tipo='" +
+        tipo.replace(/'/g, '') +
+        "' && alvo_ref='" +
+        alvoRef.replace(/'/g, '') +
+        "'",
+      '-created',
+      1,
+      0,
+    )
+  } catch (eTrio) {
+    return e.json(500, { ok: false, erro: 'falha_replay', detalhe: String(eTrio).slice(0, 200) })
+  }
   if (mesmoTrio && mesmoTrio.length > 0) {
     const anterior = mesmoTrio[0]
     const conteudoAnterior = String(anterior.get('conteudo') || '')
@@ -382,7 +387,11 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
   ana.set('estado', 'rascunho')
   ana.set('versao', 1)
   ana.set('fixture', ev.get('fixture') === true)
-  app.save(ana)
+  try {
+    app.save(ana)
+  } catch (eSave) {
+    return e.json(500, { ok: false, erro: 'falha_gravacao', detalhe: String(eSave).slice(0, 200) })
+  }
   return e.json(201, {
     ok: true,
     replay: false,
