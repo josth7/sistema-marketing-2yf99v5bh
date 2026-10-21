@@ -282,13 +282,14 @@ export default function Relatorios() {
         method: 'POST',
         body,
       })) as { estado?: string; report_revision?: number; resumo_revisao_registro?: string }
-      setResumoMsg(
+      const msgFinal =
         r.estado === 'rejeitado'
           ? 'Resumo rejeitado — nada circula.'
-          : 'Resumo ' + (r.estado ?? '') + ' — revisão ' + (r.report_revision ?? '') + ' entregue.',
-      )
+          : 'Resumo ' + (r.estado ?? '') + ' — revisão ' + (r.report_revision ?? '') + ' entregue.'
       await abrir(detalhe.id)
       await carregar()
+      // a mensagem vem DEPOIS do recarregamento (abrir reseta o painel)
+      setResumoMsg(msgFinal)
     } catch (e) {
       setResumoErro(lerErro(e).erro)
     } finally {
