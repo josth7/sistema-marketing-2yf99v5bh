@@ -257,8 +257,14 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
     let valida = false
     const pStartE = String(ev.get('period_start') || '')
     const pEndE = String(ev.get('period_end') || '')
-    const colAnc = app.findCollectionByNameOrId('anuncios_criativos')
-    const colPg = app.findCollectionByNameOrId('paginas_destino')
+    let colAnc = null
+    let colPg = null
+    try {
+      colAnc = app.findCollectionByNameOrId('anuncios_criativos')
+      colPg = app.findCollectionByNameOrId('paginas_destino')
+    } catch (eCols) {
+      return e.json(500, { ok: false, erro: 'falha_rn11', detalhe: String(eCols).slice(0, 200) })
+    }
     for (let i = 0; i < listaEv.length; i++) {
       const evi = listaEv[i] || {}
       const tEv = String(evi.tipo || '')
