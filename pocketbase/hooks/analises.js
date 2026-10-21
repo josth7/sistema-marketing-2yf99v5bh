@@ -333,7 +333,7 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
     }
   }
   // replay: mesmo trio com texto IGUAL devolve a mesma análise
-  const colA = app.findCollectionByNameOrId('analises')
+  const colA = app.findCollectionByNameOrId('analyses')
   let mesmoTrio = null
   try {
     mesmoTrio = app.findRecordsByFilter(

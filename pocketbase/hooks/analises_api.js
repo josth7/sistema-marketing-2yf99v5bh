@@ -47,7 +47,7 @@ routerAdd('GET', '/backend/v1/analises', (e) => {
     if (esc.indexOf('*') >= 0) temTudo = true
     for (const c of esc) contasGrant.push(String(c))
   }
-  const colA = app.findCollectionByNameOrId('analises')
+  const colA = app.findCollectionByNameOrId('analyses')
   const registros = app.findRecordsByFilter(colA, '', '-created', 100, 0)
   const itens = []
   for (const a of registros) {
