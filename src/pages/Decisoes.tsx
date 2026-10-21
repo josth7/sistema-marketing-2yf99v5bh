@@ -1,11 +1,3 @@
-/**
- * Página de Decisões (SPEC-2-003, card edd618c7).
- *
- * Cadastro com responsável e data de revisão OBRIGATÓRIOS (validação no
- * servidor: 422 campo/motivo, 409 conflito de revisão), estados
- * aberta/em revisão/encerrada, histórico preservado. Sem lembrete automático
- * nesta task (é do card a434ca96). Usuários fixture para o teste.
- */
 import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Archive, CheckCircle2, Scale } from 'lucide-react'
+import { Archive, BrainCircuit, CheckCircle2, Scale } from 'lucide-react'
 import {
   CabecalhoPagina,
   EstadoCarregando,
@@ -24,10 +16,21 @@ import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { rotuloEstado } from '@/lib/marketing/decisoes'
 
+/**
+ * Página de Decisões (SPEC-2-003, card edd618c7 + SPEC-3-002, RN-17).
+ *
+ * Cadastro com responsável e data de revisão OBRIGATÓRIOS (validação no
+ * servidor: 422 campo/motivo, 409 conflito de revisão), estados
+ * aberta/em revisão/encerrada, histórico preservado.
+ * RN-17 (SPEC-3-002): quando aberta a partir de uma análise (query
+ * source_analysis_id+titulo+justificativa), o formulário vem pré-preenchido e
+ * o servidor grava a referência — 403 se a análise está fora do escopo.
+ */
 interface DecisaoItem {
   id: string
   uuid: string
   source_alert_id: string | null
+  source_analysis_id: string | null
   scope: string | null
   title: string
   justification: string
@@ -55,11 +58,32 @@ const VAZIO = {
   scope: '',
 }
 
+function paramsDaAnalise(): { id: string; titulo: string; justificativa: string } {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return {
+      id: q.get('source_analysis_id') ?? '',
+      titulo: q.get('titulo') ?? '',
+      justificativa: q.get('justificativa') ?? '',
+    }
+  } catch {
+    return { id: '', titulo: '', justificativa: '' }
+  }
+}
+
 export default function Decisoes() {
   const [itens, setItens] = useState<DecisaoItem[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [form, setForm] = useState({ ...VAZIO })
+  const [form, setForm] = useState(() => {
+    const p = paramsDaAnalise()
+    return {
+      ...VAZIO,
+      title: p.titulo,
+      justification: p.justificativa,
+    }
+  })
+  const [origemAnalise] = useState(() => paramsDaAnalise().id)
   const [errosCampo, setErrosCampo] = useState<Record<string, string>>({})
   const [aviso, setAviso] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
@@ -129,6 +153,7 @@ export default function Decisoes() {
         const v = form[k as keyof typeof form]
         if (v !== '') body[k] = v
       }
+      if (origemAnalise) body.source_analysis_id = origemAnalise
       await pb.send('/backend/v1/decisions', { method: 'POST', body: JSON.stringify(body) })
       setForm({ ...VAZIO, review_date: AMANHA })
       setAviso('Decisão registrada com data de revisão obrigatória.')
@@ -141,11 +166,7 @@ export default function Decisoes() {
         }
         data?: { erro?: string; campos?: Record<string, unknown> }
       }
-      // SDK PocketBase: o corpo do erro vive em e.response (alias e.data);
-      // validação nativa de coleção vive em e.response.data
       const detail = sdk.response?.data ?? sdk.response ?? sdk.data
-      // verificado no bundle v0.26: throw new Xm({url, status, data:n}) →
-      // constructor: t.response??t.data → this.response = CORPO; e.response.data = undefined
       const campos: Record<string, string> = {}
       if (detail?.campos && typeof detail.campos === 'object') {
         for (const [campo, det] of Object.entries(detail.campos)) {
@@ -202,7 +223,7 @@ export default function Decisoes() {
     <div className="flex-1 p-6 md:p-10 space-y-6">
       <CabecalhoPagina
         titulo="Decisões com revisão agendada"
-        descricao="Toda decisão precisa de responsável e data de revisão futura — o servidor recusa decisão sem prazo. O lembrete automático chega no próximo passo (card a434ca96)."
+        descricao="Toda decisão precisa de responsável e data de revisão futura — o servidor recusa decisão sem prazo."
       />
 
       {user && (
@@ -253,6 +274,14 @@ export default function Decisoes() {
       {aviso && (
         <div className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           {aviso}
+        </div>
+      )}
+
+      {origemAnalise && (
+        <div className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
+          <BrainCircuit className="h-4 w-4" aria-hidden="true" />
+          Registrando decisão a partir da análise <strong>{origemAnalise}</strong> — a referência
+          será gravada na decisão.
         </div>
       )}
 
@@ -366,6 +395,12 @@ export default function Decisoes() {
                   <div className="flex flex-wrap items-center gap-2">
                     {badgeEstado(it.state)}
                     <span className="text-xs text-[#6B7280]">rev. {it.revision}</span>
+                    {it.source_analysis_id && (
+                      <span className="flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">
+                        <BrainCircuit className="h-3 w-3" aria-hidden="true" />
+                        origem: análise
+                      </span>
+                    )}
                     <span
                       className={
                         vencida(it) ? 'text-xs font-medium text-red-700' : 'text-xs text-[#6B7280]'

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BrainCircuit, LogIn, RefreshCw } from 'lucide-react'
+import { BrainCircuit, ExternalLink, LogIn, RefreshCw } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import {
   CabecalhoPagina,
@@ -9,15 +9,23 @@ import {
 } from '@/components/base/estados'
 
 /**
- * Análises da IA (SPEC-3-001, cards 2e44a45f + "Disparar", CA-3-02/03).
+ * Análises da IA (SPEC-3-001 + SPEC-3-002, CA-3-02/03/05).
  * Lista em modo leitura, filtrada pelo escopo do grant do leitor (read_analyses
  * é exigido no servidor). Todo item traz o rótulo "Gerado por IA — validar antes
- * de decidir" (REGRA: a IA não decide, só informa com fatos citáveis).
- * Botão "Solicitar análise" (RN-07): cria o evento solicitacao_manual do último
- * período fechado — servidor exige request_analysis, aplica escopo do grant,
- * teto mensal e marca dados parciais com motivo.
+ * de decidir". Pareceres citam evidências: miniatura do anúncio (só de URL
+ * persistida pelo job — RN-14), trecho de texto e URL da página de destino,
+ * sempre escapados (texto nunca vira HTML — RN-16).
+ * Botão "Solicitar análise" (RN-07) e "Registrar decisão" (RN-17): abre
+ * /decisoes com source_analysis_id + título + justificativa pré-preenchidos.
  * Sem ação em campanhas; somente leitura.
  */
+
+interface Evidencia {
+  tipo?: string
+  ref?: string
+  trecho_ou_url?: string
+  valor?: string
+}
 
 interface AnaliseItem {
   id: string
@@ -28,7 +36,7 @@ interface AnaliseItem {
   period_start: string
   period_end: string
   conteudo: string
-  evidencias: unknown[]
+  evidencias: Evidencia[]
   modelo: string
   gerado_em: string | null
   origem: string
@@ -51,6 +59,73 @@ const ROTULOS_TIPO: Record<string, string> = {
   resumo_relatorio: 'Resumo do relatório',
 }
 
+function registrarDecisao(item: AnaliseItem) {
+  const url =
+    '/decisoes?source_analysis_id=' +
+    encodeURIComponent(item.id) +
+    '&titulo=' +
+    encodeURIComponent('Decisão a partir da análise ' + item.uuid) +
+    '&justificativa=' +
+    encodeURIComponent(item.conteudo.slice(0, 400))
+  window.location.href = url
+}
+
+function Evidencias({ evs }: { evs: Evidencia[] }) {
+  if (!Array.isArray(evs) || evs.length === 0) return null
+  return (
+    <div className="mt-3 space-y-2 rounded-md border border-border bg-gray-50 p-3">
+      <p className="text-xs font-semibold text-gray-700">Evidências citadas ({evs.length})</p>
+      {evs.map((evi, i) => {
+        const tipo = String(evi?.tipo ?? '')
+        const ref = String(evi?.ref ?? '')
+        const trecho = String(evi?.trecho_ou_url ?? '')
+        const valor = String(evi?.valor ?? '')
+        return (
+          <div key={i} className="flex items-start gap-3 text-sm">
+            {tipo === 'imagem' && trecho && (
+              /* RN-14: <img> só de URL persistida e validada pelo job */
+              <img
+                src={trecho}
+                alt={'miniatura do anúncio ' + ref}
+                className="h-16 w-16 rounded border border-border object-cover"
+                referrerPolicy="no-referrer"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-gray-600">
+                {tipo === 'metrica'
+                  ? 'Métrica'
+                  : tipo === 'imagem'
+                    ? 'Criativo'
+                    : tipo === 'copy'
+                      ? 'Texto do anúncio'
+                      : tipo === 'pagina'
+                        ? 'Página de destino'
+                        : tipo}{' '}
+                · {ref}
+              </p>
+              {tipo === 'pagina' && trecho ? (
+                <a
+                  href={trecho}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 break-all text-xs text-[#6C3EF5] hover:underline"
+                >
+                  {trecho} <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                </a>
+              ) : (
+                (trecho || valor) && (
+                  <p className="break-words text-xs text-gray-700">{valor || trecho}</p>
+                )
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Analises() {
   const [user, setUser] = useState(pb.authStore.isValid ? pb.authStore.record : null)
   const [email, setEmail] = useState('')
@@ -62,6 +137,8 @@ export default function Analises() {
   const [erro, setErro] = useState('')
   const [pedindo, setPedindo] = useState(false)
   const [avisoPedido, setAvisoPedido] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroCampanha, setFiltroCampanha] = useState('')
 
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) return
@@ -202,6 +279,12 @@ export default function Analises() {
     )
   }
 
+  const itensFiltrados = itens.filter((item) => {
+    if (filtroTipo && item.tipo !== filtroTipo) return false
+    if (filtroCampanha && !(item.alvo_ref ?? '').includes(filtroCampanha)) return false
+    return true
+  })
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <CabecalhoPagina
@@ -245,18 +328,44 @@ export default function Analises() {
         </div>
       )}
 
+      <div className="mb-4 flex flex-wrap gap-2">
+        <select
+          value={filtroTipo}
+          onChange={(ev) => setFiltroTipo(ev.target.value)}
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm"
+          aria-label="Filtrar por tipo"
+        >
+          <option value="">Todos os tipos</option>
+          <option value="diagnostico_periodo">Diagnóstico do período</option>
+          <option value="parecer_campanha">Parecer de campanha</option>
+          <option value="parecer_criativo">Parecer de criativo</option>
+          <option value="resumo_relatorio">Resumo do relatório</option>
+        </select>
+        <input
+          value={filtroCampanha}
+          onChange={(ev) => setFiltroCampanha(ev.target.value)}
+          placeholder="filtrar por campanha/alvo"
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm"
+          aria-label="Filtrar por campanha"
+        />
+      </div>
+
       {erro && <EstadoErro mensagem={erro} aoTentar={() => void carregar()} />}
 
       {carregando && itens.length === 0 ? (
         <EstadoCarregando linhas={3} />
-      ) : itens.length === 0 && !erro ? (
+      ) : itensFiltrados.length === 0 && !erro ? (
         <EstadoVazio
-          titulo="Nenhuma análise ainda"
-          descricao="Análises aparecem aqui quando o agente de IA grava um diagnóstico ou parecer pelo canal assinado — ou quando você pede uma análise e o agente responde."
+          titulo={itens.length > 0 ? 'Nenhuma análise para o filtro' : 'Nenhuma análise ainda'}
+          descricao={
+            itens.length > 0
+              ? 'Ajuste os filtros de tipo ou campanha para ver outras análises.'
+              : 'Análises aparecem aqui quando o agente de IA grava um diagnóstico ou parecer pelo canal assinado — ou quando você pede uma análise e o agente responde.'
+          }
         />
       ) : (
         <div className="space-y-3">
-          {itens.map((item) => (
+          {itensFiltrados.map((item) => (
             <div key={item.id} className="rounded-lg border border-border bg-white p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">
@@ -281,10 +390,16 @@ export default function Analises() {
                 </span>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{item.conteudo}</p>
-              {Array.isArray(item.evidencias) && item.evidencias.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Evidências citadas: {item.evidencias.length}
-                </p>
+              <Evidencias evs={item.evidencias} />
+              {(item.tipo === 'parecer_campanha' || item.tipo === 'parecer_criativo') && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => registrarDecisao(item)}
+                    className="rounded-md border border-[#6C3EF5] px-3 py-1.5 text-xs font-medium text-[#6C3EF5] hover:bg-violet-50"
+                  >
+                    Registrar decisão a partir desta análise
+                  </button>
+                </div>
               )}
             </div>
           ))}
