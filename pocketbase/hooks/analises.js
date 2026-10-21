@@ -457,7 +457,7 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
       const item = new Record(colInbox)
       item.set('report_id', rep.id)
       item.set('user_id', uid)
-      item.set('tipo', 'revisao_resumo')
+      // tipo é select fechado da fase 2 — o tipo do item fica no scope (revisao_resumo)
       item.set('scope', 'revisao_resumo')
       item.set('status', 'pending')
       item.set('dedupe_key', dedupeKey)
