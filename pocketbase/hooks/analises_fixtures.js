@@ -30,6 +30,7 @@ routerAdd('POST', '/backend/v1/fixtures/push', (e) => {
     'evt-fix-' + agoraISO.replace(/[-:TZ.]/g, '') + '-' + Math.floor(Math.random() * 900 + 100),
   )
   ev.set('origem', 'push_fixture')
+  ev.set('tipo', String(body.tipo || 'diagnostico_periodo'))
   ev.set('period_start', String(body.period_start || '2026-10-01'))
   ev.set('period_end', String(body.period_end || '2026-10-15'))
   ev.set('scope', body.scope || JSON.stringify({ contas: [], canais: [] }))
