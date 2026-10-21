@@ -230,12 +230,21 @@ routerAdd(
       )
       if (replay0 && replay0.length > 0) {
         const r0 = replay0[0]
-        return e.json(200, {
-          ok: true,
-          id: r0.id,
-          report_revision: r0.get('report_revision'),
-          replay: true,
-          aviso: 'replay — mesma revisão devolvida',
+        // replay legítimo = o MESMO revisor reenviando a MESMA ação;
+        // outro revisor chegando depois da revisão → 409 ja_revisado
+        if (String(r0.get('generated_by') || '') === String(e.auth.id)) {
+          return e.json(200, {
+            ok: true,
+            id: r0.id,
+            report_revision: r0.get('report_revision'),
+            replay: true,
+            aviso: 'replay — mesma revisão devolvida',
+          })
+        }
+        return e.json(409, {
+          ok: false,
+          erro: 'ja_revisado',
+          detalhe: 'resumo já está em ' + estado,
         })
       }
     }
