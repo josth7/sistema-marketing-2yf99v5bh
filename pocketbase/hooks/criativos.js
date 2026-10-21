@@ -12,12 +12,15 @@
  * - POST /backend/v1/criativos/capturar {url, fixture, hosts_extra} — captura
  *   de página: https, sem IP literal/localhost/porta não padrão, allowlist
  *   (analysis_policy + hosts fixture), destinos de mensagem registrados sem
- *   captura, HEAD prévio consultivo, GET truncado em 512 KB, sem JS/cookies.
+ *   captura, HEAD prévio consultivo (aceita text/html e application/json),
+ *   GET truncado em 512 KB, sem JS/cookies; corpo do JSVM pode vir como array
+ *   de char-codes (prova diag v0.0.183) — convertido para string.
  * - POST /backend/v1/criativos/tick {agora, anuncios, paginas, hosts_extra,
  *   erro_meta} — relógio de teste (X-Fixture-Secret): payload fixture de
  *   respostas Meta (anúncios/insights/erro 190), grava idempotente e captura
  *   páginas fixture; NUNCA chama a Meta real nesta rota.
- * - GET /backend/v1/fixtures/pagina/{tipo} — páginas fixture da captura.
+ * - GET /backend/v1/fixtures/pagina/{tipo} — páginas fixture da captura
+ *   (ok/grande/injecao em e.json com HTML no corpo; proibida 403).
  *
  * JSVM: lógica INLINE nos callbacks; $http.send não controla redirecionamento
  * (risco residual registrado na SPEC); erros só com código classificado.
@@ -340,7 +343,8 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
     return e.json(422, { ok: false, erro: 'dominio_nao_permitido', detalhe: f })
   }
   // HEAD prévio consultivo: falha de transporte segue para o GET (que valida
-  // o status de verdade); rota fixture só aceita GET — HEAD sem header falha
+  // o status de verdade); rota fixture serve application/json com HTML no
+  // corpo — só recusar quando o tipo é conhecido e não é html nem json
   try {
     const head = $http.send({
       url: url,
@@ -351,8 +355,6 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
     const ct = String(
       (head.headers && (head.headers['Content-Type'] || head.headers['content-type'])) || '',
     )
-    // fixture serve application/json com HTML no corpo — só recusar quando o
-    // tipo é conhecido e não é html nem json
     if (ct && ct.indexOf('text/html') < 0 && ct.indexOf('application/json') < 0) {
       const f = registraFalha('conteudo_nao_html', head.statusCode)
       return e.json(422, { ok: false, erro: 'conteudo_nao_html', detalhe: f })
@@ -375,7 +377,8 @@ routerAdd('POST', '/backend/v1/criativos/capturar', (e) => {
     const f = registraFalha('http_' + resp.statusCode, resp.statusCode)
     return e.json(422, { ok: false, erro: f.motivo, detalhe: f })
   }
-  // JSVM: corpo de resposta pode vir como ARRAY DE CHAR-CODES (prova diag v0.0.183)
+  // JSVM: corpo de resposta pode vir como ARRAY DE CHAR-CODES (prova diag
+  // v0.0.183) — converter para string antes de extrair
   let html = ''
   const rb = resp.body
   if (Array.isArray(rb)) {
@@ -608,7 +611,10 @@ routerAdd('POST', '/backend/v1/criativos/tick', (e) => {
             timeout: 10,
             headers: { 'X-Fixture-Secret': esperado },
           })
-          let html2 = String(resp2.body || '')
+          let html2 = ''
+          const rb2 = resp2.body
+          if (Array.isArray(rb2)) html2 = String.fromCharCode.apply(null, rb2)
+          else html2 = String(rb2 || '')
           const total2 = html2.length
           const trunc2 = total2 > 524288
           if (trunc2) html2 = html2.slice(0, 524288)
@@ -664,43 +670,6 @@ routerAdd('POST', '/backend/v1/criativos/tick', (e) => {
     }
   }
   return e.json(200, { ok: true, tick: resumo })
-})
-
-// ==================== diagnóstico do transporte de captura (fixture) ====================
-routerAdd('POST', '/backend/v1/criativos/diag', (e) => {
-  const esperado = (function () {
-    try {
-      const v = $secrets.get('FIXTURE_TICK_SECRET')
-      return v ? String(v) : ''
-    } catch (eS) {
-      return ''
-    }
-  })()
-  const recebido = String(e.request.header.get('X-Fixture-Secret') || '')
-  if (esperado === '' || recebido === '' || esperado !== recebido) {
-    return e.json(404, { ok: false, erro: 'rota não encontrada' })
-  }
-  const url = String((e.requestInfo().body || {}).url || '')
-  try {
-    const r = $http.send({
-      url: url,
-      method: 'GET',
-      timeout: 10,
-      headers: { 'X-Fixture-Secret': esperado },
-    })
-    const body = r.body
-    return e.json(200, {
-      ok: true,
-      status: r.statusCode,
-      tipo_body: typeof body,
-      eh_array: Array.isArray(body),
-      len: String(body).length,
-      preview: String(body).slice(0, 120),
-      ct: String((r.headers && (r.headers['Content-Type'] || r.headers['content-type'])) || ''),
-    })
-  } catch (eD) {
-    return e.json(200, { ok: false, erro: String(eD).slice(0, 120) })
-  }
 })
 
 // ==================== rotas fixture de página (alvo da captura) ====================
