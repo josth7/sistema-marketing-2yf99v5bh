@@ -158,6 +158,8 @@ routerAdd(
         warnings: rec.get('warnings') || null,
         alert_refs: rec.get('alert_refs') || null,
         decision_refs: rec.get('decision_refs') || null,
+        resumo_publicado: rec.get('resumo_publicado') || null,
+        resumo_revisao_registro: rec.get('resumo_revisao_registro') || null,
       },
     })
   },

@@ -209,6 +209,36 @@ routerAdd(
     }
     const sum = sums[0]
     const estado = String(sum.get('estado') || '')
+    const agora = new Date().toISOString()
+    // replay primeiro: MESMA chave devolve a MESMA revisão (mesmo já revisado)
+    function uuidV4() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0
+        const v = c === 'x' ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+    }
+    if (acao !== 'rejeitar') {
+      const chaveReplay = 'resumo-' + sum.id + '-' + acao
+      const colR0 = $app.findCollectionByNameOrId('reports')
+      const replay0 = $app.findRecordsByFilter(
+        colR0,
+        "idempotency_key='" + chaveReplay + "'",
+        '-created',
+        1,
+        0,
+      )
+      if (replay0 && replay0.length > 0) {
+        const r0 = replay0[0]
+        return e.json(200, {
+          ok: true,
+          id: r0.id,
+          report_revision: r0.get('report_revision'),
+          replay: true,
+          aviso: 'replay — mesma revisão devolvida',
+        })
+      }
+    }
     // precondição atômica: só aguardando_revisao pode ser revisado
     if (estado !== 'aguardando_revisao') {
       return e.json(409, {
@@ -218,7 +248,6 @@ routerAdd(
       })
     }
     // prazo vencido? revisão tardia ainda pode aprovar (RN-25) — segue
-    const agora = new Date().toISOString()
     const rascunho = String(sum.get('rascunho') || '')
     let textoPublicado = ''
     let novoEstado = ''
@@ -226,14 +255,6 @@ routerAdd(
     else if (acao === 'editar') textoPublicado = texto
     else novoEstado = 'rejeitado'
     if (acao !== 'rejeitar') novoEstado = acao === 'aprovar' ? 'aprovado' : 'editado'
-
-    function uuidV4() {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = (Math.random() * 16) | 0
-        const v = c === 'x' ? r : (r & 0x3) | 0x8
-        return v.toString(16)
-      })
-    }
 
     if (acao === 'rejeitar') {
       sum.set('estado', 'rejeitado')
