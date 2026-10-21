@@ -457,8 +457,9 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
       const item = new Record(colInbox)
       item.set('report_id', rep.id)
       item.set('user_id', uid)
+      item.set('tipo', 'revisao_resumo')
       item.set('scope', 'revisao_resumo')
-      item.set('status', 'pendente')
+      item.set('status', 'pending')
       item.set('dedupe_key', dedupeKey)
       app.save(item)
       itensCriados++
