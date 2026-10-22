@@ -398,6 +398,99 @@ routerAdd(
 
 routerAdd(
   'POST',
+  '/backend/v1/crm/leads/{id}/conversao',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const hoje = new Date().toISOString().slice(0, 10)
+    const colG = $app.findCollectionByNameOrId('access_grants')
+    const meus = $app.findRecordsByFilter(
+      colG,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '-created',
+      50,
+      0,
+    )
+    var temManage = false
+    for (const g of meus) {
+      const de = String(g.get('valid_from') || '')
+      const ate = String(g.get('valid_until') || '')
+      if (de !== '' && de.slice(0, 10) > hoje) continue
+      if (ate !== '' && ate.slice(0, 10) < hoje) continue
+      let acts = []
+      try {
+        const raw = g.get('actions')
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
+      } catch (e2) {}
+      if (acts.indexOf('manage_leads') >= 0) temManage = true
+    }
+    if (!temManage) {
+      return e.json(403, { ok: false, erro: 'sem permissão para gerir leads (manage_leads)' })
+    }
+    let lead
+    try {
+      lead = $app.findRecordById('crm_leads', e.request.pathValue('id'))
+    } catch (_) {
+      return e.json(404, { ok: false, erro: 'lead não encontrado' })
+    }
+    const body = e.requestInfo().body || {}
+    const valor = Number(body.valor || 0)
+    if (!Number.isFinite(valor) || valor < 0) {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { valor: 'informe o valor da venda (>= 0)' },
+      })
+    }
+    const descricao = String(body.descricao || '')
+      .trim()
+      .slice(0, 500)
+    const canal = String(body.canal || 'whatsapp')
+    const CANAIS = ['whatsapp', 'site', 'telefone', 'presencial']
+    const canalOk = CANAIS.indexOf(canal) >= 0 ? canal : 'whatsapp'
+    const ehFixture = String(lead.get('fixture')) === 'true'
+    // grava a conversão na trilha
+    const colEv = $app.findCollectionByNameOrId('crm_lead_events')
+    const ev = new Record(colEv)
+    ev.set('lead_id', lead.id)
+    ev.set('tipo', 'conversao')
+    ev.set(
+      'texto',
+      'CONVERSÃO (' + canalOk + '): R$ ' + valor.toFixed(2) + (descricao ? ' — ' + descricao : ''),
+    )
+    ev.set('user_id', e.auth.id)
+    ev.set('fixture', ehFixture)
+    $app.save(ev)
+    // status → fechado (conversão = venda fechada)
+    const statusAntigo = String(lead.get('status') || 'novo')
+    if (statusAntigo !== 'fechado') {
+      lead.set('status', 'fechado')
+      $app.save(lead)
+      const ev2 = new Record(colEv)
+      ev2.set('lead_id', lead.id)
+      ev2.set('tipo', 'status')
+      ev2.set('texto', 'status: ' + statusAntigo + ' → fechado (conversão registrada)')
+      ev2.set('user_id', e.auth.id)
+      ev2.set('fixture', ehFixture)
+      $app.save(ev2)
+    }
+    return e.json(200, {
+      ok: true,
+      id: lead.id,
+      conversao: { valor: valor, canal: canalOk, descricao: descricao },
+      status: 'fechado',
+    })
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
   '/backend/v1/crm/leads/importar',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
