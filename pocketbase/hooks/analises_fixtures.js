@@ -136,14 +136,29 @@ routerAdd('POST', '/backend/v1/analises/eventos', (e) => {
   }
   // ---- grant request_analysis + escopo ----
   const colG = app.findCollectionByNameOrId('access_grants')
-  const grants = app.findRecordsByFilter(
+  const todosGrants = app.findRecordsByFilter(
     colG,
-    "user_id='" + e.auth.id + "' && revoked_at='' && action='request_analysis'",
+    "user_id='" + e.auth.id + "' && revoked_at=''",
     '',
     50,
     0,
   )
-  if (!grants || grants.length === 0) {
+  const grants = []
+  for (const g0 of todosGrants) {
+    let acts0 = []
+    try {
+      const raw0 = g0.get('actions')
+      if (Array.isArray(raw0) && raw0.length > 0 && typeof raw0[0] === 'number') {
+        acts0 = JSON.parse(String.fromCharCode.apply(null, raw0))
+      } else if (typeof raw0 === 'string') {
+        acts0 = JSON.parse(raw0)
+      } else {
+        acts0 = raw0 || []
+      }
+    } catch (eA0) {}
+    if (acts0.indexOf('request_analysis') >= 0) grants.push(g0)
+  }
+  if (grants.length === 0) {
     return e.json(403, { ok: false, erro: 'sem permissão de request_analysis' })
   }
   let contasGrant = []
