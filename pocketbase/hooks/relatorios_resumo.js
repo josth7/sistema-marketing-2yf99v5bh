@@ -70,7 +70,37 @@ routerAdd(
       return e.json(404, { ok: false, erro: 'relatório não encontrado' })
     }
     const colS = $app.findCollectionByNameOrId('report_ai_summaries')
-    const sums = $app.findRecordsByFilter(colS, "report_id='" + rep.id + "'", '-created', 10, 0)
+    let sums = $app.findRecordsByFilter(colS, "report_id='" + rep.id + "'", '-created', 10, 0)
+    // se este relatório (revisão N) não tem resumo próprio, seguir a cadeia de
+    // revisões (supersedes_id) — o resumo pertence à quinzena, não a uma revisão
+    if (!sums || sums.length === 0) {
+      try {
+        const colR2 = $app.findCollectionByNameOrId('reports')
+        let atual = rep
+        for (let i = 0; i < 20; i++) {
+          const ant = String(atual.get('supersedes_id') || '')
+          if (!ant) break
+          let anterior = null
+          try {
+            anterior = $app.findRecordById(colR2, ant)
+          } catch (eA) {
+            break
+          }
+          const sAnt = $app.findRecordsByFilter(
+            colS,
+            "report_id='" + anterior.id + "'",
+            '-created',
+            1,
+            0,
+          )
+          if (sAnt && sAnt.length > 0) {
+            sums = sAnt
+            break
+          }
+          atual = anterior
+        }
+      } catch (eCadeia) {}
+    }
     if (!sums || sums.length === 0) {
       return e.json(200, { ok: true, resumo: null, aviso: 'resumo indisponível' })
     }
