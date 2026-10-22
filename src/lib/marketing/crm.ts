@@ -109,6 +109,40 @@ export async function eventosDoLead(id: string): Promise<LeadEvento[]> {
   }
 }
 
+/** Dashboard do CRM (receita, ticket, taxa, lead time, estágios, responsáveis). */
+export interface DashboardCrm {
+  receita: { ganha: number; perdida: number; em_aberto: number; n_conversoes: number }
+  ticket_medio: number | null
+  taxa_conversao: number | null
+  lead_time: {
+    media: number | null
+    mediana: number | null
+    min: number | null
+    max: number | null
+    n: number
+  }
+  por_estagio: Record<string, number>
+  por_origem: Record<string, number>
+  criados_no_mes: number
+  media_dia: number | null
+  top_responsaveis: Array<{
+    owner: string
+    nome: string
+    leads: number
+    fechados: number
+    valor: number
+  }>
+}
+
+export async function dashboardCrm(): Promise<DashboardCrm> {
+  try {
+    const r = await pb.send('/backend/v1/crm/dashboard', { method: 'GET' })
+    return r as DashboardCrm
+  } catch (e) {
+    throw new Error(mensagemErro(e))
+  }
+}
+
 /** Resumo da fila de conversões (pendentes/enviadas/valor). */
 export async function resumoConversoes(): Promise<{
   pendentes: number

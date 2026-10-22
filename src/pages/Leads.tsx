@@ -35,6 +35,7 @@ import {
   eventosDoLead,
   registrarConversao,
   resumoConversoes,
+  dashboardCrm,
   linkWhatsapp,
   importarLeadsCsv,
   type Lead,
@@ -108,6 +109,8 @@ export default function Leads() {
     valor_pendente: number
     valor_enviado: number
   } | null>(null)
+  // dashboard do CRM (receita, ticket, taxa, lead time, responsáveis)
+  const [dash, setDash] = useState<DashboardCrm | null>(null)
   // vista: lista ou funil
   const [vista, setVista] = useState<'lista' | 'funil'>('lista')
   // importação
@@ -131,6 +134,11 @@ export default function Leads() {
         setConvResumo(await resumoConversoes())
       } catch {
         setConvResumo(null)
+      }
+      try {
+        setDash(await dashboardCrm())
+      } catch {
+        setDash(null)
       }
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e))
@@ -352,34 +360,99 @@ export default function Leads() {
         </Button>
       </div>
 
-      {/* dashboard (indicadores) */}
-      {indicadores.total > 0 && (
-        <div className="grid gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Leads</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{indicadores.total}</p>
+      {/* dashboard (receita, ticket, taxa, lead time) — inspirado no CRM atual */}
+      {dash && (
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Receita ganha</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                R$ {dash.receita.ganha.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {dash.receita.n_conversoes} conversão(ões)
+              </p>
+            </div>
+            <div className="rounded-lg border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ticket médio</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {dash.ticket_medio === null
+                  ? '—'
+                  : 'R$ ' + dash.ticket_medio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="rounded-lg border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Taxa de conversão
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {dash.taxa_conversao === null ? '—' : dash.taxa_conversao + '%'}
+              </p>
+            </div>
+            <div className="rounded-lg border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Pipeline em aberto
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{dash.receita.em_aberto}</p>
+              <p className="text-xs text-muted-foreground">lead(s) ativo(s)</p>
+            </div>
           </div>
-          <div className="rounded-lg border px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Fechados</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{indicadores.fechados}</p>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Lead time (venda)
+              </p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">
+                {dash.lead_time.media === null ? '—' : dash.lead_time.media + ' dias'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {dash.lead_time.n > 0
+                  ? 'mediana ' +
+                    dash.lead_time.mediana +
+                    'd · min ' +
+                    dash.lead_time.min +
+                    'd · max ' +
+                    dash.lead_time.max +
+                    'd'
+                  : 'sem vendas com data de entrada'}
+              </p>
+            </div>
+            <div className="rounded-lg border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Novos no mês</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{dash.criados_no_mes}</p>
+              <p className="text-xs text-muted-foreground">
+                {dash.media_dia === null ? 'sem média' : dash.media_dia + '/dia com lead'}
+              </p>
+            </div>
+            <div className="rounded-lg border px-4 py-3 sm:col-span-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Por origem</p>
+              <p className="mt-1 text-sm">
+                {Object.entries(dash.por_origem)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([o, n]) => (ROTULO_ORIGEM[o] || o) + ': ' + n)
+                  .join(' · ') || '—'}
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg border px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Taxa de fechamento
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {indicadores.taxa === null ? '—' : indicadores.taxa + '%'}
-            </p>
-          </div>
-          <div className="rounded-lg border px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Por origem</p>
-            <p className="mt-1 text-sm">
-              {Object.entries(indicadores.porOrigem)
-                .sort((a, b) => b[1] - a[1])
-                .map(([o, n]) => `${ROTULO_ORIGEM[o] || o}: ${n}`)
-                .join(' · ')}
-            </p>
-          </div>
+          {dash.top_responsaveis.length > 0 && (
+            <div className="rounded-lg border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Top responsáveis (valor ganho)
+              </p>
+              <div className="mt-2 space-y-1">
+                {dash.top_responsaveis.map((r, i) => (
+                  <p key={r.owner} className="text-sm">
+                    <span className="mr-2 text-muted-foreground">#{i + 1}</span>
+                    <strong>{r.nome}</strong>
+                    <span className="ml-2 text-muted-foreground">
+                      {r.leads} lead(s) · {r.fechados} fechado(s) · R${' '}
+                      {r.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
