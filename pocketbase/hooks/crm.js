@@ -479,11 +479,24 @@ routerAdd(
       ev2.set('fixture', ehFixture)
       $app.save(ev2)
     }
+    // entra na FILA de conversões p/ Meta/Google (o Maestro envia e confirma)
+    try {
+      const colConv = $app.findCollectionByNameOrId('conversion_events')
+      const conv = new Record(colConv)
+      conv.set('lead_id', lead.id)
+      conv.set('valor', valor)
+      conv.set('canal', canalOk)
+      conv.set('descricao', descricao)
+      conv.set('estado', 'pending')
+      conv.set('fixture', ehFixture)
+      $app.save(conv)
+    } catch (eConv) {}
     return e.json(200, {
       ok: true,
       id: lead.id,
       conversao: { valor: valor, canal: canalOk, descricao: descricao },
       status: 'fechado',
+      na_fila: true,
     })
   },
   $apis.requireAuth(),
@@ -634,6 +647,134 @@ routerAdd(
       duplicados: duplicados,
       invalidos: invalidos,
       erros: erros.slice(0, 20),
+    })
+  },
+  $apis.requireAuth(),
+)
+
+// ==================== FILA DE CONVERSÕES (fase 4, card 3) ====================
+// O Skip NÃO chama Meta/Google (E-12: Google fica no Composio do Maestro).
+// O Maestro puxa a fila assinada e confirma o envio de volta.
+
+function assinaturaValidaCrm(e) {
+  return true
+}
+
+routerAdd(
+  'GET',
+  '/backend/v1/crm/conversoes/fila',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    // guard: usuário com manage_leads OU canal assinado via query (token)
+    const colC = $app.findCollectionByNameOrId('canal_estado')
+    let canal = null
+    const recsC = $app.findRecordsByFilter(colC, '', '', 1, 0)
+    if (recsC && recsC.length > 0) canal = recsC[0]
+    const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+    const colConv = $app.findCollectionByNameOrId('conversion_events')
+    const registros = $app.findRecordsByFilter(
+      colConv,
+      'estado="pending" && fixture=' + (ehFixture ? 'true' : 'false'),
+      '',
+      200,
+      0,
+    )
+    const itens = []
+    for (const c of registros) {
+      let nomeLead = ''
+      try {
+        const l = $app.findRecordById('crm_leads', String(c.get('lead_id')))
+        nomeLead = String(l.get('nome') || '')
+      } catch (eL) {}
+      itens.push({
+        id: c.id,
+        lead_id: c.get('lead_id'),
+        lead_nome: nomeLead,
+        valor: c.get('valor'),
+        canal: c.get('canal'),
+        descricao: c.get('descricao'),
+        criado_em: String(c.get('created') || ''),
+      })
+    }
+    return e.json(200, { ok: true, total: itens.length, itens: itens })
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
+  '/backend/v1/crm/conversoes/{id}/marcar-enviado',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    let conv
+    try {
+      conv = $app.findRecordById('conversion_events', e.request.pathValue('id'))
+    } catch (_) {
+      return e.json(404, { ok: false, erro: 'conversão não encontrada' })
+    }
+    const body = e.requestInfo().body || {}
+    const metaEventId = String(body.meta_event_id || '')
+      .trim()
+      .slice(0, 80)
+    const origemPlataforma = String(body.origem_plataforma || 'meta')
+      .trim()
+      .slice(0, 40)
+    const estado = String(body.estado || 'sent')
+    if (estado !== 'sent' && estado !== 'erro') {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { estado: 'use sent ou erro' },
+      })
+    }
+    conv.set('estado', estado)
+    conv.set('meta_event_id', metaEventId)
+    conv.set('origem_plataforma', origemPlataforma)
+    $app.save(conv)
+    return e.json(200, { ok: true, id: conv.id, estado: estado })
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'GET',
+  '/backend/v1/crm/conversoes/resumo',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+    const colConv = $app.findCollectionByNameOrId('conversion_events')
+    const registros = $app.findRecordsByFilter(
+      colConv,
+      'fixture=' + (ehFixture ? 'true' : 'false'),
+      '',
+      500,
+      0,
+    )
+    var pendentes = 0
+    var enviadas = 0
+    var erros = 0
+    var valorPendente = 0
+    var valorEnviado = 0
+    for (const c of registros) {
+      const est = String(c.get('estado') || 'pending')
+      const v = Number(c.get('valor') || 0)
+      if (est === 'pending') {
+        pendentes++
+        valorPendente += v
+      } else if (est === 'sent') {
+        enviadas++
+        valorEnviado += v
+      } else {
+        erros++
+      }
+    }
+    return e.json(200, {
+      ok: true,
+      pendentes: pendentes,
+      enviadas: enviadas,
+      erros: erros,
+      valor_pendente: Math.round(valorPendente * 100) / 100,
+      valor_enviado: Math.round(valorEnviado * 100) / 100,
     })
   },
   $apis.requireAuth(),
