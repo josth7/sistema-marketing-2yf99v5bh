@@ -101,7 +101,7 @@ routerAdd('POST', '/backend/v1/analises/tick', (e) => {
         return
       }
       const teto3 = pol3.get('max_eventos_automaticos_mes') || 2
-      const mesRef3 = hojeRef3.slice(0, 7)
+      const mesRef3 = hojeRef.slice(0, 7)
       const criadosMes3 = app.findRecordsByFilter(
         colEv3,
         "dedupe_key~'rn03-' && created >= '" + mesRef3 + "-01'",
