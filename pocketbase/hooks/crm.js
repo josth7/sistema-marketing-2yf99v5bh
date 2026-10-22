@@ -74,7 +74,7 @@ routerAdd(
     const registros = $app.findRecordsByFilter(
       colL,
       'fixture=' + (ehFixture ? 'true' : 'false'),
-      '-created',
+      '',
       500,
       0,
     )
@@ -373,7 +373,7 @@ routerAdd(
     const evs = $app.findRecordsByFilter(
       colEv,
       "lead_id='" + e.request.pathValue('id') + "'",
-      'created',
+      '',
       200,
       0,
     )
