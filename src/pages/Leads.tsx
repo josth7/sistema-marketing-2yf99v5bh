@@ -108,6 +108,8 @@ export default function Leads() {
     valor_pendente: number
     valor_enviado: number
   } | null>(null)
+  // vista: lista ou funil
+  const [vista, setVista] = useState<'lista' | 'funil'>('lista')
   // importação
   const [abrirImportar, setAbrirImportar] = useState(false)
   const [csv, setCsv] = useState('')
@@ -177,6 +179,36 @@ export default function Leads() {
     }
     return out
   }, [itens, filtroStatus, busca])
+
+  /** Indicadores do dashboard (taxa de fechamento, por origem). */
+  const indicadores = useMemo(() => {
+    const total = itens.length
+    const fechados = itens.filter((l) => l.status === 'fechado').length
+    const perdidos = itens.filter((l) => l.status === 'perdido').length
+    const decididos = fechados + perdidos
+    const taxa = decididos > 0 ? Math.round((fechados / decididos) * 100) : null
+    const porOrigem: Record<string, number> = {}
+    for (const l of itens) {
+      const o = l.origem || 'manual'
+      porOrigem[o] = (porOrigem[o] || 0) + 1
+    }
+    return { total, fechados, perdidos, taxa, porOrigem }
+  }, [itens])
+
+  /** Move um lead para o status seguinte/anterior no funil. */
+  const moverNoFunil = async (l: Lead, direcao: 'avancar' | 'voltar') => {
+    const ordem = STATUS_LEADS.map((s) => s.valor)
+    const idx = ordem.indexOf(l.status)
+    const novo = direcao === 'avancar' ? ordem[idx + 1] : ordem[idx - 1]
+    if (!novo) return
+    try {
+      await editarLead(l.id, { status: novo })
+      setMsg(`${l.nome}: ${ROTULO_STATUS[novo]}.`)
+      await carregar()
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   const contagem = useMemo(() => {
     const c: Record<string, number> = {}
@@ -301,6 +333,55 @@ export default function Leads() {
         titulo="Leads (CRM)"
         descricao="Base própria de leads — origem, pipeline de status e trilha de eventos. Importação da planilha da agência por CSV."
       />
+
+      {/* alternância Lista | Funil */}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant={vista === 'lista' ? 'default' : 'outline'}
+          onClick={() => setVista('lista')}
+        >
+          Lista
+        </Button>
+        <Button
+          size="sm"
+          variant={vista === 'funil' ? 'default' : 'outline'}
+          onClick={() => setVista('funil')}
+        >
+          Funil de vendas
+        </Button>
+      </div>
+
+      {/* dashboard (indicadores) */}
+      {indicadores.total > 0 && (
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div className="rounded-lg border px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Leads</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{indicadores.total}</p>
+          </div>
+          <div className="rounded-lg border px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Fechados</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{indicadores.fechados}</p>
+          </div>
+          <div className="rounded-lg border px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Taxa de fechamento
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
+              {indicadores.taxa === null ? '—' : indicadores.taxa + '%'}
+            </p>
+          </div>
+          <div className="rounded-lg border px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Por origem</p>
+            <p className="mt-1 text-sm">
+              {Object.entries(indicadores.porOrigem)
+                .sort((a, b) => b[1] - a[1])
+                .map(([o, n]) => `${ROTULO_ORIGEM[o] || o}: ${n}`)
+                .join(' · ')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* resumo por status */}
       <div className="flex flex-wrap gap-2">
@@ -427,7 +508,75 @@ export default function Leads() {
           descricao="Crie o primeiro lead manualmente ou importe a planilha da agência (botão Importar CSV)."
         />
       )}
-      {!carregando && !erro && itens.length > 0 && (
+      {/* FUNIL DE VENDAS (kanban por status) */}
+      {!carregando && !erro && itens.length > 0 && vista === 'funil' && (
+        <div
+          className="grid gap-3 overflow-x-auto pb-2"
+          style={{ gridTemplateColumns: 'repeat(5, minmax(220px, 1fr))' }}
+        >
+          {STATUS_LEADS.map((s) => {
+            const coluna = itens.filter((l) => l.status === s.valor)
+            return (
+              <div key={s.valor} className="rounded-lg border bg-muted/30 p-2">
+                <p className="mb-2 flex items-center justify-between px-1 text-sm font-medium">
+                  {s.rotulo}
+                  <span className="rounded-full bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                    {coluna.length}
+                  </span>
+                </p>
+                <div className="space-y-2">
+                  {coluna.length === 0 && (
+                    <p className="px-1 py-3 text-center text-xs text-muted-foreground">vazio</p>
+                  )}
+                  {coluna.map((l) => (
+                    <div key={l.id} className="rounded-md border bg-background p-2 shadow-sm">
+                      <p className="text-sm font-medium">{l.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {l.telefone || l.email || '—'}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {ROTULO_ORIGEM[l.origem] || l.origem}
+                        {l.campanha ? ' · ' + l.campanha : ''}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs"
+                          disabled={s.valor === 'novo'}
+                          onClick={() => void moverNoFunil(l, 'voltar')}
+                        >
+                          ←
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs"
+                          disabled={s.valor === 'perdido'}
+                          onClick={() => void moverNoFunil(l, 'avancar')}
+                        >
+                          →
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="ml-auto h-6 px-2 text-xs"
+                          onClick={() => void abrirDetalhe(l)}
+                        >
+                          Abrir
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* LISTA (tabela) */}
+      {!carregando && !erro && itens.length > 0 && vista === 'lista' && (
         <Card>
           <CardContent className="pt-6">
             <div className="overflow-x-auto">
