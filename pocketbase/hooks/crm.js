@@ -439,12 +439,12 @@ routerAdd(
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
     const body = e.requestInfo().body || {}
-    const valor = Number(body.valor || 0)
-    if (!Number.isFinite(valor) || valor < 0) {
+    const valor = Number(body.valor)
+    if (!Number.isFinite(valor) || valor <= 0) {
       return e.json(422, {
         ok: false,
         erro: 'entrada inválida',
-        campos: { valor: 'informe o valor da venda (>= 0)' },
+        campos: { valor: 'informe o valor da venda (maior que zero)' },
       })
     }
     const descricao = String(body.descricao || '')
