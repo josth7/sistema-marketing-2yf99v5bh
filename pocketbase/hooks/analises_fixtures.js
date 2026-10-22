@@ -230,7 +230,7 @@ routerAdd('POST', '/backend/v1/analises/eventos', (e) => {
   const mesRef = hoje.slice(0, 7)
   const manuaisMes = app.findRecordsByFilter(
     colEv,
-    "origem='solicitacao_manual' && created >= '" + mesRef + "-01'",
+    "dedupe_key~'manual-' && created >= '" + mesRef + "-01'",
     '',
     200,
     0,
