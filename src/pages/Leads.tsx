@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import pb from '@/lib/pocketbase/client'
 import {
   Select,
   SelectContent,
@@ -67,6 +68,11 @@ export default function Leads() {
   const [itens, setItens] = useState<Lead[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [user, setUser] = useState(pb.authStore.isValid ? pb.authStore.record : null)
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erroAuth, setErroAuth] = useState<string | null>(null)
+  const [entrando, setEntrando] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [busca, setBusca] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
@@ -92,6 +98,11 @@ export default function Leads() {
   const [erroImportar, setErroImportar] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
+    if (!pb.authStore.isValid) {
+      setCarregando(false)
+      setErro('Entre com o seu usuário para ver os leads.')
+      return
+    }
     setCarregando(true)
     setErro(null)
     try {
@@ -104,8 +115,30 @@ export default function Leads() {
   }, [])
 
   useEffect(() => {
-    void carregar()
+    if (pb.authStore.isValid) void carregar()
   }, [carregar])
+
+  const entrar = async () => {
+    setEntrando(true)
+    setErroAuth(null)
+    try {
+      await pb.collection('users').authWithPassword(email, senha)
+      setUser(pb.authStore.isValid ? pb.authStore.record : null)
+      setErro(null)
+      await carregar()
+    } catch {
+      setErroAuth('Login inválido — confira e-mail e senha.')
+    } finally {
+      setEntrando(false)
+    }
+  }
+
+  const sair = () => {
+    pb.authStore.clear()
+    setUser(null)
+    setItens([])
+    setErro(null)
+  }
 
   const filtrados = useMemo(() => {
     let out = itens
@@ -246,6 +279,50 @@ export default function Leads() {
           <Button onClick={() => setAbrirCriar(true)}>Novo lead</Button>
         </div>
       </div>
+
+      {user && (
+        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
+          <span>
+            Conectado como <strong>{user.email}</strong>
+          </span>
+          <Button size="sm" variant="ghost" onClick={sair}>
+            Sair
+          </Button>
+        </div>
+      )}
+      {!user && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Entrar para ver os leads</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="lead-login-email">E-mail</Label>
+              <Input
+                id="lead-login-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu.email@haisan.com.br"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="lead-login-senha">Senha</Label>
+              <Input
+                id="lead-login-senha"
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            {erroAuth && <p className="text-sm text-destructive">{erroAuth}</p>}
+            <Button onClick={() => void entrar()} disabled={entrando}>
+              {entrando ? 'Entrando…' : 'Entrar'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {msg && (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
