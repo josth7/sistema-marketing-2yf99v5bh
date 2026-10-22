@@ -347,11 +347,24 @@ routerAdd('POST', '/backend/v1/analises', (e) => {
     try {
       rep = app.findRecordById('reports', alvoRef)
     } catch (_) {
-      return e.json(422, {
-        ok: false,
-        erro: 'entrada inválida',
-        campos: { alvo_ref: 'relatório não encontrado' },
-      })
+      // alvo_ref pode ser o UUID do relatório (gatilho_ref do cron RN-03 grava uuid)
+      try {
+        const porUuid = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('reports'),
+          "uuid='" + alvoRef.replace(/'/g, '') + "'",
+          '-created',
+          1,
+          0,
+        )
+        if (porUuid && porUuid.length > 0) rep = porUuid[0]
+      } catch (eU) {}
+      if (!rep) {
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { alvo_ref: 'relatório não encontrado' },
+        })
+      }
     }
     // resumo já existe p/ este relatório?
     const colSum = app.findCollectionByNameOrId('report_ai_summaries')
