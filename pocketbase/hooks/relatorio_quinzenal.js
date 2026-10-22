@@ -398,6 +398,67 @@ cronAdd('relatorio_quinzenal', '0 10 * * *', () => {
             resultados: resultadosTotais,
           },
           porObjetivo: porObjetivo,
+          porCanal: (function () {
+            const canaisUnicos = []
+            for (const l of doGrupo) {
+              if (canaisUnicos.indexOf(l.canal) === -1) canaisUnicos.push(l.canal)
+            }
+            canaisUnicos.sort()
+            return canaisUnicos.map(function (canal) {
+              const doCanal = doGrupo.filter(function (l) {
+                return l.canal === canal
+              })
+              const tiposC = []
+              for (const l of doCanal) {
+                const t2 = l.resultType
+                if (tiposC.indexOf(t2) === -1) tiposC.push(t2)
+              }
+              const objetivosC = []
+              for (const l of doCanal) {
+                if (objetivosC.indexOf(l.objetivo) === -1) objetivosC.push(l.objetivo)
+              }
+              const resultadosCanal =
+                tiposC.length === 1 && tiposC[0] !== null && objetivosC.length === 1
+                  ? somar(
+                      doCanal.map(function (l) {
+                        return l.resultados
+                      }),
+                    )
+                  : null
+              let cpcC = null
+              const gastoC = somar(
+                doCanal.map(function (l) {
+                  return l.gasto
+                }),
+              )
+              const cliquesC = somar(
+                doCanal.map(function (l) {
+                  return l.cliques
+                }),
+              )
+              if (gastoC !== null && cliquesC) cpcC = gastoC / cliquesC
+              return {
+                canal: canal,
+                registros: doCanal.length,
+                metricas: {
+                  gasto: gastoC,
+                  cliques: cliquesC,
+                  impressoes: somar(
+                    doCanal.map(function (l) {
+                      return l.impressoes
+                    }),
+                  ),
+                  alcance: somar(
+                    doCanal.map(function (l) {
+                      return l.alcance
+                    }),
+                  ),
+                  resultados: resultadosCanal,
+                  cpc: cpcC,
+                },
+              }
+            })
+          })(),
         }
       }
       const pago = agregarNatureza('pago')
@@ -975,6 +1036,67 @@ routerAdd(
               resultados: resultadosTotais,
             },
             porObjetivo: porObjetivo,
+            porCanal: (function () {
+              const canaisUnicos = []
+              for (const l of doGrupo) {
+                if (canaisUnicos.indexOf(l.canal) === -1) canaisUnicos.push(l.canal)
+              }
+              canaisUnicos.sort()
+              return canaisUnicos.map(function (canal) {
+                const doCanal = doGrupo.filter(function (l) {
+                  return l.canal === canal
+                })
+                const tiposC = []
+                for (const l of doCanal) {
+                  const t2 = l.resultType
+                  if (tiposC.indexOf(t2) === -1) tiposC.push(t2)
+                }
+                const objetivosC = []
+                for (const l of doCanal) {
+                  if (objetivosC.indexOf(l.objetivo) === -1) objetivosC.push(l.objetivo)
+                }
+                const resultadosCanal =
+                  tiposC.length === 1 && tiposC[0] !== null && objetivosC.length === 1
+                    ? somar(
+                        doCanal.map(function (l) {
+                          return l.resultados
+                        }),
+                      )
+                    : null
+                let cpcC = null
+                const gastoC = somar(
+                  doCanal.map(function (l) {
+                    return l.gasto
+                  }),
+                )
+                const cliquesC = somar(
+                  doCanal.map(function (l) {
+                    return l.cliques
+                  }),
+                )
+                if (gastoC !== null && cliquesC) cpcC = gastoC / cliquesC
+                return {
+                  canal: canal,
+                  registros: doCanal.length,
+                  metricas: {
+                    gasto: gastoC,
+                    cliques: cliquesC,
+                    impressoes: somar(
+                      doCanal.map(function (l) {
+                        return l.impressoes
+                      }),
+                    ),
+                    alcance: somar(
+                      doCanal.map(function (l) {
+                        return l.alcance
+                      }),
+                    ),
+                    resultados: resultadosCanal,
+                    cpc: cpcC,
+                  },
+                }
+              })
+            })(),
           }
         }
         const pago = agregarNatureza('pago')
@@ -1540,6 +1662,67 @@ routerAdd(
           resultados: resultadosTotais,
         },
         porObjetivo: porObjetivo,
+        porCanal: (function () {
+          const canaisUnicos = []
+          for (const l of doGrupo) {
+            if (canaisUnicos.indexOf(l.canal) === -1) canaisUnicos.push(l.canal)
+          }
+          canaisUnicos.sort()
+          return canaisUnicos.map(function (canal) {
+            const doCanal = doGrupo.filter(function (l) {
+              return l.canal === canal
+            })
+            const tiposC = []
+            for (const l of doCanal) {
+              const t2 = l.resultType
+              if (tiposC.indexOf(t2) === -1) tiposC.push(t2)
+            }
+            const objetivosC = []
+            for (const l of doCanal) {
+              if (objetivosC.indexOf(l.objetivo) === -1) objetivosC.push(l.objetivo)
+            }
+            const resultadosCanal =
+              tiposC.length === 1 && tiposC[0] !== null && objetivosC.length === 1
+                ? somar(
+                    doCanal.map(function (l) {
+                      return l.resultados
+                    }),
+                  )
+                : null
+            let cpcC = null
+            const gastoC = somar(
+              doCanal.map(function (l) {
+                return l.gasto
+              }),
+            )
+            const cliquesC = somar(
+              doCanal.map(function (l) {
+                return l.cliques
+              }),
+            )
+            if (gastoC !== null && cliquesC) cpcC = gastoC / cliquesC
+            return {
+              canal: canal,
+              registros: doCanal.length,
+              metricas: {
+                gasto: gastoC,
+                cliques: cliquesC,
+                impressoes: somar(
+                  doCanal.map(function (l) {
+                    return l.impressoes
+                  }),
+                ),
+                alcance: somar(
+                  doCanal.map(function (l) {
+                    return l.alcance
+                  }),
+                ),
+                resultados: resultadosCanal,
+                cpc: cpcC,
+              },
+            }
+          })
+        })(),
       }
     }
     const pago = agregarNatureza('pago')

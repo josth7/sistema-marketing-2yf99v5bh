@@ -470,6 +470,54 @@ export default function Caixa() {
                       </table>
                     </div>
                   )}
+                  {/* Separação por canal (Meta × Google) — SPEC-3-004 binário 1 */}
+                  {(() => {
+                    const porCanal =
+                      (grupos.length > 0
+                        ? (pago as { porCanal?: Array<Record<string, unknown>> }).porCanal
+                        : undefined) ?? []
+                    if (porCanal.length === 0) return null
+                    const nomeCanal = (c: string) =>
+                      c === 'meta_ads'
+                        ? 'Meta (Facebook/Instagram)'
+                        : c === 'google_ads'
+                          ? 'Google Ads'
+                          : c
+                    return (
+                      <div className="mt-4">
+                        <h4 className="mb-2 text-sm font-semibold text-gray-800">Por canal</h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b text-left text-xs uppercase tracking-wide text-gray-500">
+                                <th className="py-2 pr-3">Canal</th>
+                                <th className="py-2 pr-3">Gasto</th>
+                                <th className="py-2 pr-3">Impressões</th>
+                                <th className="py-2 pr-3">Cliques</th>
+                                <th className="py-2">CPC</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {porCanal.map((c, i) => {
+                                const m = (c.metricas ?? {}) as Record<string, unknown>
+                                return (
+                                  <tr key={i} className="border-b last:border-0">
+                                    <td className="py-2 pr-3 font-medium">
+                                      {nomeCanal(String(c.canal ?? '—'))}
+                                    </td>
+                                    <td className="py-2 pr-3">{fmtBRL(m.gasto)}</td>
+                                    <td className="py-2 pr-3">{fmtInt(m.impressoes)}</td>
+                                    <td className="py-2 pr-3">{fmtInt(m.cliques)}</td>
+                                    <td className="py-2">{fmtBRL(m.cpc)}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )
+                  })()}
                   {/* cobertura */}
                   {(() => {
                     let cov: {
