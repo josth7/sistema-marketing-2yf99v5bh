@@ -1477,6 +1477,23 @@ routerAdd(
       destOk.push(e.auth.id)
       avisos.push('autor da republicação recebe cópia na caixa')
     }
+    // self-heal (0052): política real com IDs mortos → destinatários por e-mail
+    if (scopeFonte !== 'fixture' && destOk.length === 1 && destOk[0] === e.auth.id) {
+      const emailsHeal = ['josth7@icloud.com', 'anezia@haisan.com.br', 'haisan.ecmm@gmail.com']
+      for (const em of emailsHeal) {
+        try {
+          const uH = $app.findRecordsByFilter(
+            $app.findCollectionByNameOrId('users'),
+            "email='" + em + "'",
+            '',
+            1,
+            0,
+          )
+          if (uH && uH.length > 0 && destOk.indexOf(uH[0].id) < 0) destOk.push(uH[0].id)
+        } catch (eH) {}
+      }
+      avisos.push('self-heal: destinatários reais resolvidos por e-mail → ' + destOk.length)
+    }
 
     // snapshot novo do dado ATUAL (agregação idêntica)
     const colM = $app.findCollectionByNameOrId('metricas_diarias')
