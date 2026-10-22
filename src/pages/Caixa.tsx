@@ -337,6 +337,15 @@ export default function Caixa() {
                           : 'Decisão não encontrada.'}
                       </p>
                     </>
+                  ) : item.scope === 'revisao_resumo' ? (
+                    <>
+                      <p className="mt-1 font-medium truncate">
+                        Resumo de IA para revisar — {rotuloQuinzena(item)}
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        Abra, confira o checklist e aprove ou edite o resumo antes de circular.
+                      </p>
+                    </>
                   ) : (
                     <>
                       <p className="mt-1 font-medium truncate">{rotuloQuinzena(item)}</p>
