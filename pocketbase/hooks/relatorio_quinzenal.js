@@ -1790,7 +1790,13 @@ routerAdd(
       )
       rec.set(
         'warnings',
-        JSON.stringify(avisos.concat(['republicação administrativa — motivo registrado'])),
+        JSON.stringify(
+          avisos
+            .filter(function (a) {
+              return a.indexOf('não existe mais') < 0
+            })
+            .concat(['republicação administrativa — motivo registrado']),
+        ),
       )
       rec.set(
         'alert_refs',
