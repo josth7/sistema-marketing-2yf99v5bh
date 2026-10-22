@@ -108,7 +108,8 @@ routerAdd('POST', '/backend/v1/analises/tick', (e) => {
         '',
         100,
         0,
-      )      if (criadosMes3 && criadosMes3.length >= teto3) {
+      )
+      if (criadosMes3 && criadosMes3.length >= teto3) {
         resumo.avisos.push('RN-03: teto mensal atingido (' + teto3 + ')')
         return
       }
