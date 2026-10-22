@@ -279,6 +279,34 @@ routerAdd('POST', '/backend/v1/analises/tick', (e) => {
     app.save(canal)
   }
 
+  // ---- RN-25 (SPEC-3-003): resumos aguardando revisão com prazo vencido → prazo_vencido ----
+  ;(function rn25() {
+    try {
+      const agora25 = new Date().toISOString()
+      const colS25 = app.findCollectionByNameOrId('report_ai_summaries')
+      const venciveis = app.findRecordsByFilter(
+        colS25,
+        "estado='aguardando_revisao' && prazo_revisao_em!=''",
+        '',
+        100,
+        0,
+      )
+      let marcados = 0
+      for (const sv of venciveis) {
+        const prazo = String(sv.get('prazo_revisao_em') || '')
+        if (!prazo) continue
+        if (prazo >= agora25) continue
+        sv.set('estado', 'prazo_vencido')
+        sv.set('revisao_nota', 'prazo de revisão vencido em ' + prazo.slice(0, 16) + ' (RN-25)')
+        app.save(sv)
+        marcados++
+      }
+      if (marcados > 0) resumo.avisos.push('RN-25: ' + marcados + ' resumo(s) prazo_vencido')
+    } catch (eRn25) {
+      resumo.avisos.push('RN-25 erro: ' + String(eRn25).slice(0, 120))
+    }
+  })()
+
   // ---- reentrega (RN-08): pendente/erro com ciclos < 3; 4º ciclo → erro_definitivo ----
   const colE = app.findCollectionByNameOrId('analysis_events')
   const elegiveis = app.findRecordsByFilter(colE, "estado='pendente' || estado='erro'", '', 50, 0)

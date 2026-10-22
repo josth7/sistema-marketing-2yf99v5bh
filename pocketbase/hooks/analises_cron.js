@@ -101,7 +101,7 @@ cronAdd('analise_periodo_fechado', '30 10 * * *', () => {
       const mesRef3 = hojeRef3.slice(0, 7)
       const criadosMes3 = app.findRecordsByFilter(
         colEv3,
-        "origem='automatico' && created >= '" + mesRef3 + "-01'",
+        "dedupe_key~'rn03-' && created >= '" + mesRef3 + "-01'",
         '',
         100,
         0,
