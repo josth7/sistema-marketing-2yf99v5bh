@@ -603,10 +603,31 @@ export default function Leads() {
                   )}
                   {coluna.map((l) => (
                     <div key={l.id} className="rounded-md border bg-background p-2 shadow-sm">
-                      <p className="text-sm font-medium">{l.nome}</p>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="truncate text-sm font-medium">{l.nome}</p>
+                        <span
+                          className={
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ' +
+                            (l.temperatura === 'positivo'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : l.temperatura === 'frio'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-gray-100 text-gray-600')
+                          }
+                        >
+                          {l.temperatura === 'positivo'
+                            ? 'quente'
+                            : l.temperatura === 'frio'
+                              ? 'frio'
+                              : 'neutro'}
+                        </span>
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {l.telefone || l.email || '—'}
                       </p>
+                      {l.owner_nome && (
+                        <p className="mt-0.5 text-xs text-emerald-700">👤 {l.owner_nome}</p>
+                      )}
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {ROTULO_ORIGEM[l.origem] || l.origem}
                         {l.campanha ? ' · ' + l.campanha : ''}

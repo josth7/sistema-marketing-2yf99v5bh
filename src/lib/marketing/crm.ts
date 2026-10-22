@@ -15,6 +15,8 @@ export interface Lead {
   status: 'novo' | 'em_contato' | 'orcamento' | 'fechado' | 'perdido'
   observacoes: string
   owner_id: string
+  owner_nome: string
+  temperatura: 'neutro' | 'positivo' | 'frio'
   conta_id: string
   criado_em: string
   atualizado_em: string
