@@ -337,9 +337,180 @@ export default function Caixa() {
                 Fechar
               </button>
             </div>
-            <pre className="whitespace-pre-wrap break-words text-sm text-gray-800">
-              {JSON.stringify(aberto.dados, null, 2)}
-            </pre>
+            {/* Resumo de IA (SPEC-3-003) — rótulo + registro de revisão */}
+            {typeof aberto.dados.resumo_publicado === 'string' &&
+              aberto.dados.resumo_publicado.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                  <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                    Gerado por IA — validar antes de decidir
+                  </span>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-900">
+                    {aberto.dados.resumo_publicado}
+                  </p>
+                  {typeof aberto.dados.resumo_revisao_registro === 'string' &&
+                    aberto.dados.resumo_revisao_registro.length > 0 && (
+                      <p className="mt-2 text-xs text-gray-600">
+                        {aberto.dados.resumo_revisao_registro}
+                      </p>
+                    )}
+                </div>
+              )}
+            {typeof aberto.dados.resumo_revisao_registro === 'string' &&
+              aberto.dados.resumo_revisao_registro.length > 0 &&
+              !(
+                typeof aberto.dados.resumo_publicado === 'string' &&
+                aberto.dados.resumo_publicado.length > 0
+              ) && (
+                <p className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+                  {aberto.dados.resumo_revisao_registro}
+                </p>
+              )}
+            {/* Tabela por objetivo — pago (snapshot real), em vez de JSON cru */}
+            {(() => {
+              const d = aberto.dados
+              const ini = String(d.period_start ?? '').slice(8, 10)
+              const fim = String(d.period_end ?? '').slice(8, 10)
+              const ps = String(d.period_start ?? '')
+              const pe = String(d.period_end ?? '')
+              const mesNum = Number(ps.slice(5, 7))
+              const meses = [
+                'jan',
+                'fev',
+                'mar',
+                'abr',
+                'mai',
+                'jun',
+                'jul',
+                'ago',
+                'set',
+                'out',
+                'nov',
+                'dez',
+              ]
+              const titulo =
+                'Quinzena ' +
+                (Number(d.quinzena) === 2 ? '2ª' : '1ª') +
+                ' de ' +
+                (meses[mesNum - 1] || '?') +
+                '/' +
+                ps.slice(0, 4) +
+                ' (' +
+                ini +
+                '–' +
+                fim +
+                ')'
+              let pago: Record<string, unknown> = {}
+              try {
+                const snap =
+                  typeof d.data_snapshot_json === 'string'
+                    ? JSON.parse(d.data_snapshot_json)
+                    : d.data_snapshot_json
+                pago = (snap as Record<string, unknown>)?.pago ?? {}
+              } catch {
+                pago = {}
+              }
+              const grupos = (pago.porObjetivo ?? pago.objetivos ?? []) as Array<
+                Record<string, unknown>
+              >
+              const fmtBRL = (v: unknown) =>
+                typeof v === 'number' && Number.isFinite(v)
+                  ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                  : '—'
+              const fmtInt = (v: unknown) =>
+                typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString('pt-BR') : '—'
+              const fmtNum = (v: unknown, casas = 2) =>
+                typeof v === 'number' && Number.isFinite(v)
+                  ? v.toLocaleString('pt-BR', { maximumFractionDigits: casas })
+                  : '—'
+              return (
+                <div>
+                  <h3 className="mb-2 text-base font-semibold">{titulo}</h3>
+                  {grupos.length === 0 ? (
+                    <p className="text-sm text-gray-600">
+                      Sem indicadores no snapshot deste relatório.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-xs uppercase tracking-wide text-gray-500">
+                            <th className="py-2 pr-3">Objetivo</th>
+                            <th className="py-2 pr-3">Gasto</th>
+                            <th className="py-2 pr-3">Impressões</th>
+                            <th className="py-2 pr-3">Cliques</th>
+                            <th className="py-2 pr-3">Resultados</th>
+                            <th className="py-2">Custo/result.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {grupos.map((g, i) => {
+                            const m = (g.metricas ?? {}) as Record<string, unknown>
+                            return (
+                              <tr key={i} className="border-b last:border-0">
+                                <td className="py-2 pr-3 font-medium">
+                                  {String(g.objetivo ?? '—')}
+                                </td>
+                                <td className="py-2 pr-3">{fmtBRL(m.gasto)}</td>
+                                <td className="py-2 pr-3">{fmtInt(m.impressoes)}</td>
+                                <td className="py-2 pr-3">{fmtInt(m.cliques)}</td>
+                                <td className="py-2 pr-3">
+                                  {m.resultados === null || m.resultados === undefined
+                                    ? '—'
+                                    : fmtInt(m.resultados)}
+                                </td>
+                                <td className="py-2">
+                                  {m.custoPorResultado === null || m.custoPorResultado === undefined
+                                    ? '—'
+                                    : fmtBRL(m.custoPorResultado)}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {/* cobertura */}
+                  {(() => {
+                    let cov: {
+                      janela_dias?: number
+                      canais?: Array<{ canal: string; dias: number }>
+                    } = {}
+                    try {
+                      const c = d.coverage_by_source
+                      cov = typeof c === 'string' ? JSON.parse(c) : (c ?? {})
+                    } catch {
+                      cov = {}
+                    }
+                    const canais = cov.canais ?? []
+                    if (canais.length === 0) return null
+                    return (
+                      <p className="mt-3 text-xs text-gray-600">
+                        Cobertura:{' '}
+                        {canais
+                          .map(
+                            (c) =>
+                              c.canal + ' ' + c.dias + '/' + (cov.janela_dias ?? '—') + ' dias',
+                          )
+                          .join(' · ')}
+                      </p>
+                    )
+                  })()}
+                  {/* warnings */}
+                  {(() => {
+                    let w: string[] = []
+                    try {
+                      const ww = d.warnings
+                      w = typeof ww === 'string' ? JSON.parse(ww) : (ww ?? [])
+                    } catch {
+                      w = []
+                    }
+                    if (w.length === 0) return null
+                    return <p className="mt-1 text-xs text-amber-700">⚠ {w.join(' · ')}</p>
+                  })()}
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}
