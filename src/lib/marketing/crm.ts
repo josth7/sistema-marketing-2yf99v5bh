@@ -109,6 +109,28 @@ export async function eventosDoLead(id: string): Promise<LeadEvento[]> {
   }
 }
 
+/** Resumo da fila de conversões (pendentes/enviadas/valor). */
+export async function resumoConversoes(): Promise<{
+  pendentes: number
+  enviadas: number
+  erros: number
+  valor_pendente: number
+  valor_enviado: number
+}> {
+  try {
+    const r = await pb.send('/backend/v1/crm/conversoes/resumo', { method: 'GET' })
+    return r as {
+      pendentes: number
+      enviadas: number
+      erros: number
+      valor_pendente: number
+      valor_enviado: number
+    }
+  } catch (e) {
+    throw new Error(mensagemErro(e))
+  }
+}
+
 /** Registra uma conversão (venda) no lead — status vira "fechado". */
 export async function registrarConversao(
   id: string,

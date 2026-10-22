@@ -34,6 +34,7 @@ import {
   editarLead,
   eventosDoLead,
   registrarConversao,
+  resumoConversoes,
   linkWhatsapp,
   importarLeadsCsv,
   type Lead,
@@ -99,6 +100,14 @@ export default function Leads() {
   const [convDescricao, setConvDescricao] = useState('')
   const [convEnviando, setConvEnviando] = useState(false)
   const [convErro, setConvErro] = useState<string | null>(null)
+  // resumo da fila de conversões (Meta/Google)
+  const [convResumo, setConvResumo] = useState<{
+    pendentes: number
+    enviadas: number
+    erros: number
+    valor_pendente: number
+    valor_enviado: number
+  } | null>(null)
   // importação
   const [abrirImportar, setAbrirImportar] = useState(false)
   const [csv, setCsv] = useState('')
@@ -116,6 +125,11 @@ export default function Leads() {
     setErro(null)
     try {
       setItens(await listarLeads())
+      try {
+        setConvResumo(await resumoConversoes())
+      } catch {
+        setConvResumo(null)
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e))
     } finally {
@@ -368,6 +382,35 @@ export default function Leads() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {convResumo && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Conversões enviadas p/ Meta/Google
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
+              {convResumo.enviadas}
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                · R${' '}
+                {convResumo.valor_enviado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </p>
+          </div>
+          <div className="rounded-lg border px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Na fila (o Maestro envia às plataformas)
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
+              {convResumo.pendentes}
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                · R${' '}
+                {convResumo.valor_pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </p>
+          </div>
+        </div>
       )}
 
       {msg && (
