@@ -10,6 +10,7 @@ import {
   Activity,
   BrainCircuit,
   Users,
+  Eye,
 } from 'lucide-react'
 import { VERSAO_SISTEMA } from '@/lib/versao'
 
@@ -27,6 +28,7 @@ const ITENS_MENU = [
   { para: '/relatorios', rotulo: 'Relatórios', Icone: FileText },
   { para: '/caixa', rotulo: 'Caixa', Icone: Inbox },
   { para: '/leads', rotulo: 'Leads', Icone: Users },
+  { para: '/concorrentes', rotulo: 'Concorrentes', Icone: Eye },
   { para: '/analises', rotulo: 'Análises', Icone: BrainCircuit },
   { para: '/saude-canal', rotulo: 'Saúde do canal', Icone: Activity },
 ]

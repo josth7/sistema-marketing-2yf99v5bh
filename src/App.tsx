@@ -11,6 +11,7 @@ import Alertas from './pages/Alertas'
 import Saude from './pages/Saude'
 import Analises from './pages/Analises'
 import Leads from './pages/Leads'
+import Concorrentes from './pages/Concorrentes'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/saude-canal" element={<Saude />} />
           <Route path="/analises" element={<Analises />} />
           <Route path="/leads" element={<Leads />} />
+          <Route path="/concorrentes" element={<Concorrentes />} />
           {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
           <Route path="*" element={<NotFound />} />
         </Route>
