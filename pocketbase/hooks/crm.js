@@ -88,6 +88,14 @@ routerAdd(
         }
         if (!dentro) continue
       }
+      var criadoEm = ''
+      try {
+        criadoEm = String(l.get('created') || '')
+      } catch (eC1) {}
+      var atualizadoEm = ''
+      try {
+        atualizadoEm = String(l.get('updated') || '')
+      } catch (eC2) {}
       itens.push({
         id: l.id,
         nome: l.get('nome'),
@@ -100,8 +108,8 @@ routerAdd(
         observacoes: l.get('observacoes'),
         owner_id: l.get('owner_id'),
         conta_id: l.get('conta_id'),
-        criado_em: l.get('created'),
-        atualizado_em: l.get('updated'),
+        criado_em: criadoEm,
+        atualizado_em: atualizadoEm,
       })
     }
     return e.json(200, { ok: true, total: itens.length, itens: itens })
@@ -371,12 +379,16 @@ routerAdd(
     )
     const itens = []
     for (const ev of evs) {
+      var evCriado = ''
+      try {
+        evCriado = String(ev.get('created') || '')
+      } catch (eC3) {}
       itens.push({
         id: ev.id,
         tipo: ev.get('tipo'),
         texto: ev.get('texto'),
         user_id: ev.get('user_id'),
-        criado_em: ev.get('created'),
+        criado_em: evCriado,
       })
     }
     return e.json(200, { ok: true, total: itens.length, itens: itens })
