@@ -91,6 +91,7 @@ routerAdd(
     }
     return e.json(200, {
       ok: true,
+      v: 'me-v2',
       user: { id: e.auth.id, email: e.auth.email },
       grants: itens,
       escopo: { contas: contas, canais: canais },
