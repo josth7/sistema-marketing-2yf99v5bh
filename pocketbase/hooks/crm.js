@@ -96,6 +96,21 @@ routerAdd(
       try {
         atualizadoEm = String(l.get('updated') || '')
       } catch (eC2) {}
+      // nome do responsável (p/ o card do kanban — padrão do CRM atual)
+      var ownerNome = ''
+      const owId = String(l.get('owner_id') || '')
+      if (owId !== '') {
+        try {
+          const u = $app.findRecordById('users', owId)
+          ownerNome = String(u.get('name') || u.get('email') || '')
+        } catch (eOw) {}
+      }
+      // temperatura do lead (neutro/positivo/frio — padrão do CRM atual):
+      // orçamento ou fechado = positivo; perdido = frio; resto = neutro
+      var temperatura = 'neutro'
+      const stTmp = String(l.get('status') || 'novo')
+      if (stTmp === 'orcamento' || stTmp === 'fechado') temperatura = 'positivo'
+      else if (stTmp === 'perdido') temperatura = 'frio'
       itens.push({
         id: l.id,
         nome: l.get('nome'),
@@ -107,6 +122,8 @@ routerAdd(
         status: l.get('status') || 'novo',
         observacoes: l.get('observacoes'),
         owner_id: l.get('owner_id'),
+        owner_nome: ownerNome,
+        temperatura: temperatura,
         conta_id: l.get('conta_id'),
         criado_em: criadoEm,
         atualizado_em: atualizadoEm,
