@@ -101,15 +101,14 @@ routerAdd('POST', '/backend/v1/analises/tick', (e) => {
         return
       }
       const teto3 = pol3.get('max_eventos_automaticos_mes') || 2
-      const mesRef3 = hojeRef.slice(0, 7)
+      const mesRef3 = hojeRef3.slice(0, 7)
       const criadosMes3 = app.findRecordsByFilter(
         colEv3,
-        "origem='automatico' && created >= '" + mesRef3 + "-01'",
+        "dedupe_key~'rn03-' && created >= '" + mesRef3 + "-01'",
         '',
         100,
         0,
-      )
-      if (criadosMes3 && criadosMes3.length >= teto3) {
+      )      if (criadosMes3 && criadosMes3.length >= teto3) {
         resumo.avisos.push('RN-03: teto mensal atingido (' + teto3 + ')')
         return
       }
