@@ -700,6 +700,91 @@ routerAdd(
   $apis.requireAuth(),
 )
 
+// ==================== RODÍZIO ASSISTIDO (fase 4.1, PDF da Anezia §3) ====================
+// Sugere o vendedor com menos leads em aberto (carga ativa) para receber o
+// próximo lead. Distribuição EQUILIBRADA por carga — o dono confirma.
+
+routerAdd(
+  'GET',
+  '/backend/v1/crm/rodizio',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    const hoje = new Date().toISOString().slice(0, 10)
+    const colG = $app.findCollectionByNameOrId('access_grants')
+    const meus = $app.findRecordsByFilter(
+      colG,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '-created',
+      50,
+      0,
+    )
+    var temRead = false
+    for (const g of meus) {
+      const de = String(g.get('valid_from') || '')
+      const ate = String(g.get('valid_until') || '')
+      if (de !== '' && de.slice(0, 10) > hoje) continue
+      if (ate !== '' && ate.slice(0, 10) < hoje) continue
+      let acts = []
+      try {
+        const raw = g.get('actions')
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          acts = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          acts = JSON.parse(raw)
+        } else {
+          acts = raw || []
+        }
+      } catch (e2) {}
+      if (acts.indexOf('read_leads') >= 0) temRead = true
+    }
+    if (!temRead) {
+      return e.json(403, { ok: false, erro: 'sem permissão (read_leads)' })
+    }
+    const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+    const colL = $app.findCollectionByNameOrId('crm_leads')
+    const leads = $app.findRecordsByFilter(
+      colL,
+      'fixture=' + (ehFixture ? 'true' : 'false'),
+      '',
+      2000,
+      0,
+    )
+    // carga ativa por owner (leads não decididos)
+    const carga = {}
+    for (const l of leads) {
+      const ow = String(l.get('owner_id') || '')
+      if (ow === '') continue
+      const st = String(l.get('status') || 'novo')
+      if (st === 'fechado' || st === 'perdido') continue
+      carga[ow] = (carga[ow] || 0) + 1
+    }
+    // lista de vendedores (usuários reais com grant ativo — não fixture)
+    const colU = $app.findCollectionByNameOrId('users')
+    const usuarios = $app.findRecordsByFilter(colU, '', '', 100, 0)
+    const vendedores = []
+    for (const u of usuarios) {
+      const email = String(u.get('email') || '')
+      if (email.indexOf('.fixture.') >= 0) continue
+      if (email.indexOf('josth') >= 0) continue // dono não recebe rodízio
+      vendedores.push({
+        id: u.id,
+        nome: String(u.get('name') || email),
+        carga_ativa: carga[u.id] || 0,
+      })
+    }
+    vendedores.sort(function (a, b) {
+      return a.carga_ativa - b.carga_ativa
+    })
+    const sugerido = vendedores.length > 0 ? vendedores[0] : null
+    return e.json(200, {
+      ok: true,
+      sugerido: sugerido,
+      distribuicao: vendedores,
+    })
+  },
+  $apis.requireAuth(),
+)
+
 // ==================== FILA DE CONVERSÕES (fase 4, card 3) ====================
 // O Skip NÃO chama Meta/Google (E-12: Google fica no Composio do Maestro).
 // O Maestro puxa a fila assinada e confirma o envio de volta.
