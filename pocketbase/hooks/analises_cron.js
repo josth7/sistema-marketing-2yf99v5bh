@@ -128,6 +128,7 @@ cronAdd('analise_periodo_fechado', '30 10 * * *', () => {
       const tipos3 = ['diagnostico_periodo']
       const ev3 = new Record(colEv3)
       ev3.set('uuid', 'evt-' + hojeRef3.replace(/-/g, '') + '-auto')
+      ev3.set('tipo', 'periodo_fechado')
       ev3.set('origem', 'automatico')
       ev3.set('period_start', inicio3)
       ev3.set('period_end', fim3)
@@ -148,7 +149,7 @@ cronAdd('analise_periodo_fechado', '30 10 * * *', () => {
           const colAn3 = app.findCollectionByNameOrId('anuncios_criativos')
           const colPg3 = app.findCollectionByNameOrId('paginas_destino')
           const colMA3 = app.findCollectionByNameOrId('metricas_diarias_anuncio')
-          const regsAn3 = app.findRecordsByFilter(colAn3, '', '-gasto', 50, 0)
+          const regsAn3 = app.findRecordsByFilter(colAn3, '', '-created', 50, 0)
           const anuncios3 = []
           for (const ra of regsAn3) {
             const ancId3 = String(ra.get('anuncio_id') || '')
