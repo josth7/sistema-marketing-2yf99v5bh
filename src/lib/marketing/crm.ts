@@ -109,6 +109,31 @@ export async function eventosDoLead(id: string): Promise<LeadEvento[]> {
   }
 }
 
+/** Registra uma conversão (venda) no lead — status vira "fechado". */
+export async function registrarConversao(
+  id: string,
+  dados: { valor: number; canal?: string; descricao?: string },
+): Promise<{ id: string; status: string }> {
+  try {
+    const r = await pb.send(`/backend/v1/crm/leads/${id}/conversao`, {
+      method: 'POST',
+      body: dados,
+    })
+    return r as { id: string; status: string }
+  } catch (e) {
+    throw new Error(mensagemErro(e))
+  }
+}
+
+/** Link de WhatsApp (wa.me) com o telefone do lead (só números). */
+export function linkWhatsapp(telefone: string): string | null {
+  const digitos = telefone.replace(/\D/g, '')
+  if (digitos.length < 10) return null
+  // Brasil: DDD + número; wa.me espera 55 + DDD + número
+  const comPais = digitos.startsWith('55') ? digitos : '55' + digitos
+  return 'https://wa.me/' + comPais
+}
+
 /** Importa leads colados em CSV (uma linha por lead; cabeçalho opcional). */
 export async function importarLeadsCsv(csv: string): Promise<ResultadoImportacao> {
   const linhas = csv

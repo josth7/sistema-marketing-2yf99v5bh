@@ -33,6 +33,8 @@ import {
   criarLead,
   editarLead,
   eventosDoLead,
+  registrarConversao,
+  linkWhatsapp,
   importarLeadsCsv,
   type Lead,
   type LeadEvento,
@@ -90,6 +92,13 @@ export default function Leads() {
   const [eventos, setEventos] = useState<LeadEvento[]>([])
   const [novoStatus, setNovoStatus] = useState('')
   const [salvando, setSalvando] = useState(false)
+  // conversão (venda)
+  const [convAberto, setConvAberto] = useState(false)
+  const [convValor, setConvValor] = useState('')
+  const [convCanal, setConvCanal] = useState('whatsapp')
+  const [convDescricao, setConvDescricao] = useState('')
+  const [convEnviando, setConvEnviando] = useState(false)
+  const [convErro, setConvErro] = useState<string | null>(null)
   // importação
   const [abrirImportar, setAbrirImportar] = useState(false)
   const [csv, setCsv] = useState('')
@@ -217,6 +226,43 @@ export default function Leads() {
       setMsg(e instanceof Error ? e.message : String(e))
     } finally {
       setSalvando(false)
+    }
+  }
+
+  const abrirConversao = () => {
+    if (!detalhe) return
+    setConvAberto(true)
+    setConvValor('')
+    setConvCanal('whatsapp')
+    setConvDescricao('')
+    setConvErro(null)
+  }
+
+  const salvarConversao = async () => {
+    if (!detalhe) return
+    const valor = Number(convValor.replace(',', '.'))
+    if (!Number.isFinite(valor) || valor <= 0) {
+      setConvErro('Informe o valor da venda (maior que zero).')
+      return
+    }
+    setConvEnviando(true)
+    setConvErro(null)
+    try {
+      await registrarConversao(detalhe.id, {
+        valor,
+        canal: convCanal,
+        descricao: convDescricao.trim(),
+      })
+      setConvAberto(false)
+      setMsg('Conversão registrada — lead marcado como Fechado.')
+      await carregar()
+      const atualizado = { ...detalhe, status: 'fechado' as Lead['status'] }
+      setDetalhe(atualizado)
+      setEventos(await eventosDoLead(detalhe.id))
+    } catch (e) {
+      setConvErro(e instanceof Error ? e.message : String(e))
+    } finally {
+      setConvEnviando(false)
     }
   }
 
@@ -501,6 +547,25 @@ export default function Leads() {
                   {salvando ? 'Salvando…' : 'Salvar status'}
                 </Button>
               </div>
+              {/* WhatsApp como canal de venda (fase 4, card 2) */}
+              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
+                <span className="text-sm text-muted-foreground">Venda:</span>
+                {linkWhatsapp(detalhe.telefone) && (
+                  <a
+                    href={linkWhatsapp(detalhe.telefone) as string}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border bg-white px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Abrir no WhatsApp ↗
+                  </a>
+                )}
+                {detalhe.status !== 'fechado' && (
+                  <Button size="sm" onClick={abrirConversao}>
+                    Registrar conversão
+                  </Button>
+                )}
+              </div>
               <div>
                 <p className="mb-2 text-sm font-medium">Trilha de eventos</p>
                 <div className="space-y-1">
@@ -516,6 +581,64 @@ export default function Leads() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* registrar conversão */}
+      <Dialog open={convAberto} onOpenChange={setConvAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar conversão — {detalhe?.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="conv-valor">Valor da venda (R$) *</Label>
+                <Input
+                  id="conv-valor"
+                  value={convValor}
+                  onChange={(e) => setConvValor(e.target.value)}
+                  placeholder="1250,00"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Canal</Label>
+                <Select value={convCanal} onValueChange={setConvCanal}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    <SelectItem value="site">Site</SelectItem>
+                    <SelectItem value="telefone">Telefone</SelectItem>
+                    <SelectItem value="presencial">Presencial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="conv-desc">O que vendeu</Label>
+              <Input
+                id="conv-desc"
+                value={convDescricao}
+                onChange={(e) => setConvDescricao(e.target.value)}
+                placeholder="Ex.: Poltrona hidráulica + lavatório"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A conversão marca o lead como <strong>Fechado</strong> e alimenta os eventos de
+              conversão de volta para Meta/Google (próximo card).
+            </p>
+            {convErro && <p className="text-sm text-destructive">{convErro}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConvAberto(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={() => void salvarConversao()} disabled={convEnviando}>
+                {convEnviando ? 'Registrando…' : 'Registrar conversão'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
