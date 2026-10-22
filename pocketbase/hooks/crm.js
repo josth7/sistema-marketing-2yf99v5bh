@@ -325,6 +325,37 @@ routerAdd(
       lead.set('owner_id', String(body.owner_id || '').slice(0, 40))
       mudancas.push({ tipo: 'nota', texto: 'responsável atualizado' })
     }
+    if (body.motivo_perda !== undefined) {
+      lead.set(
+        'motivo_perda',
+        String(body.motivo_perda || '')
+          .trim()
+          .slice(0, 300),
+      )
+      mudancas.push({ tipo: 'nota', texto: 'motivo da perda registrado' })
+    }
+    if (body.proximo_contato_em !== undefined) {
+      if (String(body.proximo_contato_em || '').trim() !== '') {
+        try {
+          lead.set('proximo_contato_em', String(body.proximo_contato_em))
+          mudancas.push({
+            tipo: 'nota',
+            texto: 'próximo contato agendado para ' + String(body.proximo_contato_em).slice(0, 10),
+          })
+        } catch (ePc) {}
+      }
+    }
+    // status=perdido exige motivo (PDF da Anezia §8: motivos de perda no painel)
+    if (body.status === 'perdido' && String(body.motivo_perda || '').trim() === '') {
+      const motivoAtual = String(lead.get('motivo_perda') || '')
+      if (motivoAtual === '') {
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { motivo_perda: 'informe o motivo da perda' },
+        })
+      }
+    }
     if (mudancas.length === 0) {
       return e.json(200, { ok: true, id: lead.id, sem_mudanca: true })
     }
