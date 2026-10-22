@@ -264,6 +264,7 @@ routerAdd('POST', '/backend/v1/analises/eventos', (e) => {
     'uuid',
     'evt-' + agoraISO.replace(/[-:TZ.]/g, '') + '-' + Math.floor(Math.random() * 900 + 100),
   )
+  ev.set('tipo', 'periodo_fechado')
   ev.set('origem', 'solicitacao_manual')
   ev.set('period_start', inicio)
   ev.set('period_end', fim)
