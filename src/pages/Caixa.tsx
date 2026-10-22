@@ -58,8 +58,24 @@ export default function Caixa() {
   const [itens, setItens] = useState<ItemCaixa[]>([])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
-  const [aberto, setAberto] = useState<{ id: string; dados: Record<string, unknown> } | null>(null)
+  const [aberto, setAberto] = useState<{
+    id: string
+    dados: Record<string, unknown>
+    resumo: {
+      id: string
+      estado: string
+      rascunho: string
+      texto_publicado: string | null
+      revisado_em: string | null
+      revisao_nota: string | null
+      rotulo: string
+    } | null
+    podeRevisar: boolean
+  } | null>(null)
   const [marcando, setMarcando] = useState('')
+  const [textoEditado, setTextoEditado] = useState('')
+  const [notaRejeicao, setNotaRejeicao] = useState('')
+  const [msgRevisao, setMsgRevisao] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) return
@@ -106,11 +122,64 @@ export default function Caixa() {
 
   async function abrirRelatorio(item: ItemCaixa) {
     try {
-      const r = await pb.send('/backend/v1/reports/' + item.report_id, { method: 'GET' })
-      const item_ = (r as { item: Record<string, unknown> }).item
-      setAberto({ id: item.report_id, dados: item_ })
+      const r = (await pb.send('/backend/v1/reports/' + item.report_id, { method: 'GET' })) as {
+        item: Record<string, unknown>
+      }
+      const item_ = r.item
+      let resumo: {
+        id: string
+        estado: string
+        rascunho: string
+        texto_publicado: string | null
+        revisado_em: string | null
+        revisao_nota: string | null
+        rotulo: string
+      } | null = null
+      let podeRevisar = false
+      try {
+        const rr = (await pb.send(`/backend/v1/reports/${item.report_id}/resumo`, {
+          method: 'GET',
+        })) as {
+          resumo?: typeof resumo
+          pode_revisar?: boolean
+        }
+        resumo = rr.resumo ?? null
+        podeRevisar = rr.pode_revisar === true
+      } catch {
+        resumo = null
+      }
+      setTextoEditado('')
+      setNotaRejeicao('')
+      setMsgRevisao(null)
+      setAberto({ id: item.report_id, dados: item_, resumo, podeRevisar })
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'não foi possível abrir o relatório')
+    }
+  }
+
+  async function revisarNoModal(acao: 'aprovar' | 'editar' | 'rejeitar') {
+    if (!aberto) return
+    try {
+      const body: Record<string, string> = { acao }
+      if (acao === 'editar') body.texto = textoEditado
+      if (acao === 'rejeitar') body.nota = notaRejeicao
+      await pb.send(`/backend/v1/reports/${aberto.id}/resumo/revisar`, { method: 'POST', body })
+      // recarregar o modal com o estado novo
+      const r = (await pb.send('/backend/v1/reports/' + aberto.id, { method: 'GET' })) as {
+        item: Record<string, unknown>
+      }
+      const rr = (await pb.send(`/backend/v1/reports/${aberto.id}/resumo`, {
+        method: 'GET',
+      })) as { resumo?: typeof aberto.resumo; pode_revisar?: boolean }
+      setAberto({
+        id: aberto.id,
+        dados: r.item,
+        resumo: rr.resumo ?? null,
+        podeRevisar: rr.pode_revisar === true,
+      })
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'não foi possível registrar a revisão')
     }
   }
 
@@ -337,9 +406,75 @@ export default function Caixa() {
                 Fechar
               </button>
             </div>
-            {/* Resumo de IA (SPEC-3-003) — rótulo + registro de revisão */}
+            {/* Resumo de IA (SPEC-3-003) — rótulo + registro de revisão + PAINEL DE REVISÃO */}
+            {aberto.resumo && (
+              <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                    {aberto.resumo.rotulo}
+                  </span>
+                  <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                    {aberto.resumo.estado}
+                  </span>
+                </div>
+                {aberto.resumo.estado === 'aguardando_revisao' && aberto.podeRevisar ? (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-xs text-gray-600">
+                      Checklist: cada frase é verificável no relatório? Sem recomendação de ação?
+                      Sem dado externo?
+                    </p>
+                    <textarea
+                      className="w-full rounded border border-gray-300 p-2 text-sm"
+                      rows={4}
+                      value={textoEditado || aberto.resumo.rascunho}
+                      onChange={(ev) => setTextoEditado(ev.target.value)}
+                    />
+                    <input
+                      className="w-full rounded border border-gray-300 p-2 text-sm"
+                      placeholder="Nota (obrigatória para rejeitar)"
+                      value={notaRejeicao}
+                      onChange={(ev) => setNotaRejeicao(ev.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => void revisarNoModal('aprovar')}
+                        className="rounded-md bg-[#6C3EF5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#5b32d4]"
+                      >
+                        Aprovar
+                      </button>
+                      <button
+                        onClick={() => void revisarNoModal('editar')}
+                        disabled={!textoEditado.trim() || textoEditado.length > 2500}
+                        className="rounded-md border border-border bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Salvar e publicar editado
+                      </button>
+                      <button
+                        onClick={() => void revisarNoModal('rejeitar')}
+                        disabled={!notaRejeicao.trim()}
+                        className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Rejeitar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-900">
+                    {aberto.resumo.texto_publicado || aberto.resumo.rascunho}
+                  </p>
+                )}
+                {aberto.resumo.revisado_em && (
+                  <p className="mt-2 text-xs text-gray-600">
+                    revisado em {String(aberto.resumo.revisado_em).slice(0, 10)}
+                    {aberto.resumo.revisao_nota ? ' — ' + aberto.resumo.revisao_nota : ''}
+                  </p>
+                )}
+                {msgRevisao && <p className="mt-2 text-sm text-green-700">{msgRevisao}</p>}
+              </div>
+            )}
             {typeof aberto.dados.resumo_publicado === 'string' &&
-              aberto.dados.resumo_publicado.length > 0 && (
+              aberto.dados.resumo_publicado.length > 0 &&
+              !aberto.resumo && (
                 <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
                   <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
                     Gerado por IA — validar antes de decidir
