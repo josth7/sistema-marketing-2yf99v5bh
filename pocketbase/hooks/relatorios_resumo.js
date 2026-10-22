@@ -101,6 +101,39 @@ routerAdd(
         }
       } catch (eCadeia) {}
     }
+    // se a cadeia não achou, buscar o resumo mais recente da MESMA quinzena+scope
+    // (o resumo pertence à quinzena; revisões paralelas dividem a cadeia)
+    if (!sums || sums.length === 0) {
+      try {
+        const colR3 = $app.findCollectionByNameOrId('reports')
+        const irmãos = $app.findRecordsByFilter(
+          colR3,
+          "period_start='" +
+            rep.get('period_start') +
+            "' && period_end='" +
+            rep.get('period_end') +
+            "' && scope='" +
+            String(rep.get('scope') || '').replace(/'/g, '') +
+            "'",
+          '-report_revision',
+          50,
+          0,
+        )
+        for (const irmao of irmãos) {
+          const sIr = $app.findRecordsByFilter(
+            colS,
+            "report_id='" + irmao.id + "'",
+            '-created',
+            1,
+            0,
+          )
+          if (sIr && sIr.length > 0) {
+            sums = sIr
+            break
+          }
+        }
+      } catch (eIrmaos) {}
+    }
     if (!sums || sums.length === 0) {
       return e.json(200, { ok: true, resumo: null, aviso: 'resumo indisponível' })
     }
