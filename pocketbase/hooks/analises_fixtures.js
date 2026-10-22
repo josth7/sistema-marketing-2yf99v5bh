@@ -281,6 +281,19 @@ routerAdd('POST', '/backend/v1/analises/eventos', (e) => {
   )
   ev.set('tipo', 'periodo_fechado')
   ev.set('origem', 'solicitacao_manual')
+  // gatilho_ref = uuid do relatório mais recente da quinzena (se existir) —
+  // permite o resumo_relatorio com alvo_ref = gatilho_ref (SPEC-3-003)
+  try {
+    const colR7 = app.findCollectionByNameOrId('reports')
+    const rs7 = app.findRecordsByFilter(
+      colR7,
+      "period_start='" + inicio + "' && period_end='" + fim + "'",
+      '-created',
+      1,
+      0,
+    )
+    if (rs7 && rs7.length > 0) ev.set('gatilho_ref', String(rs7[0].get('uuid') || ''))
+  } catch (eG7) {}
   ev.set('period_start', inicio)
   ev.set('period_end', fim)
   ev.set('scope', JSON.stringify({ contas: temTudo ? ['*'] : contasGrant, canais: [] }))
