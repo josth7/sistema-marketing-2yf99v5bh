@@ -891,8 +891,13 @@ routerAdd(
     const itens = []
     for (const c of registros) {
       let nomeLead = ''
+      // Guarda dupla (28/10): a fila filtra `fixture` da CONVERSÃO, mas nada
+      // impedia uma conversão real apontar para um lead de teste. Se o lead é
+      // fixture, a conversão nunca entra na fila — o Maestro não pode enviar
+      // venda de teste ao Meta/Google.
       try {
         const l = $app.findRecordById('crm_leads', String(c.get('lead_id')))
+        if (String(l.get('fixture')) === 'true') continue
         nomeLead = String(l.get('nome') || '')
       } catch (eL) {}
       itens.push({
