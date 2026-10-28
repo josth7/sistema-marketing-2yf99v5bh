@@ -81,6 +81,16 @@ routerAdd(
       5000,
       0,
     )
+    // mapa de nomes de usuário (1 consulta em vez de N)
+    const mapaUsuarios = {}
+    try {
+      const colU = $app.findCollectionByNameOrId('users')
+      const usuarios = $app.findRecordsByFilter(colU, '', '', 200, 0)
+      for (const u of usuarios) {
+        mapaUsuarios[u.id] = String(u.get('name') || u.get('email') || '')
+      }
+    } catch (eU) {}
+
     const itens = []
     for (const l of registros) {
       if (!temTudo) {
@@ -99,15 +109,12 @@ routerAdd(
       try {
         atualizadoEm = String(l.get('updated') || '')
       } catch (eC2) {}
-      // nome do responsável (p/ o card do kanban — padrão do CRM atual)
-      var ownerNome = ''
+      // nome do responsável — sai do mapa carregado uma vez por requisição
+      // (antes era findRecordById por lead: ~1.5 mil consultas só para montar
+      // a lista, o que dominava o tempo de resposta com a base da agência)
       const owId = String(l.get('owner_id') || '')
-      if (owId !== '') {
-        try {
-          const u = $app.findRecordById('users', owId)
-          ownerNome = String(u.get('name') || u.get('email') || '')
-        } catch (eOw) {}
-      }
+      var ownerNome = ''
+      if (owId !== '') ownerNome = mapaUsuarios[owId] || ''
       // temperatura do lead (neutro/positivo/frio — padrão do CRM atual):
       // orçamento ou fechado = positivo; perdido = frio; resto = neutro
       var temperatura = 'neutro'

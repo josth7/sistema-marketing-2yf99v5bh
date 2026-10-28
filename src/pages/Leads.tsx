@@ -20,6 +20,16 @@ import {
 } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+
+/**
+ * Paginação da tela (28/10): a base da agência trouxe 1.529 leads e a tabela
+ * montava todas as linhas de uma vez — a tela demorava e o navegador travava.
+ * Agora só a página atual vai para o DOM. Os indicadores, o funil e a busca
+ * continuam usando a lista inteira (é o que os torna corretos).
+ */
+const TAMANHO_PAGINA = 25
+/** Teto de cards por coluna do funil — o resto aparece no contador da coluna. */
+const LIMITE_COLUNA = 30
 import {
   CabecalhoPagina,
   EstadoCarregando,
@@ -124,6 +134,8 @@ export default function Leads() {
   const [dash, setDash] = useState<DashboardCrm | null>(null)
   // vista: lista ou funil
   const [vista, setVista] = useState<'lista' | 'funil'>('lista')
+  // página atual da tabela (0-based)
+  const [pagina, setPagina] = useState(0)
   // importação
   const [abrirImportar, setAbrirImportar] = useState(false)
   const [csv, setCsv] = useState('')
@@ -198,6 +210,30 @@ export default function Leads() {
     }
     return out
   }, [itens, filtroStatus, busca])
+
+  /** Quantas páginas a lista filtrada tem (mínimo 1, para a tabela não sumir). */
+  const totalPaginas = useMemo(
+    () => Math.max(1, Math.ceil(filtrados.length / TAMANHO_PAGINA)),
+    [filtrados.length],
+  )
+
+  /** Só a página atual vai para o DOM — o resto da base fica fora da tela. */
+  const paginaAtual = useMemo(
+    () => filtrados.slice(pagina * TAMANHO_PAGINA, (pagina + 1) * TAMANHO_PAGINA),
+    [filtrados, pagina],
+  )
+
+  // filtro ou busca mudou: volta para a primeira página, senão a pessoa fica
+  // numa página vazia (ex.: estava na 40 e o filtro deixou 3 resultados)
+  useEffect(() => {
+    setPagina(0)
+  }, [filtroStatus, busca])
+
+  // a lista encolheu (lead virou outro status, importação recarregou): se a
+  // página atual deixou de existir, recua para a última válida
+  useEffect(() => {
+    if (pagina > totalPaginas - 1) setPagina(totalPaginas - 1)
+  }, [pagina, totalPaginas])
 
   /** Indicadores do dashboard (taxa de fechamento, por origem). */
   const indicadores = useMemo(() => {
@@ -623,7 +659,7 @@ export default function Leads() {
                   {coluna.length === 0 && (
                     <p className="px-1 py-3 text-center text-xs text-muted-foreground">vazio</p>
                   )}
-                  {coluna.map((l) => (
+                  {coluna.slice(0, LIMITE_COLUNA).map((l) => (
                     <div key={l.id} className="rounded-md border bg-background p-2 shadow-sm">
                       <div className="flex items-center justify-between gap-1">
                         <p className="truncate text-sm font-medium">{l.nome}</p>
@@ -684,6 +720,12 @@ export default function Leads() {
                       </div>
                     </div>
                   ))}
+                  {coluna.length > LIMITE_COLUNA && (
+                    <p className="px-1 py-2 text-center text-xs text-muted-foreground">
+                      + {coluna.length - LIMITE_COLUNA} não exibidos — use a vista Lista (com busca)
+                      para chegar neles
+                    </p>
+                  )}
                 </div>
               </div>
             )
@@ -708,7 +750,7 @@ export default function Leads() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrados.map((l) => (
+                  {paginaAtual.map((l) => (
                     <tr key={l.id} className="border-b last:border-0">
                       <td className="py-2 pr-3 font-medium">{l.nome}</td>
                       <td className="py-2 pr-3">{l.telefone || '—'}</td>
@@ -736,9 +778,60 @@ export default function Leads() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              {filtrados.length} de {itens.length} leads
-            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                {filtrados.length === 0
+                  ? '0 de ' + itens.length + ' leads'
+                  : `${pagina * TAMANHO_PAGINA + 1}–${Math.min(
+                      (pagina + 1) * TAMANHO_PAGINA,
+                      filtrados.length,
+                    )} de ${filtrados.length}` +
+                    (filtrados.length === itens.length ? '' : ` (${itens.length} no total)`)}
+              </p>
+              {totalPaginas > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={pagina === 0}
+                    onClick={() => setPagina(0)}
+                  >
+                    ⟪
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={pagina === 0}
+                    onClick={() => setPagina((p) => Math.max(0, p - 1))}
+                  >
+                    ← anterior
+                  </Button>
+                  <span className="px-2 text-xs tabular-nums text-muted-foreground">
+                    {pagina + 1} / {totalPaginas}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={pagina >= totalPaginas - 1}
+                    onClick={() => setPagina((p) => Math.min(totalPaginas - 1, p + 1))}
+                  >
+                    próxima →
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={pagina >= totalPaginas - 1}
+                    onClick={() => setPagina(totalPaginas - 1)}
+                  >
+                    ⟫
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
