@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T18:13:38.012Z",
+  "generatedAt": "2026-10-28T18:42:28.641Z",
   "collections": [
     {
       "name": "users",
@@ -3220,6 +3220,12 @@
             "onCreate",
             "onUpdate"
           ]
+        },
+        {
+          "name": "webhook_apontado_em",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
