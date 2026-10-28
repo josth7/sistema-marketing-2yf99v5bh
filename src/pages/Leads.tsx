@@ -112,6 +112,16 @@ export default function Leads() {
   } | null>(null)
   const [erroConversa, setErroConversa] = useState<string>('')
   const [carregandoConversa, setCarregandoConversa] = useState(false)
+  // transferência para vendedor (CA-3-16) — usa pb.send direto, sem import novo
+  const [transf, setTransf] = useState<{
+    vendedor_nome: string
+    regra: string
+    estado: string
+    detalhe: string
+    envios: Array<{ motivo: string; modo: string; estado: string }>
+  } | null>(null)
+  const [transfErro, setTransfErro] = useState('')
+  const [transferindo, setTransferindo] = useState(false)
   const [eventos, setEventos] = useState<LeadEvento[]>([])
   const [novoStatus, setNovoStatus] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -271,6 +281,41 @@ export default function Leads() {
     for (const l of itens) c[l.status] = (c[l.status] || 0) + 1
     return c
   }, [itens])
+
+  /** Transfere o lead para um vendedor pelo rodízio (SPEC-3-005, RN-67). */
+  const transferir = async () => {
+    if (!detalhe) return
+    setTransferindo(true)
+    setTransfErro('')
+    setTransf(null)
+    try {
+      type R = { vendedor_nome?: string; regra?: string; estado?: string; detalhe?: string }
+      type H = {
+        itens?: Array<{ envios?: Array<{ motivo: string; modo: string; estado: string }> }>
+      }
+      const r = (await pb.send('/backend/v1/whatsapp/leads/' + detalhe.id + '/transferir', {
+        method: 'POST',
+        body: { motivo: 'primeiro_contato' },
+      })) as R
+      const h = (await pb.send('/backend/v1/whatsapp/leads/' + detalhe.id + '/transferencias', {
+        method: 'GET',
+      })) as H
+      const primeiro = (h.itens || [])[0]
+      const envs = (primeiro && primeiro.envios) || []
+      setTransf({
+        vendedor_nome: r.vendedor_nome || '—',
+        regra: r.regra || '—',
+        estado: r.estado || '—',
+        detalhe: r.detalhe || '',
+        envios: envs.map((e) => ({ motivo: e.motivo, modo: e.modo, estado: e.estado })),
+      })
+      await carregar()
+    } catch (e) {
+      setTransfErro(e instanceof Error ? e.message : String(e))
+    } finally {
+      setTransferindo(false)
+    }
+  }
 
   const criar = async () => {
     if (nNome.trim() === '') {
@@ -965,6 +1010,45 @@ export default function Leads() {
                   <Button size="sm" onClick={abrirConversao}>
                     Registrar conversão
                   </Button>
+                )}
+              </div>
+              {/* Transferência para vendedor (SPEC-3-005, CA-3-16) */}
+              <div className="rounded-md border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">Atendimento</p>
+                    <p className="text-xs text-muted-foreground">
+                      {detalhe.owner_nome
+                        ? 'Responsável: ' + detalhe.owner_nome
+                        : 'Sem responsável — a transferência usa o rodízio'}
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={() => void transferir()} disabled={transferindo}>
+                    {transferindo ? 'Transferindo…' : 'Transferir para vendedor'}
+                  </Button>
+                </div>
+                {transfErro && <p className="mt-2 text-xs text-red-600">{transfErro}</p>}
+                {transf && (
+                  <div className="mt-2 space-y-1 text-xs">
+                    <p>
+                      <span className="text-muted-foreground">Vendedor:</span>{' '}
+                      <span className="font-medium">{transf.vendedor_nome}</span>{' '}
+                      <span className="text-muted-foreground">({transf.regra})</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Estado:</span> {transf.estado}
+                      {transf.detalhe ? ' — ' + transf.detalhe : ''}
+                    </p>
+                    {transf.envios.map((e, i) => (
+                      <p key={i} className="text-muted-foreground">
+                        {e.motivo === 'aviso_vendedor' ? 'Aviso ao vendedor' : 'Aviso ao cliente'}:{' '}
+                        {e.modo} · {e.estado}
+                      </p>
+                    ))}
+                    {transf.envios.length === 0 && (
+                      <p className="text-muted-foreground">Nenhum aviso enfileirado.</p>
+                    )}
+                  </div>
                 )}
               </div>
               {/* Conversa do WhatsApp (SPEC-3-005, CA-3-15) */}
