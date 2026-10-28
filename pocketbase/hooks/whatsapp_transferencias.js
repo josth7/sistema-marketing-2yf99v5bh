@@ -248,13 +248,33 @@ onRecordAfterCreateSuccess((e) => {
       var url = ''
       var auth = ''
       if (ehFixture) {
-        // URL de fixture: usa a do próprio ambiente; sem ela, cai no host interno
-        // (SITE_URL pode não estar configurado — e URL relativa nunca funciona).
-        var baseFit = String($secrets.get('SITE_URL') || '')
-        if (baseFit === '') baseFit = 'https://sistema-marketing-1f51e.shrd03.internal.goskip.dev'
-        url = baseFit + '/backend/v1/fixtures/dapi/send'
-        auth = String($secrets.get('FIXTURE_TICK_SECRET') || '')
-      } else {
+        // Envio FIXTURE não passa por rede nem por segredo: o envio carrega o
+        // status que a D-API devolveria (fixture_status) e a classificação é
+        // aplicada aqui, determinística. Depender de URL/segredo fazia o teste
+        // cair em erro_definitivo sem provar nada.
+        const statusSimulado = Number(env.get('fixture_status') || 200)
+        const tentFit = Number(env.get('tentativas') || 0) + 1
+        env.set('tentativas', tentFit)
+        if (statusSimulado >= 200 && statusSimulado < 300) {
+          env.set('estado', 'enviado')
+          env.set('ultimo_erro', '')
+          env.set('wa_message_id', 'fixture-' + String(Date.now()))
+          env.set('enviado_em', new Date().toISOString())
+          $app.save(env)
+          return 'enviado'
+        }
+        if (statusSimulado >= 400 && statusSimulado < 500 && statusSimulado !== 429) {
+          env.set('estado', 'erro_definitivo')
+          env.set('ultimo_erro', 'dapi_http_4xx')
+          $app.save(env)
+          return 'erro_definitivo'
+        }
+        env.set('ultimo_erro', statusSimulado === 429 ? 'dapi_http_429' : 'dapi_http_5xx')
+        env.set('estado', tentFit >= 3 ? 'erro_definitivo' : 'erro')
+        $app.save(env)
+        return String(env.get('estado'))
+      }
+      {
         var chave = ''
         try {
           chave = String($secrets.get(secao) || '')
