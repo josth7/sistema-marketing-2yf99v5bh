@@ -59,8 +59,16 @@ routerAdd(
     } catch (_) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
-    const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
-    if (String(lead.get('fixture')) !== String(ehFixture)) {
+    // `e.auth.email` não vem preenchido no record de auth do JSVM — ler do
+    // banco. Sem isto o usuário de teste nunca é reconhecido como fixture e
+    // recebe 404 nos próprios leads (bug real encontrado no teste de 28/10).
+    var emailAuth = ''
+    try {
+      emailAuth = String($app.findRecordById('users', e.auth.id).get('email') || '')
+    } catch (eA) {}
+    const ehFixture = emailAuth.indexOf('fixture') >= 0
+    const leadFixture = String(lead.get('fixture')) === 'true'
+    if (leadFixture !== ehFixture) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
 
