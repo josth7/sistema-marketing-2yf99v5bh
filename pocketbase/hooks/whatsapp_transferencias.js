@@ -398,7 +398,7 @@ onRecordAfterCreateSuccess((e) => {
         textoVendedor,
         String(central ? central.get('modelo_aviso_vendedor') || '' : ''),
         { nome: String(lead.get('nome') || ''), telefone: telefoneCliente },
-        'transf_' + tr.id + '_vendedor_' + vendedorId,
+        'transf_vendedor_' + leadId + '_' + vendedorId,
       )
       if (id) envios.push(id)
     }
@@ -417,7 +417,7 @@ onRecordAfterCreateSuccess((e) => {
         textoCliente,
         String(central.get('modelo_transferencia_cliente') || ''),
         { vendedor: vendedorNome, numero_vendedor: numeroVendedor },
-        'transf_' + tr.id + '_cliente',
+        'transf_cliente_' + leadId,
       )
       if (id) envios.push(id)
     }
