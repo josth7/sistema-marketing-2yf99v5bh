@@ -840,7 +840,13 @@ routerAdd(
     const vendedores = []
     for (const u of usuarios) {
       const email = String(u.get('email') || '')
-      if (email.indexOf('.fixture.') >= 0) continue
+      if (email.toLowerCase().indexOf('fixture') >= 0) continue
+      if (
+        String(u.get('name') || '')
+          .toLowerCase()
+          .indexOf('fixture') >= 0
+      )
+        continue
       if (email.indexOf('josth') >= 0) continue // dono não recebe rodízio
       vendedores.push({
         id: u.id,

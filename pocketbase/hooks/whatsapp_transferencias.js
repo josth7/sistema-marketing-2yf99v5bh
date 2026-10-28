@@ -77,7 +77,11 @@ onRecordAfterCreateSuccess((e) => {
       var melhorCarga = -1
       for (const u of usuarios) {
         const email = String(u.get('email') || '')
-        if (email.indexOf('.fixture.') >= 0) continue
+        const nomeU = String(u.get('name') || '')
+        // usuário de teste não entra no rodízio: o e-mail dos fixtures criados
+        // pelo QA não segue o padrão '.fixture.' — o nome é a marca confiável
+        if (email.toLowerCase().indexOf('fixture') >= 0) continue
+        if (nomeU.toLowerCase().indexOf('fixture') >= 0) continue
         if (email.indexOf('josth') >= 0) continue // dono não recebe rodízio
         const c = carga[u.id] || 0
         if (melhor === '' || c < melhorCarga) {
