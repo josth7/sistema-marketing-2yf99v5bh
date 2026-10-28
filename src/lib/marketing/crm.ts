@@ -230,74 +230,56 @@ export async function importarLeadsCsv(csv: string): Promise<ResultadoImportacao
   }
 }
 
-export type MensagemWhatsapp = {
-  id: string
-  autor: string
-  autor_user: string
-  direcao: string
-  tipo: string
-  texto: string
-  texto_original: string
-  media_url: string
-  media_url_temporaria: boolean
-  media_mimetype: string
-  media_duracao_s: number
-  media_ptt: boolean
-  status: string
-  enviada_em: string
-  editada_em: string
-  apagada: boolean
-  numero: string
-}
-
-export type ConversaDoLead = {
+export type ResultadoTransferencia = {
   ok: boolean
-  lead: string
-  total: number
-  conversas: number
-  itens: MensagemWhatsapp[]
+  vendedor_user: string
+  vendedor_nome: string
+  regra: string
+  estado: string
+  envios: string[] | null
+  detalhe: string
 }
 
 /**
- * Conversa do WhatsApp na ficha do lead (SPEC-3-005, CA-3-15).
- *
- * A rota decide no servidor o que este usuário pode ver (read_conversas +
- * acesso por número): sem permissão, devolve 403 e a tela mostra o aviso.
+ * Transfere o lead para um vendedor pelo rodízio (SPEC-3-005, RN-67).
+ * `simulacao` só calcula o vendedor e não grava nada.
  */
-export async function conversaDoLead(leadId: string): Promise<ConversaDoLead> {
+export async function transferirLead(
+  leadId: string,
+  opcoes?: { motivo?: string; simulacao?: boolean },
+): Promise<ResultadoTransferencia> {
   try {
-    const r = await pb.send('/backend/v1/whatsapp/leads/' + leadId + '/conversa', { method: 'GET' })
-    return r as ConversaDoLead
+    const r = await pb.send('/backend/v1/whatsapp/leads/' + leadId + '/transferir', {
+      method: 'POST',
+      body: {
+        motivo: opcoes?.motivo || 'primeiro_contato',
+        simulacao: opcoes?.simulacao === true,
+      },
+    })
+    return r as ResultadoTransferencia
   } catch (e) {
     throw new Error(mensagemErro(e))
   }
 }
 
-/** Rótulo de quem mandou, na linguagem da tela. */
-export function rotuloAutor(autor: string): string {
-  const mapa: Record<string, string> = {
-    cliente: 'Cliente',
-    ia: 'IA',
-    vendedor: 'Vendedor',
-    equipe_central: 'Equipe da central',
-    sistema: 'Sistema',
-    api_externa: 'API externa',
+/** Histórico de transferências do lead, com o estado de cada aviso. */
+export async function transferenciasDoLead(leadId: string): Promise<
+  Array<{
+    id: string
+    vendedor_nome: string
+    regra: string
+    estado: string
+    simulacao: boolean
+    detalhe: string
+    envios: Array<{ id: string; motivo: string; modo: string; estado: string; tentativas: number }>
+  }>
+> {
+  try {
+    const r = await pb.send('/backend/v1/whatsapp/leads/' + leadId + '/transferencias', {
+      method: 'GET',
+    })
+    return (r as { itens: never[] }).itens || []
+  } catch (e) {
+    throw new Error(mensagemErro(e))
   }
-  return mapa[autor] || autor
-}
-
-/** Descrição curta da mídia (áudio com duração, imagem, documento). */
-export function descricaoMidia(m: MensagemWhatsapp): string {
-  if (!m.media_url) return ''
-  const tipo = m.media_mimetype || ''
-  if (m.tipo === 'audio') {
-    const dur = Number(m.media_duracao_s || 0)
-    const mm = Math.floor(dur / 60)
-    const ss = String(Math.floor(dur % 60)).padStart(2, '0')
-    return `Áudio ${mm}:${ss}`
-  }
-  if (tipo.indexOf('image') >= 0) return 'Imagem'
-  if (tipo.indexOf('video') >= 0) return 'Vídeo'
-  if (tipo.indexOf('audio') >= 0) return 'Áudio'
-  return 'Documento'
 }
