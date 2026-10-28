@@ -71,12 +71,19 @@ routerAdd(
     const colL = $app.findCollectionByNameOrId('crm_leads')
     // fixture separado: usuários reais não veem fixture e vice-versa
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+    // teto alto: a base da agência trouxe 1.518 leads (28/10). O teto antigo
+    // de 500 fazia a tela mostrar só um terço da base.
+    const qLimite = Number(e.request.query().get('limite') || 0)
+    const qOffset = Number(e.request.query().get('offset') || 0)
+    const limite = qLimite > 0 && qLimite <= 5000 ? qLimite : 5000
+    const deslocamento = qOffset > 0 ? qOffset : 0
+    // sort VAZIO: findRecordsByFilter com sort lança 400 no JSVM (lição 22/10)
     const registros = $app.findRecordsByFilter(
       colL,
       'fixture=' + (ehFixture ? 'true' : 'false'),
       '',
-      500,
-      0,
+      limite,
+      deslocamento,
     )
     const itens = []
     for (const l of registros) {
