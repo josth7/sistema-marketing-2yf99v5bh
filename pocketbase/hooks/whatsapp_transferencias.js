@@ -23,6 +23,18 @@
  */
 
 onRecordAfterCreateSuccess((e) => {
+  // Guarda de coleção: sem isto o hook roda em TODA criação do sistema
+  // (lead, mensagem, conexão...) e escreve campos de transferência no registro
+  // errado. Só age no pedido de transferência.
+  try {
+    if (String(e.record.collection().name) !== 'whatsapp_transferencias') {
+      e.next()
+      return
+    }
+  } catch (eCol) {
+    e.next()
+    return
+  }
   try {
     const tr = e.record
     const simular = String(tr.get('simulacao')) === 'true'
