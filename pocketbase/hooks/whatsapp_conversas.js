@@ -75,7 +75,13 @@ routerAdd(
     } catch (_) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
-    const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+    // e.auth.email vem VAZIO no JSVM: sem ler do banco, o usuário de teste nunca
+    // é reconhecido como fixture e a tela dele não mostra as conversas de teste.
+    var emailAuth = ''
+    try {
+      emailAuth = String($app.findRecordById('users', e.auth.id).get('email') || '')
+    } catch (eEm) {}
+    const ehFixture = emailAuth.toLowerCase().indexOf('fixture') >= 0
     if (String(lead.get('fixture')) !== String(ehFixture)) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
@@ -260,7 +266,13 @@ routerAdd(
     if (!temConversas) {
       return e.json(403, { ok: false, erro: 'sem permissão para ler conversas (read_conversas)' })
     }
-    const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+    // e.auth.email vem VAZIO no JSVM: sem ler do banco, o usuário de teste nunca
+    // é reconhecido como fixture e a tela dele não mostra as conversas de teste.
+    var emailAuth = ''
+    try {
+      emailAuth = String($app.findRecordById('users', e.auth.id).get('email') || '')
+    } catch (eEm) {}
+    const ehFixture = emailAuth.toLowerCase().indexOf('fixture') >= 0
     const colConv = $app.findCollectionByNameOrId('whatsapp_conversas')
     const colSin = $app.findCollectionByNameOrId('whatsapp_sinais')
     const colConexoes = $app.findCollectionByNameOrId('whatsapp_conexoes')
