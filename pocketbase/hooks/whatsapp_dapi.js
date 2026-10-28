@@ -415,7 +415,15 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
 
   const mediaData = data.media_data || {}
   const textoMsg = String(data.message || mediaData.caption || '').slice(0, 10000)
-  const tsMs = Number(data.timestamp || 0)
+  // A D-API manda `timestamp` em SEGUNDOS (ex.: 1761672000). Tratar como
+  // milissegundos jogava a data para 1970 — provado em 28/10 com a primeira
+  // mensagem real: veio "1970-01-21 18:06". Aceita os dois formatos: acima de
+  // 1e11 já está em ms (equivale a ano > 5138 se fosse segundos).
+  var tsBruto = Number(data.timestamp || 0)
+  if (tsBruto > 0 && tsBruto < 100000000000) {
+    tsBruto = tsBruto * 1000
+  }
+  const tsMs = tsBruto
   const enviadaEm = tsMs > 0 ? new Date(tsMs).toISOString() : new Date().toISOString()
 
   var msgId = ''
