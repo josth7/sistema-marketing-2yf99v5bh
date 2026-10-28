@@ -651,8 +651,20 @@ routerAdd(
           }
         } catch (eDup) {}
       }
+      // lista PRÓPRIA com organico: esta rota tem a sua lista ORIGENS (a outra
+      // fica na rota de criação). Em 28/10 o valor novo entrou só na primeira e
+      // os 122 leads de Marketing Orgânico viraram `importacao` (migração 0064).
+      const ORIGENS_IMPORT = [
+        'meta',
+        'google',
+        'site',
+        'whatsapp',
+        'manual',
+        'importacao',
+        'organico',
+      ]
       const origem =
-        ORIGENS.indexOf(String(l.origem || 'importacao')) >= 0
+        ORIGENS_IMPORT.indexOf(String(l.origem || 'importacao')) >= 0
           ? String(l.origem || 'importacao')
           : 'importacao'
       const status =
