@@ -71,6 +71,8 @@ routerAdd(
     )
     const convPorLead = {}
     for (const c of convs) {
+      // conversão em `erro` não é venda: fora do mapa por lead também
+      if (String(c.get('estado') || '') === 'erro') continue
       const lid = String(c.get('lead_id'))
       const v = Number(c.get('valor') || 0)
       const criado = String(c.get('created') || '')
@@ -86,9 +88,14 @@ routerAdd(
     //  2) crm_leads.valor de lead fechado vindo da planilha da agência (histórico
     //     importado em 28/10 — essas vendas NÃO entram na fila de conversões,
     //     para não reenviar 2 meses de venda às plataformas)
+    // Só conta venda REAL: conversão marcada como `erro` é registro morto
+    // (teste de QA ou falha de envio) e não pode inflar receita, ticket nem
+    // taxa de conversão. Antes somava tudo, e 3 conversões de teste entraram
+    // como R$ 2.360 de faturamento.
     var receitaGanha = 0
     var nConversoes = 0
     for (const c of convs) {
+      if (String(c.get('estado') || '') === 'erro') continue
       receitaGanha += Number(c.get('valor') || 0)
       nConversoes++
     }
