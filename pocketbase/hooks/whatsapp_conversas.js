@@ -62,7 +62,9 @@ routerAdd(
       if (acts.indexOf('read_leads') >= 0) {
         temReadLeads = true
         const sa = lerLista(g.get('scope_accounts'))
-        if (sa.length === 0 || sa.indexOf('*') >= 0) temTudoLeads = true
+        // escopo VAZIO = só os leads do próprio (deny por padrão); '*' = tudo.
+        // Antes vazio virava "tudo" e o vendedor via a conversa da central.
+        if (sa.indexOf('*') >= 0) temTudoLeads = true
       }
     }
     if (!temConversas) {
@@ -260,7 +262,9 @@ routerAdd(
       if (acts.indexOf('read_conversas') >= 0) temConversas = true
       if (acts.indexOf('read_leads') >= 0) {
         const sa = lerLista(g.get('scope_accounts'))
-        if (sa.length === 0 || sa.indexOf('*') >= 0) temTudoLeads = true
+        // escopo VAZIO = só os leads do próprio (deny por padrão); '*' = tudo.
+        // Antes vazio virava "tudo" e o vendedor via a conversa da central.
+        if (sa.indexOf('*') >= 0) temTudoLeads = true
       }
     }
     if (!temConversas) {

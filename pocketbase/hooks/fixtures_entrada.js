@@ -170,7 +170,8 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/entrada', (e) => {
                 ? JSON.parse(rawS)
                 : rawS || []
         } catch (e7) {}
-        const tudo = !Array.isArray(sa) || sa.length === 0 || sa.indexOf('*') >= 0
+        // escopo vazio = só o próprio (deny por padrão); '*' = tudo
+        const tudo = Array.isArray(sa) && sa.indexOf('*') >= 0
         const uid = String(g.get('user_id') || '')
         if (tudo && uid !== '' && leitores.indexOf(uid) < 0) leitores.push(uid)
       }

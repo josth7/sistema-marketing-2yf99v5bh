@@ -46,7 +46,8 @@ onRecordAfterUpdateSuccess((e) => {
                 ? JSON.parse(rawS)
                 : rawS || []
         } catch (eS) {}
-        const ehTudo = !Array.isArray(sa) || sa.length === 0 || sa.indexOf('*') >= 0
+        // escopo vazio = só o próprio (deny por padrão); '*' = tudo
+        const ehTudo = Array.isArray(sa) && sa.indexOf('*') >= 0
         const uid = String(g.get('user_id') || '')
         if (uid !== '' && ehTudo && base.indexOf(uid) < 0) base.push(uid)
       }

@@ -62,8 +62,11 @@ routerAdd(
               : ra || []
       } catch (e3) {}
       if (!Array.isArray(sa)) sa = []
-      if (sa.length === 0 || sa.indexOf('*') >= 0) temTudo = true
-      for (const c of sa) if (contas.indexOf(String(c)) < 0) contas.push(String(c))
+      // '*' = carteira inteira. Escopo VAZIO = só os leads do próprio usuário
+      // (deny por padrão) — antes vazio virava "tudo", e o vendedor via os
+      // 1.524 leads e as conversas dos outros (falha de privacidade 28/10).
+      if (sa.indexOf('*') >= 0) temTudo = true
+      for (const c of sa) if (c !== '*' && contas.indexOf(String(c)) < 0) contas.push(String(c))
     }
     if (!temRead) {
       return e.json(403, { ok: false, erro: 'sem permissão para ver leads (read_leads)' })
@@ -94,12 +97,18 @@ routerAdd(
     const itens = []
     for (const l of registros) {
       if (!temTudo) {
-        const conta = String(l.get('conta_id') || '')
-        let dentro = false
-        for (const c of contas) {
-          if (c === '*' || (conta !== '' && conta.indexOf(c) >= 0)) dentro = true
+        // vendedor: só o que é dele
+        const dono = String(l.get('owner_id') || '')
+        if (dono !== e.auth.id) continue
+        // e, se houver escopo de conta, o lead tem de ser de uma delas
+        if (contas.length > 0) {
+          const conta = String(l.get('conta_id') || '')
+          var dentro = false
+          for (const c of contas) {
+            if (conta !== '' && conta.indexOf(c) >= 0) dentro = true
+          }
+          if (!dentro) continue
         }
-        if (!dentro) continue
       }
       var criadoEm = ''
       try {

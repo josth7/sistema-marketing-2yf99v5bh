@@ -56,7 +56,8 @@ routerAdd('GET', '/backend/v1/whatsapp/conexoes/{id}/diagnostico', (e) => {
           sa = rawS || []
         }
       } catch (eS) {}
-      if (!Array.isArray(sa) || sa.length === 0 || sa.indexOf('*') >= 0) gestao = true
+      // escopo vazio NÃO é gestão: só '*' vê tudo
+      if (Array.isArray(sa) && sa.indexOf('*') >= 0) gestao = true
     }
   } catch (eGr) {}
   if (!gestao) return e.json(403, { ok: false, erro: 'so_gestao_ve_diagnostico' })

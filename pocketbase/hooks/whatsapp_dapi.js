@@ -613,7 +613,10 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
                   ? JSON.parse(rawS)
                   : rawS || []
           } catch (eS2) {}
-          const ehTudo = !Array.isArray(sa) || sa.length === 0 || sa.indexOf('*') >= 0
+          // escopo VAZIO = só o próprio (deny por padrão); '*' = vê tudo.
+          // Antes vazio virava "vê tudo" e o vendedor entrava na conversa da
+          // central (falha de privacidade, 28/10).
+          const ehTudo = Array.isArray(sa) && sa.indexOf('*') >= 0
           const uid = String(g.get('user_id') || '')
           if (uid === '') continue
           if (ehTudo && leitores.indexOf(uid) < 0) leitores.push(uid)
