@@ -70,7 +70,9 @@ cronAdd('whatsapp_envios_fila', '*/10 * * * *', () => {
     var url = ''
     var auth = ''
     if (ehFixture) {
-      url = String($secrets.get('SITE_URL') || '') + '/backend/v1/fixtures/dapi/send'
+      var baseFit = String($secrets.get('SITE_URL') || '')
+      if (baseFit === '') baseFit = 'https://sistema-marketing-1f51e.shrd03.internal.goskip.dev'
+      url = baseFit + '/backend/v1/fixtures/dapi/send'
       auth = String($secrets.get('FIXTURE_TICK_SECRET') || '')
     } else {
       var chave = ''

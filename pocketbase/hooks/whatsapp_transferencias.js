@@ -248,7 +248,11 @@ onRecordAfterCreateSuccess((e) => {
       var url = ''
       var auth = ''
       if (ehFixture) {
-        url = String($secrets.get('SITE_URL') || '') + '/backend/v1/fixtures/dapi/send'
+        // URL de fixture: usa a do próprio ambiente; sem ela, cai no host interno
+        // (SITE_URL pode não estar configurado — e URL relativa nunca funciona).
+        var baseFit = String($secrets.get('SITE_URL') || '')
+        if (baseFit === '') baseFit = 'https://sistema-marketing-1f51e.shrd03.internal.goskip.dev'
+        url = baseFit + '/backend/v1/fixtures/dapi/send'
         auth = String($secrets.get('FIXTURE_TICK_SECRET') || '')
       } else {
         var chave = ''
