@@ -158,8 +158,13 @@ onRecordAfterCreateSuccess((e) => {
     var central = null
     var conexaoVendedor = null
     try {
+      // teste hermético: transferência fixture usa SÓ conexões fixture, e
+      // transferência real usa só conexões reais — um teste nunca alcança o
+      // número de um cliente de verdade (e vice-versa).
       const todas = $app.findRecordsByFilter(colCx, 'ativo=true', '', 50, 0)
       for (const c of todas) {
+        const ehCxFixture = String(c.get('fixture')) === 'true'
+        if (ehCxFixture !== ehFixture) continue
         const papel = String(c.get('papel') || '')
         if (papel === 'central' && !central) central = c
         if (papel === 'vendedor' && String(c.get('vendedor_user') || '') === vendedorId) {
