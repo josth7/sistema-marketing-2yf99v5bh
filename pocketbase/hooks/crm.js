@@ -127,6 +127,10 @@ routerAdd(
         conta_id: l.get('conta_id'),
         criado_em: criadoEm,
         atualizado_em: atualizadoEm,
+        valor: l.get('valor'),
+        vendedor_nome: l.get('vendedor_nome'),
+        etapa_origem: l.get('etapa_origem'),
+        tags_origem: l.get('tags_origem'),
       })
     }
     return e.json(200, { ok: true, total: itens.length, itens: itens })

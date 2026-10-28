@@ -81,11 +81,35 @@ routerAdd(
         convPorLead[lid].quando = criado
     }
     // ---- receita ----
+    // Duas fontes, sem contar duas vezes o mesmo lead:
+    //  1) conversion_events (venda registrada no sistema, já na fila do Meta/Google)
+    //  2) crm_leads.valor de lead fechado vindo da planilha da agência (histórico
+    //     importado em 28/10 — essas vendas NÃO entram na fila de conversões,
+    //     para não reenviar 2 meses de venda às plataformas)
     var receitaGanha = 0
     var nConversoes = 0
     for (const c of convs) {
       receitaGanha += Number(c.get('valor') || 0)
       nConversoes++
+    }
+    var receitaHistorico = 0
+    var nVendasHistorico = 0
+    var pipelineHistorico = 0
+    for (const l of leads) {
+      const v = Number(l.get('valor') || 0)
+      if (!(v > 0)) continue
+      const lid = l.id
+      const st = String(l.get('status') || 'novo')
+      if (st === 'fechado') {
+        // se já existe conversão registrada para este lead, o valor já está
+        // contado acima — não soma de novo
+        if (!convPorLead[lid]) {
+          receitaHistorico += v
+          nVendasHistorico++
+        }
+      } else if (st !== 'perdido') {
+        pipelineHistorico += v
+      }
     }
     // em aberto: leads não decididos (não fechado/perdido)
     var emAberto = 0
@@ -193,15 +217,53 @@ routerAdd(
     var mediaDia = null
     const nDias = Object.keys(diasComLead).length
     if (nDias > 0) mediaDia = Math.round((criadosNoMes / nDias) * 10) / 10
+    const receitaTotal = receitaGanha + receitaHistorico
+    const nVendasTotal = nConversoes + nVendasHistorico
+    var ticketTotal = null
+    if (nVendasTotal > 0) ticketTotal = Math.round((receitaTotal / nVendasTotal) * 100) / 100
+    // ---- por vendedor (nome vindo da planilha da agência) ----
+    const porVendedor = {}
+    for (const l of leads) {
+      const vn = String(l.get('vendedor_nome') || '').trim()
+      if (vn === '') continue
+      if (!porVendedor[vn]) porVendedor[vn] = { leads: 0, fechados: 0, valor: 0, pipeline: 0 }
+      porVendedor[vn].leads++
+      const st = String(l.get('status') || 'novo')
+      const v = Number(l.get('valor') || 0)
+      if (st === 'fechado') {
+        porVendedor[vn].fechados++
+        porVendedor[vn].valor += v
+      } else if (st !== 'perdido') {
+        porVendedor[vn].pipeline += v
+      }
+    }
+    const listaVendedores = []
+    for (const vn in porVendedor) {
+      listaVendedores.push({
+        nome: vn,
+        leads: porVendedor[vn].leads,
+        fechados: porVendedor[vn].fechados,
+        valor: Math.round(porVendedor[vn].valor * 100) / 100,
+        pipeline: Math.round(porVendedor[vn].pipeline * 100) / 100,
+      })
+    }
+    listaVendedores.sort(function (a, b) {
+      return b.valor - a.valor || b.leads - a.leads
+    })
     return e.json(200, {
       ok: true,
       receita: {
-        ganha: Math.round(receitaGanha * 100) / 100,
+        ganha: Math.round(receitaTotal * 100) / 100,
+        ganha_sistema: Math.round(receitaGanha * 100) / 100,
+        ganha_historico: Math.round(receitaHistorico * 100) / 100,
+        pipeline_historico: Math.round(pipelineHistorico * 100) / 100,
         perdida: 0,
         em_aberto: emAberto,
-        n_conversoes: nConversoes,
+        n_conversoes: nVendasTotal,
+        n_vendas_historico: nVendasHistorico,
       },
-      ticket_medio: ticketMedio,
+      ticket_medio: ticketTotal,
+      por_vendedor: listaVendedores,
       taxa_conversao: taxa,
       lead_time: {
         media: ltMedia,
