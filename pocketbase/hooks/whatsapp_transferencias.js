@@ -133,12 +133,18 @@ onRecordAfterCreateSuccess((e) => {
         item.set('status', 'pending')
         item.set('dedupe_key', 'manutencao_' + leadId + '_' + String(Date.now()))
         item.set('attempts', 0)
+        // user_id é relation: sem um valor válido o save falha e o item se perde.
+        // Cai para o dono do lead ou para quem pediu; sem ninguém, grava erro claro.
+        const pediu = String(tr.get('criado_por') || '')
+        var destino = String(lead.get('owner_id') || '')
+        if (destino === '') destino = pediu
+        if (destino !== '') item.set('user_id', destino)
         $app.save(item)
         tr.set('estado', 'concluida')
         tr.set('detalhe', 'item_na_caixa')
       } catch (eCx) {
         tr.set('estado', 'erro')
-        tr.set('detalhe', 'caixa_indisponivel')
+        tr.set('detalhe', 'caixa_indisponivel: ' + String(eCx).slice(0, 120))
       }
       $app.save(tr)
       e.next()
