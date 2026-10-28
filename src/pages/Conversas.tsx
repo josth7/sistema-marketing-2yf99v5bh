@@ -133,8 +133,11 @@ export default function Conversas() {
     }
   }, [])
 
+  // Sempre carrega: `carregar` já trata o caso de não estar logado e mostra
+  // aviso. Antes o efeito só rodava com sessão válida, então a tela ficava
+  // presa em "Carregando…" para quem não estava autenticado.
   useEffect(() => {
-    if (pb.authStore.isValid) void carregar()
+    void carregar()
   }, [carregar])
 
   // Tempo real (RN-89): o evento não traz conteúdo, só avisa que mudou.
