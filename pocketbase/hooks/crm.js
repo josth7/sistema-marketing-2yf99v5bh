@@ -134,6 +134,10 @@ routerAdd(
         vendedor_nome: l.get('vendedor_nome'),
         etapa_origem: l.get('etapa_origem'),
         tags_origem: l.get('tags_origem'),
+        entrada_whatsapp: l.get('entrada_whatsapp'),
+        canal_atendimento: l.get('canal_atendimento'),
+        ia_nota: l.get('ia_nota'),
+        ia_humor: l.get('ia_humor'),
       })
     }
     return e.json(200, { ok: true, total: itens.length, itens: itens })
