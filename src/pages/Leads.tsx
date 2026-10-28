@@ -38,6 +38,9 @@ import {
   dashboardCrm,
   linkWhatsapp,
   importarLeadsCsv,
+  conversaDoLead,
+  rotuloAutor,
+  descricaoMidia,
   type Lead,
   type LeadEvento,
   type ResultadoImportacao,
@@ -91,6 +94,14 @@ export default function Leads() {
   const [erroCriar, setErroCriar] = useState<string | null>(null)
   // detalhe
   const [detalhe, setDetalhe] = useState<Lead | null>(null)
+  // conversa do WhatsApp na ficha (SPEC-3-005, CA-3-15)
+  const [conversa, setConversa] = useState<{
+    ok: boolean
+    total: number
+    itens: Array<Record<string, unknown>>
+  } | null>(null)
+  const [erroConversa, setErroConversa] = useState<string>('')
+  const [carregandoConversa, setCarregandoConversa] = useState(false)
   const [eventos, setEventos] = useState<LeadEvento[]>([])
   const [novoStatus, setNovoStatus] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -257,6 +268,17 @@ export default function Leads() {
 
   const abrirDetalhe = async (l: Lead) => {
     setDetalhe(l)
+    setConversa(null)
+    setErroConversa('')
+    setCarregandoConversa(true)
+    void conversaDoLead(l.id)
+      .then((r) =>
+        setConversa(
+          r as unknown as { ok: boolean; total: number; itens: Array<Record<string, unknown>> },
+        ),
+      )
+      .catch((e: Error) => setErroConversa(e.message))
+      .finally(() => setCarregandoConversa(false))
     setNovoStatus(l.status)
     setMsg(null)
     try {
@@ -851,6 +873,102 @@ export default function Leads() {
                     Registrar conversão
                   </Button>
                 )}
+              </div>
+              {/* Conversa do WhatsApp (SPEC-3-005, CA-3-15) */}
+              <div className="rounded-md border">
+                <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
+                  <p className="text-sm font-medium">Conversa no WhatsApp</p>
+                  <span className="text-xs text-muted-foreground">
+                    {carregandoConversa
+                      ? 'Carregando…'
+                      : conversa
+                        ? conversa.total + ' mensagem(ns)'
+                        : ''}
+                  </span>
+                </div>
+                <div className="max-h-72 space-y-2 overflow-y-auto p-3">
+                  {carregandoConversa && (
+                    <p className="text-xs text-muted-foreground">Buscando a conversa…</p>
+                  )}
+                  {!carregandoConversa && erroConversa && (
+                    <p className="text-xs text-muted-foreground">
+                      {erroConversa.indexOf('permissão') >= 0
+                        ? 'Você não tem acesso à conversa deste lead.'
+                        : erroConversa}
+                    </p>
+                  )}
+                  {!carregandoConversa && !erroConversa && conversa?.total === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma mensagem do WhatsApp para este lead ainda.
+                    </p>
+                  )}
+                  {!carregandoConversa &&
+                    (conversa?.itens || []).map((m) => {
+                      const msg = m as unknown as {
+                        id: string
+                        autor: string
+                        tipo: string
+                        texto: string
+                        texto_original: string
+                        media_url: string
+                        media_mimetype: string
+                        media_duracao_s: number
+                        status: string
+                        enviada_em: string
+                        editada_em: string
+                        apagada: boolean
+                      }
+                      const quando = String(msg.enviada_em || '')
+                        .replace('T', ' ')
+                        .slice(0, 16)
+                      return (
+                        <div
+                          key={msg.id}
+                          className={
+                            'rounded-md px-3 py-2 text-sm ' +
+                            (msg.autor === 'cliente'
+                              ? 'bg-muted/60'
+                              : 'ml-6 bg-emerald-50 dark:bg-emerald-950/30')
+                          }
+                        >
+                          <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="font-medium">{rotuloAutor(msg.autor)}</span>
+                            <span>{quando}</span>
+                            {msg.status && <span>· {msg.status}</span>}
+                            {msg.editada_em ? <span>· editada</span> : null}
+                          </div>
+                          {msg.apagada ? (
+                            <p className="italic text-muted-foreground">
+                              Mensagem apagada por quem enviou
+                            </p>
+                          ) : (
+                            <>
+                              {/* texto renderizado como TEXTO: nunca HTML */}
+                              {msg.texto && <p className="whitespace-pre-wrap">{msg.texto}</p>}
+                              {msg.editada_em && msg.texto_original && (
+                                <p className="mt-1 text-xs text-muted-foreground line-through">
+                                  {msg.texto_original}
+                                </p>
+                              )}
+                              {msg.media_url && (
+                                <a
+                                  href={msg.media_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-1 inline-block text-xs underline"
+                                >
+                                  {descricaoMidia(m as never)}
+                                </a>
+                              )}
+                              {!msg.texto && !msg.media_url && (
+                                <p className="text-xs text-muted-foreground">({msg.tipo})</p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
+                </div>
               </div>
               <div>
                 <p className="mb-2 text-sm font-medium">Trilha de eventos</p>

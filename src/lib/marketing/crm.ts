@@ -229,3 +229,75 @@ export async function importarLeadsCsv(csv: string): Promise<ResultadoImportacao
     throw new Error(mensagemErro(e))
   }
 }
+
+export type MensagemWhatsapp = {
+  id: string
+  autor: string
+  autor_user: string
+  direcao: string
+  tipo: string
+  texto: string
+  texto_original: string
+  media_url: string
+  media_url_temporaria: boolean
+  media_mimetype: string
+  media_duracao_s: number
+  media_ptt: boolean
+  status: string
+  enviada_em: string
+  editada_em: string
+  apagada: boolean
+  numero: string
+}
+
+export type ConversaDoLead = {
+  ok: boolean
+  lead: string
+  total: number
+  conversas: number
+  itens: MensagemWhatsapp[]
+}
+
+/**
+ * Conversa do WhatsApp na ficha do lead (SPEC-3-005, CA-3-15).
+ *
+ * A rota decide no servidor o que este usuário pode ver (read_conversas +
+ * acesso por número): sem permissão, devolve 403 e a tela mostra o aviso.
+ */
+export async function conversaDoLead(leadId: string): Promise<ConversaDoLead> {
+  try {
+    const r = await pb.send('/backend/v1/whatsapp/leads/' + leadId + '/conversa', { method: 'GET' })
+    return r as ConversaDoLead
+  } catch (e) {
+    throw new Error(mensagemErro(e))
+  }
+}
+
+/** Rótulo de quem mandou, na linguagem da tela. */
+export function rotuloAutor(autor: string): string {
+  const mapa: Record<string, string> = {
+    cliente: 'Cliente',
+    ia: 'IA',
+    vendedor: 'Vendedor',
+    equipe_central: 'Equipe da central',
+    sistema: 'Sistema',
+    api_externa: 'API externa',
+  }
+  return mapa[autor] || autor
+}
+
+/** Descrição curta da mídia (áudio com duração, imagem, documento). */
+export function descricaoMidia(m: MensagemWhatsapp): string {
+  if (!m.media_url) return ''
+  const tipo = m.media_mimetype || ''
+  if (m.tipo === 'audio') {
+    const dur = Number(m.media_duracao_s || 0)
+    const mm = Math.floor(dur / 60)
+    const ss = String(Math.floor(dur % 60)).padStart(2, '0')
+    return `Áudio ${mm}:${ss}`
+  }
+  if (tipo.indexOf('image') >= 0) return 'Imagem'
+  if (tipo.indexOf('video') >= 0) return 'Vídeo'
+  if (tipo.indexOf('audio') >= 0) return 'Áudio'
+  return 'Documento'
+}
