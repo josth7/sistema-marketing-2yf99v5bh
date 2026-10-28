@@ -128,7 +128,7 @@ routerAdd(
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
       colG,
-      "user_id='" + e.auth.id + "' AND revoked_at=''",
+      "user_id='" + e.auth.id + "' && revoked_at=''",
       '-created',
       50,
       0,
@@ -198,7 +198,7 @@ routerAdd(
     if (papel === 'central') {
       const centrais = $app.findRecordsByFilter(
         col,
-        filtroFix + " AND papel='central' AND ativo=true",
+        filtroFix + " && papel='central' && ativo=true",
         '',
         5,
         0,
@@ -216,7 +216,7 @@ routerAdd(
       const jaTem = $app.findRecordsByFilter(
         col,
         filtroFix +
-          " AND papel='vendedor' AND ativo=true AND vendedor_user='" +
+          " && papel='vendedor' && ativo=true && vendedor_user='" +
           vendedorUser.replace(/'/g, '') +
           "'",
         '',
