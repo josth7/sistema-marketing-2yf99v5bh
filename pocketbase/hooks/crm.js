@@ -185,7 +185,7 @@ routerAdd(
     }
     const telefone = String(body.telefone || '').trim()
     const email = String(body.email || '').trim()
-    const ORIGENS = ['meta', 'google', 'site', 'whatsapp', 'manual', 'importacao']
+    const ORIGENS = ['meta', 'google', 'site', 'whatsapp', 'manual', 'importacao', 'organico']
     const STATUSES = ['novo', 'em_contato', 'orcamento', 'fechado', 'perdido']
     const origem =
       ORIGENS.indexOf(String(body.origem || 'manual')) >= 0
@@ -623,7 +623,16 @@ routerAdd(
         erros.push('linha ' + (i + 1) + ': sem nome')
         continue
       }
-      const telefone = String(l.telefone || '').trim()
+      // Telefone: só dígitos, com o 55 do Brasil (padrão do WhatsApp oficial —
+      // SPEC-3-005 casa o lead pelo telefone). "558899898584@s.whatsapp.net"
+      // vira "558899898584"; número de 10/11 dígitos ganha o 55 na frente.
+      // @lid (id interno do WhatsApp) não é telefone: descarta.
+      var telefone = String(l.telefone || '').trim()
+      if (telefone.indexOf('@lid') >= 0) telefone = ''
+      else if (telefone.indexOf('@') > 0) telefone = telefone.split('@')[0]
+      telefone = telefone.replace(/[^0-9]/g, '')
+      if (telefone.length === 10 || telefone.length === 11) telefone = '55' + telefone
+      if (telefone.length < 12 || telefone.length > 15) telefone = ''
       if (telefone !== '') {
         try {
           const dup = $app.findRecordsByFilter(
@@ -649,7 +658,10 @@ routerAdd(
         const rec = new Record(colL)
         rec.set('nome', nome.slice(0, 200))
         rec.set('telefone', telefone.slice(0, 40))
-        rec.set('email', String(l.email || '').trim())
+        // e-mail: campo tipo email recusa valor inválido e derrubaria o lead
+        var emailOk = String(l.email || '').trim()
+        if (emailOk !== '' && (emailOk.indexOf('@') < 1 || emailOk.indexOf('.') < 0)) emailOk = ''
+        rec.set('email', emailOk)
         rec.set('origem', origem)
         rec.set(
           'campanha',
@@ -669,7 +681,37 @@ routerAdd(
             .trim()
             .slice(0, 2000),
         )
-        rec.set('owner_id', e.auth.id)
+        // vendedor da origem: guardado pelo NOME (os vendedores ainda não têm
+        // login no sistema — SPEC-3-005 liga cada um ao próprio número).
+        var vendedorNome = String(l.vendedor_nome || '')
+          .trim()
+          .slice(0, 120)
+        rec.set('vendedor_nome', vendedorNome)
+        rec.set(
+          'etapa_origem',
+          String(l.etapa_origem || '')
+            .trim()
+            .slice(0, 80),
+        )
+        rec.set(
+          'id_externo',
+          String(l.id_externo || '')
+            .trim()
+            .slice(0, 40),
+        )
+        rec.set(
+          'tags_origem',
+          String(l.tags_origem || '')
+            .trim()
+            .slice(0, 500),
+        )
+        // valor da negociação/venda vindo da planilha
+        const valorNum = Number(l.valor)
+        if (Number.isFinite(valorNum) && valorNum > 0) rec.set('valor', valorNum)
+        // dono no sistema: o vendedor da planilha não tem usuário ainda, então
+        // o lead fica sem owner (vendedor_nome carrega a informação) em vez de
+        // cair todo no importador e falsear o ranking de responsáveis.
+        rec.set('owner_id', vendedorNome !== '' ? '' : e.auth.id)
         rec.set('conta_id', 'haisan')
         rec.set('fixture', ehFixture)
         rec.set('origem_import', 'planilha-agencia')
@@ -682,7 +724,11 @@ routerAdd(
           'texto',
           'Lead importado da planilha da agência (' +
             origem +
-            (l.campanha ? ' · ' + String(l.campanha) : '') +
+            (l.etapa_origem ? ' · etapa: ' + String(l.etapa_origem) : '') +
+            (vendedorNome !== '' ? ' · vendedor: ' + vendedorNome : '') +
+            (Number.isFinite(Number(l.valor)) && Number(l.valor) > 0
+              ? ' · R$ ' + Number(l.valor).toFixed(2)
+              : '') +
             ')',
         )
         ev.set('user_id', e.auth.id)
