@@ -504,6 +504,147 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     } catch (eOw) {}
   }
 
+  // ---------- 14. conversa + sinais (CA-3-15) ----------
+  // Uma conversa por numero + contato. `leitores` decide quem ve cada conversa
+  // no tempo real e nas rotas; e recalculado a cada mensagem.
+  try {
+    const colConv = $app.findCollectionByNameOrId('whatsapp_conversas')
+    const colSin = $app.findCollectionByNameOrId('whatsapp_sinais')
+    var conversa = null
+    if (telefone !== '') {
+      try {
+        const achadas = $app.findRecordsByFilter(
+          colConv,
+          "conexao='" + conexao.id + "' && contato_telefone='" + telefone + "'",
+          '',
+          1,
+          0,
+        )
+        if (achadas && achadas.length > 0) conversa = achadas[0]
+      } catch (eCv) {}
+      if (!conversa) {
+        try {
+          const nc = new Record(colConv)
+          nc.set('conexao', conexao.id)
+          nc.set('contato_telefone', telefone)
+          nc.set('contato_lid', lid.slice(0, 80))
+          nc.set('contato_nome', String(lado.name || '').slice(0, 200))
+          nc.set('lead', lead ? lead.id : '')
+          nc.set('total_mensagens', 0)
+          nc.set('estado', papelConexao === 'vendedor' ? 'sem_ia' : 'triagem')
+          nc.set('fixture', ehFixture)
+          $app.save(nc)
+          conversa = nc
+        } catch (eNC) {}
+      }
+    }
+    if (conversa) {
+      // previa curta (midia vira o tipo)
+      var previa = textoMsg
+      if (previa === '' && tipo !== 'text') {
+        previa =
+          tipo === 'audio'
+            ? 'Áudio'
+            : tipo === 'image'
+              ? 'Imagem'
+              : tipo === 'video'
+                ? 'Vídeo'
+                : tipo === 'document'
+                  ? 'Documento'
+                  : 'Mensagem'
+      }
+      try {
+        conversa.set(
+          'contato_nome',
+          String(lado.name || conversa.get('contato_nome') || '').slice(0, 200),
+        )
+        conversa.set('lead', lead ? lead.id : String(conversa.get('lead') || ''))
+        conversa.set('ultima_mensagem_em', enviadaEm)
+        conversa.set('ultima_previa', String(previa).slice(0, 160))
+        conversa.set('ultimo_autor', autor)
+        conversa.set('total_mensagens', Number(conversa.get('total_mensagens') || 0) + 1)
+        $app.save(conversa)
+      } catch (eCv2) {}
+
+      // ---------- leitores (RN-71/RN-87) ----------
+      // gestão com escopo "todos" + vendedor dono do número +
+      // vendedor responsável pelo lead (na central)
+      var leitores = []
+      try {
+        const colG2 = $app.findCollectionByNameOrId('access_grants')
+        const todosG = $app.findRecordsByFilter(colG2, "revoked_at=''", '', 200, 0)
+        for (const g of todosG) {
+          let acts = []
+          let sa = []
+          try {
+            const rawA = g.get('actions')
+            acts =
+              Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number'
+                ? JSON.parse(String.fromCharCode.apply(null, rawA))
+                : typeof rawA === 'string'
+                  ? JSON.parse(rawA)
+                  : rawA || []
+          } catch (eA2) {}
+          if (acts.indexOf('read_conversas') < 0) continue
+          try {
+            const rawS = g.get('scope_accounts')
+            sa =
+              Array.isArray(rawS) && rawS.length > 0 && typeof rawS[0] === 'number'
+                ? JSON.parse(String.fromCharCode.apply(null, rawS))
+                : typeof rawS === 'string'
+                  ? JSON.parse(rawS)
+                  : rawS || []
+          } catch (eS2) {}
+          const ehTudo = !Array.isArray(sa) || sa.length === 0 || sa.indexOf('*') >= 0
+          const uid = String(g.get('user_id') || '')
+          if (uid === '') continue
+          if (ehTudo && leitores.indexOf(uid) < 0) leitores.push(uid)
+        }
+      } catch (eLt) {}
+      // vendedor dono do número
+      if (
+        papelConexao === 'vendedor' &&
+        vendedorDaConexao !== '' &&
+        leitores.indexOf(vendedorDaConexao) < 0
+      ) {
+        leitores.push(vendedorDaConexao)
+      }
+      // na central: o vendedor responsável pelo lead
+      if (papelConexao === 'central' && lead) {
+        const ow = String(lead.get('owner_id') || '')
+        if (ow !== '' && leitores.indexOf(ow) < 0) leitores.push(ow)
+      }
+
+      var sinais = null
+      try {
+        const ss = $app.findRecordsByFilter(colSin, "conversa='" + conversa.id + "'", '', 1, 0)
+        if (ss && ss.length > 0) sinais = ss[0]
+      } catch (eSs) {}
+      if (!sinais) {
+        try {
+          const ns = new Record(colSin)
+          ns.set('conversa', conversa.id)
+          ns.set('conexao', conexao.id)
+          ns.set('papel_conexao', papelConexao === 'vendedor' ? 'vendedor' : 'central')
+          ns.set('lead', lead ? lead.id : '')
+          ns.set('ultima_em', enviadaEm)
+          ns.set('contador', 1)
+          ns.set('leitores', leitores)
+          ns.set('fixture', ehFixture)
+          $app.save(ns)
+        } catch (eNS) {}
+      } else {
+        try {
+          sinais.set('ultima_em', enviadaEm)
+          sinais.set('contador', Number(sinais.get('contador') || 0) + 1)
+          sinais.set('leitores', leitores)
+          sinais.set('lead', lead ? lead.id : String(sinais.get('lead') || ''))
+          $app.save(sinais)
+        } catch (eS2) {}
+      }
+    }
+  } catch (eRc) {}
+
   return e.json(200, {
     ok: true,
     mensagem: msgId,
