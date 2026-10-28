@@ -12,6 +12,7 @@ import Saude from './pages/Saude'
 import Analises from './pages/Analises'
 import Leads from './pages/Leads'
 import Concorrentes from './pages/Concorrentes'
+import Conversas from './pages/Conversas'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/analises" element={<Analises />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/concorrentes" element={<Concorrentes />} />
+          <Route path="/conversas" element={<Conversas />} />
           {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
           <Route path="*" element={<NotFound />} />
         </Route>

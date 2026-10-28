@@ -135,6 +135,68 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/entrada', (e) => {
     $app.save(conversa)
   } catch (e3) {}
 
+  // sinal (tempo real): a tela Conversas escuta `whatsapp_sinais`. Sem sinal,
+  // a conversa criada por fixture nunca apareceria para quem pode lê-la.
+  try {
+    const colSin = $app.findCollectionByNameOrId('whatsapp_sinais')
+    var sinais = []
+    try {
+      sinais = $app.findRecordsByFilter(colSin, "conversa='" + conversa.id + "'", '', 1, 0)
+    } catch (e5) {}
+    // leitores: quem tem read_conversas com escopo "todos" (gestão)
+    const leitores = []
+    try {
+      const colG = $app.findCollectionByNameOrId('access_grants')
+      const grants = $app.findRecordsByFilter(colG, "revoked_at=''", '', 200, 0)
+      for (const g of grants) {
+        let acts = []
+        let sa = []
+        try {
+          const rawA = g.get('actions')
+          acts =
+            Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawA))
+              : typeof rawA === 'string'
+                ? JSON.parse(rawA)
+                : rawA || []
+        } catch (e6) {}
+        if (acts.indexOf('read_conversas') < 0) continue
+        try {
+          const rawS = g.get('scope_accounts')
+          sa =
+            Array.isArray(rawS) && rawS.length > 0 && typeof rawS[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawS))
+              : typeof rawS === 'string'
+                ? JSON.parse(rawS)
+                : rawS || []
+        } catch (e7) {}
+        const tudo = !Array.isArray(sa) || sa.length === 0 || sa.indexOf('*') >= 0
+        const uid = String(g.get('user_id') || '')
+        if (tudo && uid !== '' && leitores.indexOf(uid) < 0) leitores.push(uid)
+      }
+    } catch (e8) {}
+    // o aprovador fixture entra (é quem opera o QA de teste)
+    if (leitores.indexOf('ettg93kcslg29re') < 0) leitores.push('ettg93kcslg29re')
+
+    if (sinais && sinais.length > 0) {
+      sinais[0].set('ultima_em', agora)
+      sinais[0].set('contador', Number(sinais[0].get('contador') || 0) + 1)
+      sinais[0].set('leitores', leitores)
+      $app.save(sinais[0])
+    } else {
+      const ns = new Record(colSin)
+      ns.set('conversa', conversa.id)
+      ns.set('conexao', conexao.id)
+      ns.set('papel_conexao', 'central')
+      ns.set('lead', leadId)
+      ns.set('ultima_em', agora)
+      ns.set('contador', 1)
+      ns.set('leitores', leitores)
+      ns.set('fixture', true)
+      $app.save(ns)
+    }
+  } catch (eSinal) {}
+
   return e.json(200, {
     ok: true,
     conversa: conversa.id,
