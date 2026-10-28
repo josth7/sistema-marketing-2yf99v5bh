@@ -264,6 +264,16 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
         return e.json(200, { ok: true, ignorado: 'entre_numeros_da_empresa' })
       }
     } catch (eO) {}
+    // linha interna da empresa que NÃO é conexão da D-API (ex.: o 3035-9355 do
+    // atendimento). Sem esta checagem, quem manda de dentro da empresa vira
+    // lead de cliente — aconteceu em 28/10 com a primeira mensagem real.
+    try {
+      const colInt = $app.findCollectionByNameOrId('whatsapp_numeros_internos')
+      const ints = $app.findRecordsByFilter(colInt, "numero='" + telefone + "'", '', 1, 0)
+      if (ints && ints.length > 0) {
+        return e.json(200, { ok: true, ignorado: 'numero_interno_da_empresa' })
+      }
+    } catch (eInt) {}
   }
 
   // ---------- 8. busca do lead (RN-59) ----------

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T19:02:34.200Z",
+  "generatedAt": "2026-10-28T19:12:10.838Z",
   "collections": [
     {
       "name": "users",
@@ -4119,6 +4119,53 @@
       "indexes": [
         "CREATE INDEX idx_wa_tr_lead ON whatsapp_transferencias (lead)",
         "CREATE INDEX idx_wa_tr_estado ON whatsapp_transferencias (estado)"
+      ]
+    },
+    {
+      "name": "whatsapp_numeros_internos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "numero",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rotulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_wa_internos_numero ON whatsapp_numeros_internos (numero)"
       ]
     }
   ]
