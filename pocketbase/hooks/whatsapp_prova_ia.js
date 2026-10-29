@@ -73,7 +73,7 @@ routerAdd('POST', '/backend/v1/whatsapp/conversas/{id}/prova-ia', (e) => {
   const env = new Record(colEnv)
   env.set('conexao', String(conversa.get('conexao') || ''))
   env.set('destino_telefone', String(conversa.get('contato_telefone') || ''))
-  env.set('motivo', 'ia_resposta_prova')
+  env.set('motivo', 'ia_resposta')
   env.set('modo', 'texto')
   env.set('texto', 'resposta da IA (prova)')
   env.set('estado', 'enviado')
