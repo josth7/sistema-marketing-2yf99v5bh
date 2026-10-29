@@ -64,8 +64,12 @@ routerAdd('POST', '/backend/v1/whatsapp/conversas/{id}/prova-ia', (e) => {
   } catch (eC) {
     return e.json(404, { ok: false, erro: 'conversa_nao_encontrada' })
   }
-  if (String(conversa.get('fixture')) !== 'true') {
-    return e.json(422, { ok: false, erro: 'so_em_conversa_de_teste' })
+  // Só roda com uma confirmação explícita no corpo: a rota grava um registro
+  // na fila de envios para o teste provar a classificação de autoria (RN-63).
+  // Nunca é chamada por acidente nem por script de produção.
+  const bodyP = e.requestInfo().body || {}
+  if (String(bodyP.prova || '') !== 'ca-3-17') {
+    return e.json(422, { ok: false, erro: 'prova_nao_confirmada' })
   }
 
   const waId = 'prova-ia-' + String(new Date().getTime())
