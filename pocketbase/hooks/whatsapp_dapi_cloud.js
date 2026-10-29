@@ -113,6 +113,16 @@ routerAdd('GET', '/backend/v1/whatsapp/dapi-cloud-api', (e) => {
     } catch (eP) {}
     const dados = corpo.data || corpo
     const num = String(dados.displayPhoneNumber || dados.phoneNumber || dados.phone || '')
+    // URL do webhook mascarada: mostra o HOST e os 4 últimos caracteres, para
+    // conferir que aponta para o nosso backend sem expor o token (a URL contém
+    // o segredo no caminho).
+    var urlBruta = String(dados.webhookUrl || '')
+    var urlMasc = ''
+    if (urlBruta !== '') {
+      const corte = urlBruta.indexOf('/backend')
+      const cabeca = corte > 0 ? urlBruta.slice(0, corte) : ''
+      urlMasc = (cabeca !== '' ? cabeca + '/…' : '…') + urlBruta.slice(-4)
+    }
     itens.push({
       session_id: sid,
       status_d_api: st,
@@ -120,7 +130,11 @@ routerAdd('GET', '/backend/v1/whatsapp/dapi-cloud-api', (e) => {
       telefone_mascarado: num.length > 8 ? num.slice(0, 4) + '****' + num.slice(-2) : num,
       nome_verificado: String(dados.verifiedName || dados.name || ''),
       status: String(dados.status || ''),
-      webhook_apontado: String(dados.webhookUrl || '') !== '',
+      webhook_apontado: urlBruta !== '',
+      webhook_url_mascarada: urlMasc,
+      webhook_host_correto:
+        urlBruta.indexOf('sistema-marketing-1f51e.shrd00.internal.goskip.dev') > 0,
+      webhook_rota_correta: urlBruta.indexOf('/backend/v1/whatsapp/dapi/') > 0,
       webhook_modo: String(dados.webhookMode || ''),
       campos: Object.keys(dados || {}).slice(0, 25),
     })
