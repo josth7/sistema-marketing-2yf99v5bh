@@ -317,13 +317,14 @@ export default function Conversas() {
                           className="mt-1 inline-block text-xs underline"
                         >
                           {m.tipo === 'audio'
-                            ? 'Áudio ' +
-                              Math.floor(Number(m.media_duracao_s || 0) / 60) +
-                              ':' +
-                              String(Math.floor(Number(m.media_duracao_s || 0) % 60)).padStart(
-                                2,
-                                '0',
-                              )
+                            ? // A D-API nem sempre manda `duration`: mostrar "0:00"
+                              // seria mentir sobre o áudio. Sem duração, só "Áudio".
+                              Number(m.media_duracao_s || 0) > 0
+                              ? 'Áudio ' +
+                                Math.floor(Number(m.media_duracao_s) / 60) +
+                                ':' +
+                                String(Math.floor(Number(m.media_duracao_s) % 60)).padStart(2, '0')
+                              : 'Abrir áudio'
                             : m.tipo === 'image'
                               ? 'Imagem'
                               : m.tipo === 'video'
