@@ -99,7 +99,11 @@ routerAdd('GET', '/backend/v1/whatsapp/dapi-sessoes/{sid}', (e) => {
     corpo = JSON.parse(corpoResp)
   } catch (eP) {}
 
+  // A D-API devolve { session, pod, profile } (ou { success, error }).
+  // `profile` traz o número conectado; `session` traz o estado.
   const dados = corpo.data || corpo
+  const sessao = dados.session || {}
+  const perfil = dados.profile || {}
   // nunca devolver a API Key nem o token do webhook
   var urlW = String(dados.webhookUrl || '')
   var mascW = ''
@@ -112,12 +116,21 @@ routerAdd('GET', '/backend/v1/whatsapp/dapi-sessoes/{sid}', (e) => {
     ok: true,
     status_d_api: status,
     session_id: sid,
-    numero: String(dados.phoneNumber || dados.numero || dados.phone || ''),
-    nome: String(dados.name || dados.displayName || dados.pushName || ''),
-    status_sessao: String(dados.status || dados.connectionStatus || ''),
+    numero: String(
+      perfil.phoneNumber ||
+        perfil.phone ||
+        perfil.number ||
+        sessao.phoneNumber ||
+        dados.phoneNumber ||
+        '',
+    ),
+    nome: String(perfil.name || perfil.pushName || perfil.displayName || dados.name || ''),
+    status_sessao: String(sessao.status || dados.status || dados.connectionStatus || ''),
     webhook_apontado: urlW !== '',
     webhook_modo: String(dados.webhookMode || ''),
     webhook_final: mascW,
     campos: Object.keys(dados || {}).slice(0, 30),
+    campos_sessao: Object.keys(sessao || {}).slice(0, 25),
+    campos_perfil: Object.keys(perfil || {}).slice(0, 25),
   })
 })
