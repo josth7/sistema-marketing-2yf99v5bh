@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-29T11:14:15.067Z",
+  "generatedAt": "2026-10-29T13:36:21.481Z",
   "collections": [
     {
       "name": "users",
@@ -3729,6 +3729,24 @@
             "onCreate",
             "onUpdate"
           ]
+        },
+        {
+          "name": "pausada_motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pausada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "retomada_em",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

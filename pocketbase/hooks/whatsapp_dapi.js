@@ -581,6 +581,26 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
         conversa.set('ultima_previa', String(previa).slice(0, 160))
         conversa.set('ultimo_autor', autor)
         conversa.set('total_mensagens', Number(conversa.get('total_mensagens') || 0) + 1)
+
+        // ---------- pausa da IA por intervenção humana (CA-3-17) ----------
+        // Regra: se um HUMANO responde (equipe central pelo celular, ou
+        // vendedor), a IA cala naquela conversa. Se quem responde é a própria
+        // IA, NÃO pausa — senão ela se desligaria sozinha na primeira resposta
+        // (o bug clássico; a RN-63 casa o envio para saber quem falou).
+        if (direcao === 'saida' && (autor === 'equipe_central' || autor === 'vendedor')) {
+          conversa.set('estado', 'pausada_humano')
+          conversa.set(
+            'pausada_motivo',
+            autor === 'vendedor'
+              ? 'vendedor respondeu pelo celular'
+              : 'equipe central respondeu pelo celular',
+          )
+          conversa.set('pausada_em', new Date().toISOString())
+        } else if (direcao === 'saida' && autor === 'ia') {
+          // resposta da própria IA: mantém como está, nunca pausa
+          const est = String(conversa.get('estado') || '')
+          if (est === '') conversa.set('estado', 'triagem')
+        }
         $app.save(conversa)
       } catch (eCv2) {}
 
