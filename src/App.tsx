@@ -27,8 +27,11 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
  *
  * Antes o sistema abria sem login e cada aba pedia senha na hora do clique.
  * Agora: sem sessão válida, só a tela de Login. Com sessão, o menu é montado
- * a partir do que o servidor diz que a pessoa pode ver (/backend/v1/wa/sessao)
- * — quem não tem a permissão não vê o módulo, em vez de clicar e tomar erro.
+ * a partir do que o servidor diz que a pessoa pode ver (/backend/v1/wa/sessao).
+ *
+ * Duas travas, não uma: além de esconder do menu, as rotas de módulo que a
+ * pessoa não tem ficam fora das <Routes> — digitar a URL na mão também não
+ * abre. Quem não pode ver nada cai na tela de "sem acesso".
  */
 
 export type Sessao = {
@@ -38,6 +41,21 @@ export type Sessao = {
   pode: string[]
   menu: { para: string; rotulo: string }[]
   provisoria: boolean
+}
+
+function SemAcesso() {
+  return (
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="max-w-md text-center space-y-2">
+        <h2 className="text-base font-semibold text-foreground">
+          Este módulo não está liberado para você
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Fale com a gerência se precisar deste acesso.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 const App = () => {
@@ -88,6 +106,23 @@ const App = () => {
     )
   }
 
+  // rotas liberadas = o que o servidor mandou no menu
+  const liberadas: string[] = sessao.menu.map((m) => m.para)
+  const modulos: { para: string; elemento: JSX.Element }[] = [
+    { para: '/painel', elemento: <Painel /> },
+    { para: '/criterios', elemento: <Criterios /> },
+    { para: '/decisoes', elemento: <Decisoes /> },
+    { para: '/relatorios', elemento: <Relatorios /> },
+    { para: '/caixa', elemento: <Caixa /> },
+    { para: '/alertas', elemento: <Alertas /> },
+    { para: '/saude-canal', elemento: <Saude /> },
+    { para: '/analises', elemento: <Analises /> },
+    { para: '/leads', elemento: <Leads /> },
+    { para: '/concorrentes', elemento: <Concorrentes /> },
+    { para: '/conversas', elemento: <Conversas /> },
+    { para: '/numeros', elemento: <Numeros /> },
+  ]
+
   return (
     <TooltipProvider delayDuration={0}>
       <Toaster />
@@ -96,18 +131,13 @@ const App = () => {
         <Routes>
           <Route element={<Layout sessao={sessao} />}>
             <Route path="/" element={<Index sessao={sessao} />} />
-            <Route path="/painel" element={<Painel />} />
-            <Route path="/criterios" element={<Criterios />} />
-            <Route path="/decisoes" element={<Decisoes />} />
-            <Route path="/relatorios" element={<Relatorios />} />
-            <Route path="/caixa" element={<Caixa />} />
-            <Route path="/alertas" element={<Alertas />} />
-            <Route path="/saude-canal" element={<Saude />} />
-            <Route path="/analises" element={<Analises />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/concorrentes" element={<Concorrentes />} />
-            <Route path="/conversas" element={<Conversas />} />
-            <Route path="/numeros" element={<Numeros />} />
+            {modulos.map(({ para, elemento }) => (
+              <Route
+                key={para}
+                path={para}
+                element={liberadas.indexOf(para) >= 0 ? elemento : <SemAcesso />}
+              />
+            ))}
             <Route path="/minha-senha" element={<MinhaSenha />} />
             {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
             <Route path="*" element={<NotFound />} />
