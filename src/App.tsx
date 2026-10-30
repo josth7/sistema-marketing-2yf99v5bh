@@ -13,6 +13,7 @@ import Analises from './pages/Analises'
 import Leads from './pages/Leads'
 import Concorrentes from './pages/Concorrentes'
 import Numeros from './pages/Numeros'
+import MinhaSenha from './pages/MinhaSenha'
 import Conversas from './pages/Conversas'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/concorrentes" element={<Concorrentes />} />
           <Route path="/conversas" element={<Conversas />} />
           <Route path="/numeros" element={<Numeros />} />
+          <Route path="/minha-senha" element={<MinhaSenha />} />
           {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
           <Route path="*" element={<NotFound />} />
         </Route>

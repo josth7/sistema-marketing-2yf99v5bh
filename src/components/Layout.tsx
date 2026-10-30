@@ -13,6 +13,7 @@ import {
   Eye,
   MessageCircle,
   Smartphone,
+  KeyRound,
 } from 'lucide-react'
 import { VERSAO_SISTEMA } from '@/lib/versao'
 
@@ -35,6 +36,7 @@ const ITENS_MENU = [
   { para: '/concorrentes', rotulo: 'Concorrentes', Icone: Eye },
   { para: '/analises', rotulo: 'Análises', Icone: BrainCircuit },
   { para: '/saude-canal', rotulo: 'Saúde do canal', Icone: Activity },
+  { para: '/minha-senha', rotulo: 'Minha senha', Icone: KeyRound },
 ]
 
 export default function Layout() {
