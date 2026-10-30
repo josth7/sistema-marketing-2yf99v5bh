@@ -16,7 +16,7 @@
  * O motivo do envio diz o autor:
  *   ia_*              → a IA respondeu
  *   vendedor_*        → o vendedor respondeu PELO SISTEMA (autor_user)
- *   aviso_*/teste     → sistema
+ *   aviso e teste     → sistema
  *
  * Conexão fixture NUNCA chama a D-API real: usa a rota de fixture do próprio
  * sistema com `X-Fixture-Secret` (lição do projeto).
@@ -136,7 +136,10 @@ cronAdd('whatsapp_envios_fila', '*/10 * * * *', () => {
       else if (tipoMidia === 'video') corpo.video = urlArquivo
       else corpo.document = urlArquivo
       var legenda = String(env.get('legenda') || '')
-      if (legenda !== '' && (tipoMidia === 'image' || tipoMidia === 'video' || tipoMidia === 'document')) {
+      if (
+        legenda !== '' &&
+        (tipoMidia === 'image' || tipoMidia === 'video' || tipoMidia === 'document')
+      ) {
         corpo.caption = legenda
       }
       if (tipoMidia === 'document') {
