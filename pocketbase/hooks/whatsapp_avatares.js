@@ -134,13 +134,30 @@ routerAdd(
 
       // ---------- busca na D-API ----------
       const telefone = String(conv.get('contato_telefone') || '').replace(/[^0-9]/g, '')
-      if (telefone.length < 10) continue
       const sessionId = String(conexao.get('session_id') || '')
-      if (sessionId === '') continue
       var chave = ''
+      var secao = String(conexao.get('nome_segredo_chave') || '')
       try {
-        chave = String($secrets.get(String(conexao.get('nome_segredo_chave') || '')) || '')
+        chave = String($secrets.get(secao) || '')
       } catch (errS) {}
+      if (String(e.request.url.query().get('debug') || '') === '1') {
+        resultado[cid] =
+          'diag tele=' +
+          telefone +
+          ' len=' +
+          telefone.length +
+          ' session=' +
+          sessionId.slice(0, 12) +
+          ' secao=' +
+          secao +
+          ' chaveLen=' +
+          chave.length +
+          ' papel=' +
+          String(conexao.get('papel') || '')
+        continue
+      }
+      if (telefone.length < 10) continue
+      if (sessionId === '') continue
       if (chave === '') continue
 
       consultas = consultas + 1
