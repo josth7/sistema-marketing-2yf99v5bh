@@ -259,6 +259,8 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       copia.status = data.status || ''
       copia.reason = data.reason || ''
       copia.code = data.code || data.error_code || ''
+      copia.error_title = data.error_title || ''
+      copia.error_details = data.error_details || ''
       copia.details = data.details || null
       recorte = JSON.stringify(copia).slice(0, 900)
     } catch (eRec) {}
