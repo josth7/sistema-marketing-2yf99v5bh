@@ -262,7 +262,23 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       copia.details = data.details || null
       recorte = JSON.stringify(copia).slice(0, 900)
     } catch (eRec) {}
-    logarEvento(dedupeKey, refId, 'falha_meta', (motivoFalha + ' | ' + recorte).slice(0, 900))
+    // o registro do evento JÁ existe (criado como 'gravada' no início):
+    // atualizar em vez de inserir (dedupe_key tem UNIQUE)
+    try {
+      const colEv2 = $app.findCollectionByNameOrId('whatsapp_eventos')
+      const registro = $app.findRecordsByFilter(
+        colEv2,
+        "dedupe_key='" + dedupeKey.replace(/'/g, '') + "'",
+        '',
+        1,
+        0,
+      )
+      if (registro && registro.length > 0) {
+        registro[0].set('resultado', 'falha_meta')
+        registro[0].set('codigo_erro', (motivoFalha + ' | ' + recorte).slice(0, 900))
+        $app.save(registro[0])
+      }
+    } catch (eUp) {}
     return e.json(200, { ok: true, falha: motivoFalha })
   }
 
