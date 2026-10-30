@@ -895,6 +895,45 @@ routerAdd(
     const recsC = $app.findRecordsByFilter(colC, '', '', 1, 0)
     if (recsC && recsC.length > 0) canal = recsC[0]
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+
+    // ESCOPO (30/10): a fila mostrava TODAS as conversões pendentes para
+    // qualquer usuário logado — o Fábio abria o CRM e via "Na fila 1 ·
+    // R$ 1.250", que era a venda da Anezia. Agora o vendedor só vê a fila
+    // dos leads dele; quem tem escopo '*' (gestão) vê tudo.
+    var temTudoFila = false
+    var contasFila = []
+    try {
+      const colGF = $app.findCollectionByNameOrId('access_grants')
+      const meusF = $app.findRecordsByFilter(
+        colGF,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '-created',
+        50,
+        0,
+      )
+      const hojeF = new Date().toISOString().slice(0, 10)
+      for (const g of meusF) {
+        const de = String(g.get('valid_from') || '')
+        const ate = String(g.get('valid_until') || '')
+        if (de !== '' && de.slice(0, 10) > hojeF) continue
+        if (ate !== '' && ate.slice(0, 10) < hojeF) continue
+        let sa = []
+        try {
+          const ra = g.get('scope_accounts')
+          sa =
+            Array.isArray(ra) && ra.length > 0 && typeof ra[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, ra))
+              : typeof ra === 'string'
+                ? JSON.parse(ra)
+                : ra || []
+        } catch (e3) {}
+        if (!Array.isArray(sa)) sa = []
+        if (sa.indexOf('*') >= 0) temTudoFila = true
+        for (const c of sa)
+          if (c !== '*' && contasFila.indexOf(String(c)) < 0) contasFila.push(String(c))
+      }
+    } catch (eGF) {}
+
     const colConv = $app.findCollectionByNameOrId('conversion_events')
     const registros = $app.findRecordsByFilter(
       colConv,
@@ -913,6 +952,18 @@ routerAdd(
       try {
         const l = $app.findRecordById('crm_leads', String(c.get('lead_id')))
         if (String(l.get('fixture')) === 'true') continue
+        // dono do lead: vendedor só vê a própria fila
+        if (!temTudoFila) {
+          if (String(l.get('owner_id') || '') !== e.auth.id) continue
+          if (contasFila.length > 0) {
+            const conta = String(l.get('conta_id') || '')
+            var dentroF = false
+            for (const cf of contasFila) {
+              if (conta !== '' && conta.indexOf(cf) >= 0) dentroF = true
+            }
+            if (!dentroF) continue
+          }
+        }
         nomeLead = String(l.get('nome') || '')
       } catch (eL) {}
       itens.push({
