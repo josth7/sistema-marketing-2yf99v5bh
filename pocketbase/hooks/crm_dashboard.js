@@ -30,6 +30,8 @@ routerAdd(
       0,
     )
     var temRead = false
+    var temTudo = false
+    const contas = []
     for (const g of meus) {
       const de = String(g.get('valid_from') || '')
       const ate = String(g.get('valid_until') || '')
@@ -46,7 +48,24 @@ routerAdd(
           acts = raw || []
         }
       } catch (e2) {}
-      if (acts.indexOf('read_leads') >= 0) temRead = true
+      if (acts.indexOf('read_leads') >= 0) {
+        temRead = true
+        // escopo da carteira: '*' = tudo; vazio = só o próprio (deny por padrão).
+        // Mesma regra da rota /crm/leads (falha de privacidade de 28/10).
+        let sa = []
+        try {
+          const ra = g.get('scope_accounts')
+          sa =
+            Array.isArray(ra) && ra.length > 0 && typeof ra[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, ra))
+              : typeof ra === 'string'
+                ? JSON.parse(ra)
+                : ra || []
+        } catch (e3) {}
+        if (!Array.isArray(sa)) sa = []
+        if (sa.indexOf('*') >= 0) temTudo = true
+        for (const c of sa) if (c !== '*' && contas.indexOf(String(c)) < 0) contas.push(String(c))
+      }
     }
     if (!temRead) {
       return e.json(403, { ok: false, erro: 'sem permissão para ver o dashboard (read_leads)' })
@@ -60,15 +79,46 @@ routerAdd(
       2000,
       0,
     )
+    // ESCOPO (30/10): vendedor vê os números DELE, não o consolidado da
+    // empresa. Antes o dashboard somava a base inteira — o Fábio abria o CRM
+    // e via R$ 71.250 de receita e o ranking de todos os vendedores.
+    const meusLeads = []
+    for (const l of leads) {
+      if (temTudo) {
+        meusLeads.push(l)
+        continue
+      }
+      if (String(l.get('owner_id') || '') !== e.auth.id) continue
+      if (contas.length > 0) {
+        const conta = String(l.get('conta_id') || '')
+        var dentro = false
+        for (const c of contas) {
+          if (conta !== '' && conta.indexOf(c) >= 0) dentro = true
+        }
+        if (!dentro) continue
+      }
+      meusLeads.push(l)
+    }
+    const idsPermitidos = {}
+    for (const l of meusLeads) idsPermitidos[l.id] = true
+
     // conversões (valor) — p/ receita e lead time
     const colConv = $app.findCollectionByNameOrId('conversion_events')
-    const convs = $app.findRecordsByFilter(
+    const convsTodas = $app.findRecordsByFilter(
       colConv,
       'fixture=' + (ehFixture ? 'true' : 'false'),
       '',
       2000,
       0,
     )
+    const convs = []
+    for (const c of convsTodas) {
+      if (temTudo) {
+        convs.push(c)
+        continue
+      }
+      if (idsPermitidos[String(c.get('lead_id'))]) convs.push(c)
+    }
     const convPorLead = {}
     for (const c of convs) {
       // conversão em `erro` não é venda: fora do mapa por lead também
@@ -102,7 +152,7 @@ routerAdd(
     var receitaHistorico = 0
     var nVendasHistorico = 0
     var pipelineHistorico = 0
-    for (const l of leads) {
+    for (const l of meusLeads) {
       const v = Number(l.get('valor') || 0)
       if (!(v > 0)) continue
       const lid = l.id
@@ -128,7 +178,7 @@ routerAdd(
     const mesHoje = hoje.slice(0, 7)
     var diasComLead = {}
     const nomes = {}
-    for (const l of leads) {
+    for (const l of meusLeads) {
       const st = String(l.get('status') || 'novo')
       if (porEstagio[st] !== undefined) porEstagio[st]++
       if (st === 'fechado') fechados++
@@ -193,7 +243,7 @@ routerAdd(
     }
     // ---- top responsáveis ----
     const porOwner = {}
-    for (const l of leads) {
+    for (const l of meusLeads) {
       const ow = String(l.get('owner_id') || '')
       if (ow === '') continue
       if (!porOwner[ow]) porOwner[ow] = { leads: 0, fechados: 0, valor: 0 }
