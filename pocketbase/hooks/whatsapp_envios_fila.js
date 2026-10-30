@@ -126,8 +126,11 @@ cronAdd('whatsapp_envios_fila', '*/10 * * * *', () => {
     var corpo = {}
     if (midia && !ehFixture) {
       // URL pública do arquivo: o id do registro é aleatório (não adivinhável)
-      var basePub = String($secrets.get('SITE_URL') || '')
-      if (basePub === '') basePub = 'https://sistema-marketing-1f51e.goskip.app'
+      // o host do arquivo tem de ser o INTERNO: o domínio público serve só o
+      // frontend (/api/files lá devolve HTML — verificado 30/10)
+      var basePub = String($secrets.get('PB_INSTANCE_URL') || '')
+      if (basePub === '') basePub = String($secrets.get('SITE_URL') || '')
+      if (basePub === '') basePub = 'https://sistema-marketing-1f51e.shrd00.internal.goskip.dev'
       var urlArquivo =
         basePub + '/api/files/whatsapp_midia/' + midia.id + '/' + midia.get('arquivo')
       corpo = { sessionId: sessionId, to: destino }
