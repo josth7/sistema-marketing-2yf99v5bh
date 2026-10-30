@@ -147,26 +147,6 @@ routerAdd(
           chave = String($secrets.get('DAPI_USER_KEY') || '')
         } catch (errS2) {}
       }
-      if (String(e.request.url.query().get('debug') || '') === '2') {
-        resultado[cid] =
-          'tentando tele=' + telefone + ' session=' + sessionId + ' chave=' + chave.slice(0, 6)
-      }
-      if (String(e.request.url.query().get('debug') || '') === '1') {
-        resultado[cid] =
-          'diag tele=' +
-          telefone +
-          ' len=' +
-          telefone.length +
-          ' session=' +
-          sessionId.slice(0, 12) +
-          ' secao=' +
-          secao +
-          ' chaveLen=' +
-          chave.length +
-          ' papel=' +
-          String(conexao.get('papel') || '')
-        continue
-      }
       if (telefone.length < 10) continue
       if (sessionId === '') continue
       if (chave === '') continue
@@ -207,10 +187,6 @@ routerAdd(
 
       if (String(e.request.url.query().get('debug') || '') === '1') {
         resultado[cid] = '[' + debugStatus + '] ' + debugCorpo
-        continue
-      }
-      if (String(e.request.url.query().get('debug') || '') === '2') {
-        resultado[cid] = 'status=' + debugStatus + ' corpo=' + debugCorpo + ' foto=' + foto
         continue
       }
       try {
