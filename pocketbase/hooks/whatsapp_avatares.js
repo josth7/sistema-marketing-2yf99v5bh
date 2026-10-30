@@ -145,6 +145,8 @@ routerAdd(
 
       consultas = consultas + 1
       var foto = ''
+      var debugStatus = 0
+      var debugCorpo = ''
       try {
         const resp = $http.send({
           url:
@@ -161,6 +163,8 @@ routerAdd(
         var raw = resp.body
         if (Array.isArray(raw)) corpo = String.fromCharCode.apply(null, raw)
         else if (typeof raw === 'string') corpo = raw
+        debugStatus = Number(resp.statusCode || 0)
+        debugCorpo = corpo.slice(0, 400)
         if (Number(resp.statusCode || 0) >= 200 && Number(resp.statusCode || 0) < 300) {
           const j = JSON.parse(corpo)
           // a resposta pode vir em data.url, data.avatarUrl, url…
@@ -171,6 +175,10 @@ routerAdd(
         }
       } catch (errH) {}
 
+      if (String(e.request.url.query().get('debug') || '') === '1') {
+        resultado[cid] = '[' + debugStatus + '] ' + debugCorpo
+        continue
+      }
       try {
         conv.set('avatar_url', foto.slice(0, 600))
         conv.set('avatar_em', new Date().toISOString())
