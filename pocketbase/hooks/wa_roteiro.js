@@ -654,10 +654,8 @@ routerAdd(
     // chama a rota `simular` por HTTP interno, com o mesmo token do usuário.
     // Assim a regra do roteiro existe num lugar só (lição: lógica duplicada
     // diverge — foi o que quebrou o cron em 22/10).
-    const base =
-      String(e.request.url).indexOf('/backend/v1/whatsapp/roteiro/simular') >= 0
-        ? String(e.request.url).split('/backend/v1/whatsapp/roteiro/simular')[0]
-        : ''
+    // host interno do proprio sistema (o .goskip.app publico so serve o frontend)
+    const base = 'https://sistema-marketing-1f51e.shrd00.internal.goskip.dev'
     var etapa = ''
     var trilha = []
     var transferiu = false
