@@ -203,6 +203,69 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     return e.json(200, { ok: true, status: novo })
   }
 
+  // ---------- 5b. falha de envio (message.failed) ----------
+  // A D-API devolve 200 no POST, mas o status FINAL vem por este evento —
+  // com o motivo da Meta (ex.: fora da janela de 24h, número sem WhatsApp).
+  // Sem tratar, a fila dizia "enviado" e a mensagem morria na Meta em silêncio
+  // (aconteceu 30/10: vendedor respondeu, cliente não recebeu).
+  if (evento === 'message.failed') {
+    const mid = String(data.message_id || data.id || '').toLowerCase()
+    var achouF = null
+    try {
+      const rF = $app.findRecordsByFilter(
+        colMensagens,
+        "conexao='" + conexao.id + "' && wa_message_id='" + mid.replace(/'/g, '') + "'",
+        '',
+        1,
+        0,
+      )
+      if (rF && rF.length > 0) achouF = rF[0]
+    } catch (eSF) {}
+    const motivoFalha = String(
+      (data.error && (data.error.message || data.error.title)) ||
+        data.reason ||
+        data.message ||
+        'falha_nao_informada',
+    ).slice(0, 200)
+    if (achouF) {
+      achouF.set('status', 'falhou')
+      achouF.set('status_em', new Date().toISOString())
+      try {
+        $app.save(achouF)
+      } catch (eSvF) {}
+    }
+    // marca o envio da fila para aparecer na tela
+    try {
+      const colEnvF = $app.findCollectionByNameOrId('whatsapp_envios')
+      const envs = $app.findRecordsByFilter(
+        colEnvF,
+        "wa_message_id='" + mid.replace(/'/g, '') + "'",
+        '',
+        1,
+        0,
+      )
+      if (envs && envs.length > 0) {
+        envs[0].set('estado', 'erro_definitivo')
+        envs[0].set('ultimo_erro', 'meta: ' + motivoFalha)
+        $app.save(envs[0])
+      }
+    } catch (eEnvF) {}
+    // guarda o recorte cru do payload (sem telefone/nome) para descobrir a causa
+    var recorte = ''
+    try {
+      const copia = {}
+      copia.chaves = Object.keys(data).slice(0, 25).join(',')
+      copia.error = data.error || null
+      copia.status = data.status || ''
+      copia.reason = data.reason || ''
+      copia.code = data.code || data.error_code || ''
+      copia.details = data.details || null
+      recorte = JSON.stringify(copia).slice(0, 900)
+    } catch (eRec) {}
+    logarEvento(dedupeKey, refId, 'falha_meta', (motivoFalha + ' | ' + recorte).slice(0, 900))
+    return e.json(200, { ok: true, falha: motivoFalha })
+  }
+
   // ---------- 6. mensagem apagada (RN-65) ----------
   if (evento === 'message.deleted') {
     const mid = String(data.message_id || '').toLowerCase()
