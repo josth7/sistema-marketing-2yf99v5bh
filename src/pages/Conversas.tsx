@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,20 +18,21 @@ import {
 } from '@/components/base/estados'
 
 /**
- * Tela Conversas — WhatsApp em tempo real (SPEC-3-005, CA-3-24).
+ * Tela Conversas — WhatsApp com resposta e recado interno (SPEC-3-005).
  *
- * Lista as conversas por número, com contato, prévia da última mensagem, hora
- * e quem mandou. Sem caixa de resposta (só leitura).
+ * O que a tela faz:
+ *   - lista as conversas com avatar, prévia, hora e por quem foi a última
+ *   - abre a conversa em bolhas (cliente à esquerda, nosso à direita)
+ *   - RESPONDE pelo sistema: texto, foto, vídeo, documento e áudio gravado
+ *   - RECADO INTERNO: fica preso na conversa e só o vendedor daquele
+ *     atendimento (e a gestão) lê. Nunca vai para o WhatsApp do cliente.
  *
- * Acesso por número (RN-87) é decidido NO SERVIDOR: a rota devolve só o que o
- * usuário pode ler. O vendedor vê o número dele e não tem como escolher outro;
- * a gestão vê todos e filtra.
+ * Quem vê o quê é decidido NO SERVIDOR (RN-87): o vendedor só recebe a conversa
+ * do número dele; a gestão recebe todas. Se o servidor negar, a tela mostra
+ * "sem acesso" e não inventa conteúdo.
  *
- * Tempo real (RN-89): assina `whatsapp_sinais`, que é a única coleção com
- * regra de leitura (`leitores`). O evento não traz conteúdo — só avisa que
- * mudou, e a tela então chama as rotas. Se a regra não fosse respeitada, a
- * alternativa registrada é consultar a cada 30 s; como o sinal respeita
- * `leitores`, a assinatura é segura.
+ * Tempo real (RN-89): assina `whatsapp_sinais`; o evento não traz conteúdo,
+ * só avisa que mudou, e aí a tela re-busca pelas rotas.
  */
 
 type Conversa = {
@@ -65,24 +65,90 @@ type Mensagem = {
   apagada: boolean
 }
 
+type Observacao = {
+  id: string
+  texto: string
+  autor_nome: string
+  autor_user: string
+  created: string
+}
+
 const ROTULO_AUTOR: Record<string, string> = {
   cliente: 'Cliente',
   ia: 'IA',
   vendedor: 'Vendedor',
-  equipe_central: 'Equipe da central',
+  equipe_central: 'Central',
   sistema: 'Sistema',
   api_externa: 'API externa',
 }
 
-/** Hora curta em America/Sao_Paulo (UTC-3 fixo: o runtime não tem Intl). */
+/** Cor do avatar estável por nome: a mesma pessoa tem sempre a mesma. */
+const CORES = [
+  'bg-emerald-600',
+  'bg-teal-600',
+  'bg-sky-600',
+  'bg-indigo-600',
+  'bg-violet-600',
+  'bg-rose-600',
+  'bg-amber-600',
+  'bg-cyan-700',
+]
+
+function corDoNome(nome: string): string {
+  let soma = 0
+  for (let i = 0; i < nome.length; i++) soma += nome.charCodeAt(i)
+  return CORES[soma % CORES.length]
+}
+
+function iniciais(nome: string, telefone: string): string {
+  const base = (nome || '').trim()
+  if (base === '') return (telefone || '').replace(/\D/g, '').slice(-2) || '?'
+  const partes = base.split(/\s+/).filter(Boolean)
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+}
+
+/** Telefone legível: +55 (41) 9501-7280 */
+function telefoneBonito(tel: string): string {
+  const d = (tel || '').replace(/\D/g, '')
+  if (d.length === 13 && d.startsWith('55')) {
+    return '+55 (' + d.slice(2, 4) + ') ' + d.slice(4, 9) + '-' + d.slice(9)
+  }
+  if (d.length === 12 && d.startsWith('55')) {
+    return '+55 (' + d.slice(2, 4) + ') ' + d.slice(4, 8) + '-' + d.slice(8)
+  }
+  return tel || ''
+}
+
+/** Hora em America/Sao_Paulo (UTC-3 fixo: o runtime não tem Intl). */
 function horaCurta(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
   const brt = new Date(d.getTime() - 3 * 60 * 60 * 1000)
-  const hh = String(brt.getUTCHours()).padStart(2, '0')
-  const mm = String(brt.getUTCMinutes()).padStart(2, '0')
-  return hh + ':' + mm
+  return (
+    String(brt.getUTCHours()).padStart(2, '0') + ':' + String(brt.getUTCMinutes()).padStart(2, '0')
+  )
+}
+
+/** "Hoje", "Ontem" ou a data — separa os blocos da conversa. */
+function rotuloDia(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const brt = new Date(d.getTime() - 3 * 60 * 60 * 1000)
+  const agora = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  const dia = brt.toISOString().slice(0, 10)
+  if (dia === agora.toISOString().slice(0, 10)) return 'Hoje'
+  const ontem = new Date(agora.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  if (dia === ontem) return 'Ontem'
+  return brt.getUTCDate() + '/' + (brt.getUTCMonth() + 1) + '/' + brt.getUTCFullYear()
+}
+
+function duracao(s: number): string {
+  const n = Number(s || 0)
+  if (n <= 0) return ''
+  return Math.floor(n / 60) + ':' + String(Math.floor(n % 60)).padStart(2, '0')
 }
 
 export default function Conversas() {
@@ -90,10 +156,25 @@ export default function Conversas() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [filtroNumero, setFiltroNumero] = useState('todos')
+  const [busca, setBusca] = useState('')
   const [aberta, setAberta] = useState<string | null>(null)
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [carregandoMsg, setCarregandoMsg] = useState(false)
   const [erroMsg, setErroMsg] = useState('')
+
+  const [rascunho, setRascunho] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [avisoEnvio, setAvisoEnvio] = useState('')
+  const [gravando, setGravando] = useState(false)
+  const [segundosGrav, setSegundosGrav] = useState(0)
+  const grabRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const fileRef = useRef<HTMLInputElement | null>(null)
+
+  const [observacoes, setObservacoes] = useState<Observacao[]>([])
+  const [nota, setNota] = useState('')
+  const [salvandoNota, setSalvandoNota] = useState(false)
+  const [possoEscrever, setPossoEscrever] = useState(false)
 
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) {
@@ -108,74 +189,200 @@ export default function Conversas() {
       setConversas(r.itens || [])
       setErro(null)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      setErro(msg)
+      setErro(e instanceof Error ? e.message : String(e))
     } finally {
       setCarregando(false)
     }
   }, [])
 
-  const carregarMensagens = useCallback(async (leadId: string) => {
-    // Reaproveita a rota da ficha do lead: ela já aplica RN-71 (leitores).
+  const carregarMensagens = useCallback(async (conversaId: string) => {
     setCarregandoMsg(true)
     setErroMsg('')
     try {
-      const r = (await pb.send('/backend/v1/whatsapp/leads/' + leadId + '/conversa', {
+      const r = (await pb.send('/backend/v1/whatsapp/conversas/' + conversaId + '/mensagens', {
         method: 'GET',
       })) as { itens: Mensagem[] }
       setMensagens(r.itens || [])
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
+      const m = e instanceof Error ? e.message : String(e)
       setMensagens([])
-      setErroMsg(msg.indexOf('permissão') >= 0 ? 'Você não tem acesso a esta conversa.' : msg)
+      setErroMsg(m.indexOf('permissão') >= 0 ? 'Você não tem acesso a esta conversa.' : m)
     } finally {
       setCarregandoMsg(false)
     }
   }, [])
 
-  // Sempre carrega: `carregar` já trata o caso de não estar logado e mostra
-  // aviso. Antes o efeito só rodava com sessão válida, então a tela ficava
-  // presa em "Carregando…" para quem não estava autenticado.
+  const carregarObservacoes = useCallback(async (conversaId: string) => {
+    try {
+      const r = (await pb.send('/backend/v1/whatsapp/conversas/' + conversaId + '/observacoes', {
+        method: 'GET',
+      })) as { itens: Observacao[]; posso_escrever: boolean }
+      setObservacoes(r.itens || [])
+      setPossoEscrever(Boolean(r.posso_escrever))
+    } catch (_) {
+      setObservacoes([])
+      setPossoEscrever(false)
+    }
+  }, [])
+
   useEffect(() => {
     void carregar()
   }, [carregar])
 
-  // Tempo real (RN-89): o evento não traz conteúdo, só avisa que mudou.
   useRealtime('whatsapp_sinais', () => {
     void carregar()
-    if (aberta) {
-      const conv = conversas.find((c) => c.id === aberta)
-      if (conv?.lead) void carregarMensagens(conv.lead)
-    }
+    if (aberta) void carregarMensagens(aberta)
   })
 
-  /** Números que aparecem no filtro (o servidor já limitou ao que posso ver). */
   const numeros = useMemo(() => {
     const mapa = new Map<string, string>()
     for (const c of conversas) {
-      if (c.conexao && !mapa.has(c.conexao)) {
-        mapa.set(c.conexao, c.numero_nome || 'Número')
-      }
+      if (c.conexao && !mapa.has(c.conexao)) mapa.set(c.conexao, c.numero_nome || 'Número')
     }
     return Array.from(mapa.entries()).map(([id, nome]) => ({ id, nome }))
   }, [conversas])
 
-  /** O vendedor de um só número não escolhe outro: o filtro fica fixo. */
   const soUmNumero = numeros.length === 1
 
   const filtradas = useMemo(() => {
-    if (filtroNumero === 'todos') return conversas
-    return conversas.filter((c) => c.conexao === filtroNumero)
-  }, [conversas, filtroNumero])
+    let lista = conversas
+    if (filtroNumero !== 'todos') lista = lista.filter((c) => c.conexao === filtroNumero)
+    const q = busca.trim().toLowerCase()
+    if (q !== '') {
+      lista = lista.filter(
+        (c) =>
+          (c.contato_nome || '').toLowerCase().indexOf(q) >= 0 ||
+          (c.contato_telefone || '').indexOf(q) >= 0 ||
+          (c.ultima_previa || '').toLowerCase().indexOf(q) >= 0,
+      )
+    }
+    return lista
+  }, [conversas, filtroNumero, busca])
 
   const abrir = (c: Conversa) => {
     setAberta(c.id)
     setMensagens([])
-    if (c.lead) void carregarMensagens(c.lead)
-    else setErroMsg('Esta conversa ainda não está ligada a um lead.')
+    setObservacoes([])
+    setAvisoEnvio('')
+    void carregarMensagens(c.id)
+    void carregarObservacoes(c.id)
   }
 
   const convAberta = conversas.find((c) => c.id === aberta) || null
+
+  const responder = async (texto: string, midiaId?: string, legenda?: string) => {
+    if (!aberta) return
+    setEnviando(true)
+    setAvisoEnvio('')
+    try {
+      await pb.send('/backend/v1/whatsapp/conversas/' + aberta + '/responder', {
+        method: 'POST',
+        body: JSON.stringify({
+          texto: texto || '',
+          midia_id: midiaId || '',
+          legenda: legenda || '',
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      setRascunho('')
+      setAvisoEnvio('Mensagem na fila — sai em até 1 minuto.')
+      void carregarMensagens(aberta)
+    } catch (e) {
+      setAvisoEnvio('Não enviei: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const enviarTexto = () => {
+    const t = rascunho.trim()
+    if (t === '' || enviando) return
+    void responder(t)
+  }
+
+  const enviarArquivo = async (file: File) => {
+    if (!aberta || enviando) return
+    setEnviando(true)
+    setAvisoEnvio('Enviando arquivo…')
+    try {
+      const fd = new FormData()
+      fd.append('arquivo', file)
+      fd.append('conexao', convAberta?.conexao || '')
+      fd.append('lead', convAberta?.lead || '')
+      const up = (await pb.send('/backend/v1/whatsapp/midia', {
+        method: 'POST',
+        body: fd,
+      })) as { id: string }
+      await pb.send('/backend/v1/whatsapp/conversas/' + aberta + '/responder', {
+        method: 'POST',
+        body: JSON.stringify({ texto: '', midia_id: up.id, legenda: rascunho.trim() }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      setRascunho('')
+      setAvisoEnvio('Arquivo na fila — sai em até 1 minuto.')
+      void carregarMensagens(aberta)
+    } catch (e) {
+      setAvisoEnvio('Não enviei: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setEnviando(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const comecarGravacao = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const rec = new MediaRecorder(stream)
+      chunksRef.current = []
+      rec.ondataavailable = (ev) => {
+        if (ev.data.size > 0) chunksRef.current.push(ev.data)
+      }
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const file = new File([blob], 'audio-' + Date.now() + '.webm', { type: 'audio/webm' })
+        void enviarArquivo(file)
+      }
+      rec.start()
+      grabRef.current = rec
+      setGravando(true)
+      setSegundosGrav(0)
+    } catch (_) {
+      setAvisoEnvio('Não consegui usar o microfone neste navegador.')
+    }
+  }
+
+  const pararGravacao = () => {
+    const rec = grabRef.current
+    if (rec && rec.state !== 'inactive') rec.stop()
+    grabRef.current = null
+    setGravando(false)
+  }
+
+  useEffect(() => {
+    if (!gravando) return
+    const t = setInterval(() => setSegundosGrav((s) => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [gravando])
+
+  const salvarNota = async () => {
+    const t = nota.trim()
+    if (t === '' || !aberta || salvandoNota) return
+    setSalvandoNota(true)
+    try {
+      await pb.send('/backend/v1/whatsapp/conversas/' + aberta + '/observacoes', {
+        method: 'POST',
+        body: JSON.stringify({ texto: t }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      setNota('')
+      void carregarObservacoes(aberta)
+    } catch (e) {
+      setAvisoEnvio('Não salvei o recado: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setSalvandoNota(false)
+    }
+  }
 
   if (carregando) return <EstadoCarregando />
   if (erro) return <EstadoErro mensagem={erro} />
@@ -184,7 +391,7 @@ export default function Conversas() {
     <div className="space-y-4">
       <CabecalhoPagina
         titulo="Conversas"
-        descricao="WhatsApp dos números da Haisan — atualiza sozinho quando chega mensagem. Só leitura."
+        descricao="WhatsApp dos números da Haisan — responde por aqui e deixa recado interno para o vendedor."
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -207,6 +414,12 @@ export default function Conversas() {
             </Select>
           </div>
         )}
+        <input
+          value={busca}
+          onChange={(ev) => setBusca(ev.target.value)}
+          placeholder="Buscar contato ou mensagem…"
+          className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
         <span className="text-xs text-muted-foreground">{filtradas.length} conversa(s)</span>
         <Button size="sm" variant="outline" onClick={() => void carregar()}>
           Atualizar
@@ -215,132 +428,295 @@ export default function Conversas() {
 
       {filtradas.length === 0 && (
         <EstadoVazio
-          titulo="Nenhuma conversa ainda"
-          descricao="As conversas aparecem aqui quando chega a primeira mensagem no número."
+          titulo="Nenhuma conversa"
+          descricao="As conversas aparecem quando chega a primeira mensagem no número."
         />
       )}
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_2fr]">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Conversas</CardTitle>
-          </CardHeader>
-          <CardContent className="max-h-[28rem] space-y-1 overflow-y-auto pt-0">
+      <div className="grid gap-3 lg:grid-cols-[minmax(300px,1fr)_2fr]">
+        <div className="rounded-lg border bg-card">
+          <div className="border-b px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Conversas
+          </div>
+          <div className="max-h-[32rem] overflow-y-auto">
             {filtradas.map((c) => (
               <button
                 key={c.id}
                 onClick={() => abrir(c)}
                 className={
-                  'w-full rounded-md border px-3 py-2 text-left text-sm hover:bg-muted/50 ' +
-                  (aberta === c.id ? 'border-primary bg-primary/5' : 'border-border')
+                  'flex w-full items-start gap-3 border-b px-3 py-3 text-left last:border-0 hover:bg-muted/50 ' +
+                  (aberta === c.id ? 'bg-emerald-50 dark:bg-emerald-950/20' : '')
                 }
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium">
-                    {c.contato_nome || c.contato_telefone}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {horaCurta(c.ultima_mensagem_em)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-xs text-muted-foreground">
-                    {c.ultima_previa || '(sem prévia)'}
-                  </span>
-                  <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {ROTULO_AUTOR[c.ultimo_autor] || c.ultimo_autor || ''}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">{c.numero_nome}</span>
-                  {c.estado && c.estado !== 'triagem' && (
-                    <Badge variant="outline" className="px-1 py-0 text-[10px]">
-                      {c.estado}
-                    </Badge>
-                  )}
-                </div>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">
-              {convAberta ? convAberta.contato_nome || convAberta.contato_telefone : 'Conversa'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="max-h-[28rem] space-y-2 overflow-y-auto pt-0">
-            {!convAberta && (
-              <p className="text-xs text-muted-foreground">
-                Escolha uma conversa à esquerda para ler as mensagens.
-              </p>
-            )}
-            {convAberta && carregandoMsg && (
-              <p className="text-xs text-muted-foreground">Carregando mensagens…</p>
-            )}
-            {convAberta && !carregandoMsg && erroMsg && (
-              <p className="text-xs text-muted-foreground">{erroMsg}</p>
-            )}
-            {convAberta && !carregandoMsg && !erroMsg && mensagens.length === 0 && (
-              <p className="text-xs text-muted-foreground">Nenhuma mensagem ainda.</p>
-            )}
-            {convAberta &&
-              !carregandoMsg &&
-              mensagens.map((m) => (
-                <div
-                  key={m.id}
+                <span
                   className={
-                    'rounded-md px-3 py-2 text-sm ' +
-                    (m.direcao === 'entrada'
-                      ? 'bg-muted/60'
-                      : 'ml-6 bg-emerald-50 dark:bg-emerald-950/30')
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ' +
+                    corDoNome(c.contato_nome || c.contato_telefone || '?')
                   }
                 >
-                  <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium">{ROTULO_AUTOR[m.autor] || m.autor}</span>
-                    <span>{horaCurta(m.enviada_em)}</span>
-                    {m.status && <span>· {m.status}</span>}
-                    {m.editada_em ? <span>· editada</span> : null}
+                  {iniciais(c.contato_nome, c.contato_telefone)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold">
+                      {c.contato_nome || telefoneBonito(c.contato_telefone)}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {horaCurta(c.ultima_mensagem_em)}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 flex items-center justify-between gap-2">
+                    <span className="truncate text-xs text-muted-foreground">
+                      {c.ultima_previa || '(sem prévia)'}
+                    </span>
+                    {c.ultimo_autor && (
+                      <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {ROTULO_AUTOR[c.ultimo_autor] || c.ultimo_autor}
+                      </span>
+                    )}
+                  </span>
+                  <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">{c.numero_nome}</span>
+                    {c.estado && c.estado !== 'triagem' && (
+                      <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                        {c.estado.replace('_', ' ')}
+                      </Badge>
+                    )}
+                    {c.canal && c.canal !== 'sem_gatilho' && (
+                      <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                        {c.canal}
+                      </Badge>
+                    )}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col rounded-lg border bg-card">
+          {!convAberta && (
+            <div className="flex h-80 items-center justify-center px-6 text-center text-sm text-muted-foreground">
+              Escolha uma conversa à esquerda para ler e responder.
+            </div>
+          )}
+
+          {convAberta && (
+            <>
+              <div className="flex items-center gap-3 border-b px-4 py-3">
+                <span
+                  className={
+                    'flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-white ' +
+                    corDoNome(convAberta.contato_nome || convAberta.contato_telefone || '?')
+                  }
+                >
+                  {iniciais(convAberta.contato_nome, convAberta.contato_telefone)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">
+                    {convAberta.contato_nome || 'Contato'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {telefoneBonito(convAberta.contato_telefone)} · {convAberta.numero_nome}
+                  </p>
+                </div>
+                {convAberta.estado === 'pausada_humano' && (
+                  <Badge variant="outline" className="text-[10px]">
+                    IA pausada
+                  </Badge>
+                )}
+              </div>
+
+              {(observacoes.length > 0 || possoEscrever) && (
+                <div className="border-b bg-amber-50 px-4 py-2 dark:bg-amber-950/20">
+                  <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                    <span>🔒</span>
+                    <span>Recado interno — o cliente NÃO vê, só o vendedor deste atendimento</span>
                   </div>
-                  {m.apagada ? (
-                    <p className="italic text-muted-foreground">Mensagem apagada por quem enviou</p>
-                  ) : (
-                    <>
-                      {/* texto como TEXTO: nunca HTML */}
-                      {m.texto && <p className="whitespace-pre-wrap">{m.texto}</p>}
-                      {m.media_url && (
-                        <a
-                          href={m.media_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1 inline-block text-xs underline"
-                        >
-                          {m.tipo === 'audio'
-                            ? // A D-API nem sempre manda `duration`: mostrar "0:00"
-                              // seria mentir sobre o áudio. Sem duração, só "Áudio".
-                              Number(m.media_duracao_s || 0) > 0
-                              ? 'Áudio ' +
-                                Math.floor(Number(m.media_duracao_s) / 60) +
-                                ':' +
-                                String(Math.floor(Number(m.media_duracao_s) % 60)).padStart(2, '0')
-                              : 'Abrir áudio'
-                            : m.tipo === 'image'
-                              ? 'Imagem'
-                              : m.tipo === 'video'
-                                ? 'Vídeo'
-                                : 'Documento'}
-                        </a>
-                      )}
-                      {!m.texto && !m.media_url && (
-                        <p className="text-xs text-muted-foreground">({m.tipo})</p>
-                      )}
-                    </>
+                  {observacoes.map((o) => (
+                    <div
+                      key={o.id}
+                      className="mb-1 rounded border border-amber-300/60 bg-white/70 px-2 py-1 text-xs dark:bg-amber-900/20"
+                    >
+                      <span className="font-medium">{o.autor_nome || 'Gerência'}: </span>
+                      <span className="whitespace-pre-wrap">{o.texto}</span>
+                    </div>
+                  ))}
+                  {possoEscrever && (
+                    <div className="flex gap-2">
+                      <input
+                        value={nota}
+                        onChange={(ev) => setNota(ev.target.value)}
+                        onKeyDown={(ev) => {
+                          if (ev.key === 'Enter') void salvarNota()
+                        }}
+                        placeholder="Ex.: não fala que é aço, é madeira…"
+                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs dark:bg-amber-900/30"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void salvarNota()}
+                        disabled={salvandoNota}
+                      >
+                        {salvandoNota ? '…' : 'Recado'}
+                      </Button>
+                    </div>
                   )}
                 </div>
-              ))}
-          </CardContent>
-        </Card>
+              )}
+
+              <div className="max-h-[26rem] flex-1 space-y-1 overflow-y-auto px-4 py-3">
+                {carregandoMsg && (
+                  <p className="text-xs text-muted-foreground">Carregando mensagens…</p>
+                )}
+                {!carregandoMsg && erroMsg && (
+                  <p className="text-xs text-muted-foreground">{erroMsg}</p>
+                )}
+                {!carregandoMsg && !erroMsg && mensagens.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nenhuma mensagem ainda.</p>
+                )}
+                {!carregandoMsg &&
+                  mensagens.map((m, i) => {
+                    const anterior = i > 0 ? mensagens[i - 1] : null
+                    const novoDia =
+                      !anterior || rotuloDia(anterior.enviada_em) !== rotuloDia(m.enviada_em)
+                    const minha = m.direcao === 'saida'
+                    return (
+                      <div key={m.id}>
+                        {novoDia && (
+                          <div className="my-2 text-center">
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                              {rotuloDia(m.enviada_em)}
+                            </span>
+                          </div>
+                        )}
+                        <div className={'flex ' + (minha ? 'justify-end' : 'justify-start')}>
+                          <div
+                            className={
+                              'max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm ' +
+                              (minha
+                                ? 'bg-emerald-100 text-emerald-950 dark:bg-emerald-900/40 dark:text-emerald-50'
+                                : 'bg-muted text-foreground')
+                            }
+                          >
+                            <div className="mb-0.5 flex items-center gap-2 text-[10px] opacity-70">
+                              <span className="font-semibold">
+                                {ROTULO_AUTOR[m.autor] || m.autor}
+                              </span>
+                              <span>{horaCurta(m.enviada_em)}</span>
+                              {m.status && <span>· {m.status}</span>}
+                              {m.editada_em ? <span>· editada</span> : null}
+                            </div>
+                            {m.apagada ? (
+                              <p className="italic opacity-70">Mensagem apagada</p>
+                            ) : (
+                              <>
+                                {m.texto && <p className="whitespace-pre-wrap">{m.texto}</p>}
+                                {m.media_url && (
+                                  <span className="mt-1 block">
+                                    {m.tipo === 'image' ? (
+                                      <img
+                                        src={m.media_url}
+                                        alt="imagem enviada"
+                                        className="max-h-64 rounded"
+                                        loading="lazy"
+                                      />
+                                    ) : m.tipo === 'audio' ? (
+                                      <audio controls src={m.media_url} className="max-w-full" />
+                                    ) : m.tipo === 'video' ? (
+                                      <video
+                                        controls
+                                        src={m.media_url}
+                                        className="max-h-64 rounded"
+                                      />
+                                    ) : (
+                                      <a
+                                        href={m.media_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs underline"
+                                      >
+                                        {m.media_mimetype || 'Abrir arquivo'}
+                                      </a>
+                                    )}
+                                    {m.tipo === 'audio' && duracao(m.media_duracao_s) !== '' && (
+                                      <span className="ml-2 text-[10px] opacity-70">
+                                        {duracao(m.media_duracao_s)}
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                                {!m.texto && !m.media_url && (
+                                  <p className="text-xs opacity-70">({m.tipo})</p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+
+              <div className="border-t px-3 py-2">
+                {avisoEnvio && (
+                  <p className="mb-1 text-[11px] text-muted-foreground">{avisoEnvio}</p>
+                )}
+                <div className="flex items-end gap-2">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*,video/*,audio/*,application/pdf"
+                    className="hidden"
+                    onChange={(ev) => {
+                      const f = ev.target.files && ev.target.files[0]
+                      if (f) void enviarArquivo(f)
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    title="Anexar foto, vídeo ou documento"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={enviando}
+                  >
+                    📎
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={gravando ? 'destructive' : 'outline'}
+                    title={gravando ? 'Parar e enviar áudio' : 'Gravar áudio'}
+                    onClick={() => (gravando ? pararGravacao() : void comecarGravacao())}
+                    disabled={enviando}
+                  >
+                    {gravando ? '⏹ ' + duracao(segundosGrav) : '🎤'}
+                  </Button>
+                  <textarea
+                    value={rascunho}
+                    onChange={(ev) => setRascunho(ev.target.value)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' && !ev.shiftKey) {
+                        ev.preventDefault()
+                        enviarTexto()
+                      }
+                    }}
+                    rows={1}
+                    placeholder="Escreva a resposta… (Enter envia, Shift+Enter quebra linha)"
+                    className="min-h-[38px] flex-1 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={enviarTexto}
+                    disabled={enviando || rascunho.trim() === ''}
+                  >
+                    {enviando ? '…' : 'Enviar'}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
