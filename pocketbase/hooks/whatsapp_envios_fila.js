@@ -118,12 +118,12 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       }
       // rota certa por tipo (texto continua na rota antiga)
       if (midia) {
-        if (tipoMidia === 'image') url = 'https://api.deliverify.io/api/v1/messages/send/image'
-        else if (tipoMidia === 'audio') url = 'https://api.deliverify.io/api/v1/messages/send/audio'
-        else if (tipoMidia === 'video') url = 'https://api.deliverify.io/api/v1/messages/send/video'
-        else url = 'https://api.deliverify.io/api/v1/messages/send/document'
+        if (tipoMidia === 'image') url = 'https://api.d-api.cloud/api/v1/messages/send/image'
+        else if (tipoMidia === 'audio') url = 'https://api.d-api.cloud/api/v1/messages/send/audio'
+        else if (tipoMidia === 'video') url = 'https://api.d-api.cloud/api/v1/messages/send/video'
+        else url = 'https://api.d-api.cloud/api/v1/messages/send/document'
       } else {
-        url = 'https://api.deliverify.io/api/v1/messages/send/text'
+        url = 'https://api.d-api.cloud/api/v1/messages/send/text'
       }
       auth = chave
     }

@@ -177,7 +177,7 @@ routerAdd(
       try {
         const resp = $http.send({
           url:
-            'https://api.deliverify.io/api/v1/contacts/' +
+            'https://api.d-api.cloud/api/v1/contacts/' +
             telefone +
             '/avatar?sessionId=' +
             encodeURIComponent(sessionId) +
