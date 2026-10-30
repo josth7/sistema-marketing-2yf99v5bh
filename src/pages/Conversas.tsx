@@ -35,6 +35,21 @@ import {
  * só avisa que mudou, e aí a tela re-busca pelas rotas.
  */
 
+/**
+ * Envio pelo sistema BLOQUEADO (30/10/2026).
+ *
+ * A Meta está recusando todo envio pela Cloud API com erro 130497
+ * ("Business account is restricted from messaging users in this country").
+ * O POST devolve 200 + wamid e a falha vem depois no webhook — ou seja, a
+ * mensagem morria em silêncio e o vendedor achava que tinha respondido.
+ *
+ * Enquanto a restrição existir, responda pelo celular: a coexistência
+ * entrega e a mensagem aparece aqui do mesmo jeito.
+ *
+ * Para religar: trocar para `false` quando a Meta liberar.
+ */
+const ENVIO_BLOQUEADO = true
+
 type Conversa = {
   id: string
   conexao: string
@@ -660,6 +675,14 @@ export default function Conversas() {
               </div>
 
               <div className="border-t px-3 py-2">
+                {ENVIO_BLOQUEADO && (
+                  <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-900">
+                    <strong>Responda pelo WhatsApp do celular.</strong> A Meta está bloqueando o
+                    envio pela API (erro 130497) — o que você escrever aqui{' '}
+                    <strong>não chega</strong> no cliente. Suas respostas pelo celular aparecem
+                    nesta tela normalmente.
+                  </div>
+                )}
                 {avisoEnvio && (
                   <p className="mb-1 text-[11px] text-muted-foreground">{avisoEnvio}</p>
                 )}
@@ -702,13 +725,18 @@ export default function Conversas() {
                       }
                     }}
                     rows={1}
-                    placeholder="Escreva a resposta… (Enter envia, Shift+Enter quebra linha)"
-                    className="min-h-[38px] flex-1 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={ENVIO_BLOQUEADO}
+                    placeholder={
+                      ENVIO_BLOQUEADO
+                        ? 'Envio bloqueado pela Meta — responda pelo celular'
+                        : 'Escreva a resposta… (Enter envia, Shift+Enter quebra linha)'
+                    }
+                    className="min-h-[38px] flex-1 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                   />
                   <Button
                     size="sm"
                     onClick={enviarTexto}
-                    disabled={enviando || rascunho.trim() === ''}
+                    disabled={ENVIO_BLOQUEADO || enviando || rascunho.trim() === ''}
                   >
                     {enviando ? '…' : 'Enviar'}
                   </Button>
