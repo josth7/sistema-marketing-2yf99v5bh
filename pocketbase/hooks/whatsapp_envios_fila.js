@@ -25,7 +25,7 @@
  * ARRAY DE CHAR-CODES; lógica INLINE nos callbacks.
  */
 
-cronAdd('whatsapp_envios_fila', '*/10 * * * *', () => {
+cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
   const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
   const alvos = []
   try {

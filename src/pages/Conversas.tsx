@@ -285,7 +285,7 @@ export default function Conversas() {
         headers: { 'Content-Type': 'application/json' },
       })
       setRascunho('')
-      setAvisoEnvio('Mensagem na fila — sai em até 1 minuto.')
+      setAvisoEnvio('Mensagem na fila — sai em até 2 minutos.')
       void carregarMensagens(aberta)
     } catch (e) {
       setAvisoEnvio('Não enviei: ' + (e instanceof Error ? e.message : String(e)))
@@ -319,7 +319,7 @@ export default function Conversas() {
         headers: { 'Content-Type': 'application/json' },
       })
       setRascunho('')
-      setAvisoEnvio('Arquivo na fila — sai em até 1 minuto.')
+      setAvisoEnvio('Arquivo na fila — sai em até 2 minutos.')
       void carregarMensagens(aberta)
     } catch (e) {
       setAvisoEnvio('Não enviei: ' + (e instanceof Error ? e.message : String(e)))
