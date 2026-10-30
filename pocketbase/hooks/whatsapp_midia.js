@@ -76,7 +76,28 @@ routerAdd(
     const f = arquivos[0]
 
     const nome = String(f.originalName || 'arquivo')
-    const mime = String(f.contentType || '')
+    // O objeto de arquivo do JSVM não entrega contentType de forma confiável
+    // (veio vazio em 30/10 com curl mandando ;type=image/jpeg). Tenta as
+    // propriedades possíveis e, se todas falharem, deduz pela extensão —
+    // sem isso a foto ia pela rota de `document` e chegava como arquivo.
+    var mime = ''
+    try {
+      mime = String(f.contentType || f.type || f.mimeType || '')
+    } catch (errMime) {}
+    if (mime === '') {
+      const ext = String(nome).toLowerCase().split('.').pop()
+      if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg'
+      else if (ext === 'png') mime = 'image/png'
+      else if (ext === 'webp') mime = 'image/webp'
+      else if (ext === 'gif') mime = 'image/gif'
+      else if (ext === 'ogg' || ext === 'opus') mime = 'audio/ogg'
+      else if (ext === 'mp3') mime = 'audio/mpeg'
+      else if (ext === 'm4a') mime = 'audio/mp4'
+      else if (ext === 'webm') mime = 'audio/webm'
+      else if (ext === 'mp4') mime = 'video/mp4'
+      else if (ext === 'mov') mime = 'video/quicktime'
+      else if (ext === 'pdf') mime = 'application/pdf'
+    }
     var tamanho = 0
     try {
       tamanho = Number(f.size || 0)

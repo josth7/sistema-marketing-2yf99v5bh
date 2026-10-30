@@ -370,6 +370,7 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
 
   // ---------- 10. autor (RN-62) ----------
   var autor = 'cliente'
+  var autorUser = ''
   var direcao = 'entrada'
   if (evento === 'messages.sent') {
     direcao = 'saida'
@@ -390,7 +391,12 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       )
       if (env && env.length > 0) {
         const motivo = String(env[0].get('motivo') || '')
-        autor = motivo.indexOf('ia_') === 0 ? 'ia' : 'sistema'
+        if (motivo.indexOf('ia_') === 0) autor = 'ia'
+        else if (motivo.indexOf('vendedor_') === 0) {
+          // resposta enviada PELO SISTEMA por um humano — não é 'sistema'
+          autor = 'vendedor'
+          autorUser = String(env[0].get('autor_user') || '')
+        } else autor = 'sistema'
       }
     } catch (eEnv) {}
   } else if (fromMe) {
@@ -412,7 +418,11 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       )
       if (env2 && env2.length > 0) {
         const motivo2 = String(env2[0].get('motivo') || '')
-        autor = motivo2.indexOf('ia_') === 0 ? 'ia' : 'sistema'
+        if (motivo2.indexOf('ia_') === 0) autor = 'ia'
+        else if (motivo2.indexOf('vendedor_') === 0) {
+          autor = 'vendedor'
+          autorUser = String(env2[0].get('autor_user') || '')
+        } else autor = 'sistema'
       }
     } catch (eEnv2) {}
   }
@@ -448,7 +458,10 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     msg.set('contato_nome', String(lado.name || '').slice(0, 200))
     msg.set('direcao', direcao)
     msg.set('autor', autor)
-    msg.set('autor_user', autor === 'vendedor' ? vendedorDaConexao : '')
+    msg.set(
+      'autor_user',
+      autor === 'vendedor' ? (autorUser !== '' ? autorUser : vendedorDaConexao) : '',
+    )
     msg.set('evento_origem', evento)
     msg.set('tipo', tipo.slice(0, 40))
     msg.set('texto', textoMsg)

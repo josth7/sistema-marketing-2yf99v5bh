@@ -1,12 +1,22 @@
 /// <reference path="../pb_data/types.d.ts" />
 /**
- * Fila de envios pela API oficial — RN-69 (SPEC-3-005, CA-3-16).
+ * Fila de envios pela API oficial — RN-69 (SPEC-3-005) + mídia (30/10).
  *
  * Pega os envios `pendente` e `erro`, tenta pela D-API e classifica:
  *   2xx        → `enviado` + wa_message_id
  *   4xx (≠429) → `erro_definitivo` (destino inválido — não adianta repetir)
  *   429/5xx/timeout → `erro`, volta na próxima rodada
  *   3 tentativas sem sucesso → `erro_definitivo`, visível na tela
+ *
+ * NOVO (Conversas 2.0): envio de MÍDIA pelo vendedor. O envio com `midia`
+ * preenchido busca o arquivo em `whatsapp_midia` e chama a rota certa da D-API
+ * (image/audio/video/document) com a URL pública do arquivo. A D-API aceita
+ * URL pública — o id do registro é aleatório, então o link não é adivinhável.
+ *
+ * O motivo do envio diz o autor:
+ *   ia_*              → a IA respondeu
+ *   vendedor_*        → o vendedor respondeu PELO SISTEMA (autor_user)
+ *   aviso_*/teste     → sistema
  *
  * Conexão fixture NUNCA chama a D-API real: usa a rota de fixture do próprio
  * sistema com `X-Fixture-Secret` (lição do projeto).
@@ -67,6 +77,17 @@ cronAdd('whatsapp_envios_fila', '*/10 * * * *', () => {
     const sessionId = String(conexao.get('session_id') || '')
     const secao = String(conexao.get('nome_segredo_chave') || 'DAPI_API_KEY')
 
+    // ---------- mídia? ----------
+    var midia = null
+    var tipoMidia = ''
+    try {
+      const midiaId = String(env.get('midia') || '')
+      if (midiaId !== '') {
+        midia = $app.findRecordById('whatsapp_midia', midiaId)
+        if (midia) tipoMidia = String(midia.get('tipo') || '')
+      }
+    } catch (eMid) {}
+
     var url = ''
     var auth = ''
     if (ehFixture) {
@@ -86,12 +107,49 @@ cronAdd('whatsapp_envios_fila', '*/10 * * * *', () => {
         } catch (e6) {}
         continue
       }
-      url = 'https://api.deliverify.io/api/v1/messages/send/text'
+      // rota certa por tipo (texto continua na rota antiga)
+      if (midia) {
+        if (tipoMidia === 'image') url = 'https://api.deliverify.io/api/v1/messages/send/image'
+        else if (tipoMidia === 'audio') url = 'https://api.deliverify.io/api/v1/messages/send/audio'
+        else if (tipoMidia === 'video') url = 'https://api.deliverify.io/api/v1/messages/send/video'
+        else url = 'https://api.deliverify.io/api/v1/messages/send/document'
+      } else {
+        url = 'https://api.deliverify.io/api/v1/messages/send/text'
+      }
       auth = chave
     }
 
     const tentativas = Number(env.get('tentativas') || 0) + 1
     env.set('tentativas', tentativas)
+
+    // ---------- corpo por tipo ----------
+    var corpo = {}
+    if (midia && !ehFixture) {
+      // URL pública do arquivo: o id do registro é aleatório (não adivinhável)
+      var basePub = String($secrets.get('SITE_URL') || '')
+      if (basePub === '') basePub = 'https://sistema-marketing-1f51e.goskip.app'
+      var urlArquivo =
+        basePub + '/api/files/whatsapp_midia/' + midia.id + '/' + midia.get('arquivo')
+      corpo = { sessionId: sessionId, to: destino }
+      if (tipoMidia === 'image') corpo.image = urlArquivo
+      else if (tipoMidia === 'audio') corpo.audio = urlArquivo
+      else if (tipoMidia === 'video') corpo.video = urlArquivo
+      else corpo.document = urlArquivo
+      var legenda = String(env.get('legenda') || '')
+      if (legenda !== '' && (tipoMidia === 'image' || tipoMidia === 'video' || tipoMidia === 'document')) {
+        corpo.caption = legenda
+      }
+      if (tipoMidia === 'document') {
+        corpo.filename = String(midia.get('nome_arquivo') || 'arquivo')
+      }
+    } else {
+      corpo = { sessionId: sessionId, to: destino, text: texto }
+      if (midia && ehFixture) {
+        // fixture: a rota de teste só conhece texto; manda a legenda como texto
+        var legendaF = String(env.get('legenda') || '')
+        if (legendaF !== '') corpo.text = legendaF
+      }
+    }
 
     var status = 0
     var corpoResp = ''
@@ -104,8 +162,8 @@ cronAdd('whatsapp_envios_fila', '*/10 * * * *', () => {
           Authorization: auth,
           'X-Fixture-Secret': ehFixture ? auth : '',
         },
-        body: JSON.stringify({ sessionId: sessionId, to: destino, text: texto }),
-        timeout: 10,
+        body: JSON.stringify(corpo),
+        timeout: 20,
       })
       status = Number(resp.statusCode || 0)
       var raw = resp.body
