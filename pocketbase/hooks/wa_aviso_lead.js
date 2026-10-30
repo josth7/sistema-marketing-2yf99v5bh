@@ -112,7 +112,9 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
       const criado = String(l.get('created') || '')
       if (criado === '') continue
       var idade = agora - new Date(criado).getTime()
-      if (!(idade >= 0) || idade > 86400000) continue // só as últimas 24h
+      // janela de 30 dias: cobre a base que ficou sem dono antes da
+      // distribuicao automatica existir (34 leads de 28/10 encontrados)
+      if (!(idade >= 0) || idade > 30 * 86400000) continue
 
       // já avisado? (dedupe por lead)
       const chave = 'aviso_lead_novo|' + l.id
