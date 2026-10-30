@@ -350,7 +350,10 @@ routerAdd(
     env.set('tentativas', 0)
     if (midia) env.set('midia', midia.id)
     env.set('fixture', String(conexao.get('fixture')) === 'true')
-    // sem dedupe: o vendedor pode mandar "ok" duas vezes de propósito
+    // dedupe_key tem UNIQUE: sem valor, o SEGUNDO envio colide com o primeiro
+    // (vazio == vazio) e a resposta morre com "Value must be unique" — provado
+    // em 30/10. Cada resposta do vendedor é intencional: chave única por envio.
+    env.set('dedupe_key', 'vresp-' + conv.id + '-' + new Date().getTime())
     try {
       $app.save(env)
     } catch (errEnv) {
