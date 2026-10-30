@@ -106,8 +106,8 @@ routerAdd(
         criado: String(l.get('created') || '').slice(0, 10),
         interno: telInterno,
       }
-      if (st === 'fechado') fechados.push(resumo)
-      if (st === 'perdido') perdidos.push(resumo)
+      if (st === 'venda_realizada' || st === 'finalizado') fechados.push(resumo)
+      if (st === 'descartado') perdidos.push(resumo)
       if (telInterno) internos.push(resumo)
     }
 
