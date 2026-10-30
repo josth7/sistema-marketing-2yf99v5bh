@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T16:44:12.481Z",
+  "generatedAt": "2026-10-30T17:02:04.536Z",
   "collections": [
     {
       "name": "users",
@@ -3882,7 +3882,9 @@
             "ia_followup",
             "aviso_vendedor",
             "aviso_cliente",
-            "teste"
+            "teste",
+            "vendedor_resposta",
+            "vendedor_midia"
           ]
         },
         {
@@ -3997,6 +3999,24 @@
         {
           "name": "fixture_status",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "midia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "legenda",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_user",
+          "type": "text",
           "required": false,
           "system": false
         }
@@ -4185,6 +4205,136 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_wa_internos_numero ON whatsapp_numeros_internos (numero)"
       ]
+    },
+    {
+      "name": "whatsapp_midia",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": "",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "image",
+            "audio",
+            "video",
+            "document"
+          ]
+        },
+        {
+          "name": "mimetype",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_arquivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "duracao_s",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conexao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lead",
+          "type": "text",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "whatsapp_observacoes",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "conversa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lead",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conexao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "autor_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "para_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lida_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": []
     }
   ]
 }
