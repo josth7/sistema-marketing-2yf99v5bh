@@ -1022,6 +1022,45 @@ routerAdd(
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
+
+    // ESCOPO (30/10): este resumo é o "Na fila · R$ X" da tela do CRM e
+    // somava as conversões de TODO MUNDO — o vendedor via a venda da
+    // gerência. Mesma regra da fila: escopo '*' vê tudo; vendedor vê só as
+    // conversões dos leads dele.
+    var temTudoRes = false
+    var contasRes = []
+    try {
+      const colGR = $app.findCollectionByNameOrId('access_grants')
+      const meusR = $app.findRecordsByFilter(
+        colGR,
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '-created',
+        50,
+        0,
+      )
+      const hojeR = new Date().toISOString().slice(0, 10)
+      for (const g of meusR) {
+        const de = String(g.get('valid_from') || '')
+        const ate = String(g.get('valid_until') || '')
+        if (de !== '' && de.slice(0, 10) > hojeR) continue
+        if (ate !== '' && ate.slice(0, 10) < hojeR) continue
+        let sa = []
+        try {
+          const ra = g.get('scope_accounts')
+          sa =
+            Array.isArray(ra) && ra.length > 0 && typeof ra[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, ra))
+              : typeof ra === 'string'
+                ? JSON.parse(ra)
+                : ra || []
+        } catch (e3r) {}
+        if (!Array.isArray(sa)) sa = []
+        if (sa.indexOf('*') >= 0) temTudoRes = true
+        for (const c of sa)
+          if (c !== '*' && contasRes.indexOf(String(c)) < 0) contasRes.push(String(c))
+      }
+    } catch (eGR) {}
+
     const colConv = $app.findCollectionByNameOrId('conversion_events')
     const registros = $app.findRecordsByFilter(
       colConv,
@@ -1036,6 +1075,26 @@ routerAdd(
     var valorPendente = 0
     var valorEnviado = 0
     for (const c of registros) {
+      if (!temTudoRes) {
+        var ehMinha = false
+        try {
+          const lr = $app.findRecordById('crm_leads', String(c.get('lead_id')))
+          if (String(lr.get('owner_id') || '') === e.auth.id) {
+            ehMinha = true
+            if (contasRes.length > 0) {
+              const contaR = String(lr.get('conta_id') || '')
+              var dentroR = false
+              for (const cr of contasRes) {
+                if (contaR !== '' && contaR.indexOf(cr) >= 0) dentroR = true
+              }
+              if (!dentroR) ehMinha = false
+            }
+          }
+        } catch (eLr) {
+          ehMinha = false
+        }
+        if (!ehMinha) continue
+      }
       const est = String(c.get('estado') || 'pending')
       const v = Number(c.get('valor') || 0)
       if (est === 'pending') {
