@@ -173,7 +173,9 @@ routerAdd(
             d.url || d.avatarUrl || d.avatar_url || d.profilePictureUrl || d.picture || '',
           )
         }
-      } catch (errH) {}
+      } catch (errH) {
+        debugCorpo = 'EXC: ' + String(errH).slice(0, 300)
+      }
 
       if (String(e.request.url.query().get('debug') || '') === '1') {
         resultado[cid] = '[' + debugStatus + '] ' + debugCorpo
