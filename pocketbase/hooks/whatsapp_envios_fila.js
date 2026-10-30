@@ -100,6 +100,15 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       try {
         chave = String($secrets.get(secao) || '')
       } catch (eSec) {}
+      if (chave === '' && secao !== 'DAPI_KEY_CENTRAL') {
+        // todas as conexões estão na MESMA conta D-API: a chave da conta
+        // (DAPI_KEY_CENTRAL) autoriza o envio de qualquer session. As chaves
+        // por conexão (DAPI_KEY_FABIO etc.) nunca existiram no cofre —
+        // descoberto em 30/10: resposta do vendedor morria aqui.
+        try {
+          chave = String($secrets.get('DAPI_KEY_CENTRAL') || '')
+        } catch (eSec2) {}
+      }
       if (chave === '') {
         env.set('ultimo_erro', 'chave_nao_configurada')
         try {

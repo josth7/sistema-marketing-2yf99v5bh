@@ -140,6 +140,12 @@ routerAdd(
       try {
         chave = String($secrets.get(secao) || '')
       } catch (errS) {}
+      if (chave === '' && secao !== 'DAPI_KEY_CENTRAL') {
+        // mesma conta D-API para todas as conexões (ver 30/10)
+        try {
+          chave = String($secrets.get('DAPI_KEY_CENTRAL') || '')
+        } catch (errS2) {}
+      }
       if (String(e.request.url.query().get('debug') || '') === '1') {
         resultado[cid] =
           'diag tele=' +
