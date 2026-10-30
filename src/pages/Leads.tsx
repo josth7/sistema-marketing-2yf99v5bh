@@ -824,107 +824,108 @@ export default function Leads() {
         </div>
       )}
 
-      {/* LISTA (tabela) */}
+      {/* LISTA em BLOCOS (30/10) — o CRM antigo da agência mostrava cards,
+          não tabela. Mesmos dados, apresentação em blocos: um card por lead,
+          com nome, telefone, valor, origem, etapa e responsável. */}
       {!carregando && !erro && itens.length > 0 && vista === 'lista' && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="py-2 pr-3">Nome</th>
-                    <th className="py-2 pr-3">Telefone</th>
-                    <th className="py-2 pr-3">Origem</th>
-                    <th className="py-2 pr-3">Status</th>
-                    <th className="py-2 pr-3">Data</th>
-                    <th className="py-2">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginaAtual.map((l) => (
-                    <tr key={l.id} className="border-b last:border-0">
-                      <td className="py-2 pr-3 font-medium">{l.nome}</td>
-                      <td className="py-2 pr-3">{l.telefone || '—'}</td>
-                      <td className="py-2 pr-3">{ROTULO_ORIGEM[l.origem] || l.origem}</td>
-                      <td className="py-2 pr-3">
-                        <Badge className={COR_STATUS[l.status] || ''}>
-                          {ROTULO_STATUS[l.status] || l.status}
-                        </Badge>
-                      </td>
-                      <td className="py-2 pr-3">{(l.data_lead || '').slice(0, 10) || '—'}</td>
-                      <td className="py-2">
-                        <Button size="sm" variant="ghost" onClick={() => void abrirDetalhe(l)}>
-                          Abrir
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filtrados.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-4 text-center text-muted-foreground">
-                        Nenhum lead com esse filtro.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground">
-                {filtrados.length === 0
-                  ? '0 de ' + itens.length + ' leads'
-                  : `${pagina * TAMANHO_PAGINA + 1}–${Math.min(
-                      (pagina + 1) * TAMANHO_PAGINA,
-                      filtrados.length,
-                    )} de ${filtrados.length}` +
-                    (filtrados.length === itens.length ? '' : ` (${itens.length} no total)`)}
-              </p>
-              {totalPaginas > 1 && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    disabled={pagina === 0}
-                    onClick={() => setPagina(0)}
-                  >
-                    ⟪
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    disabled={pagina === 0}
-                    onClick={() => setPagina((p) => Math.max(0, p - 1))}
-                  >
-                    ← anterior
-                  </Button>
-                  <span className="px-2 text-xs tabular-nums text-muted-foreground">
-                    {pagina + 1} / {totalPaginas}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    disabled={pagina >= totalPaginas - 1}
-                    onClick={() => setPagina((p) => Math.min(totalPaginas - 1, p + 1))}
-                  >
-                    próxima →
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    disabled={pagina >= totalPaginas - 1}
-                    onClick={() => setPagina(totalPaginas - 1)}
-                  >
-                    ⟫
-                  </Button>
+        <>
+          {filtrados.length === 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  Nenhum lead com esse filtro.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {paginaAtual.map((l) => {
+              const valor = Number(l.valor || 0)
+              return (
+                <div
+                  key={l.id}
+                  className="flex flex-col rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  {/* cabeçalho do bloco: nome + etapa */}
+                  <div className="flex items-start justify-between gap-2">
+                    <p
+                      className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground"
+                      title={l.nome}
+                    >
+                      {l.nome}
+                    </p>
+                    <Badge className={'shrink-0 text-[10px] ' + (COR_STATUS[l.status] || '')}>
+                      {ROTULO_STATUS[l.status] || l.status}
+                    </Badge>
+                  </div>
+
+                  {/* valor em destaque, como no CRM antigo */}
+                  <p className="mt-1 text-base font-bold tabular-nums text-foreground">
+                    R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+
+                  {/* telefone com atalho de WhatsApp */}
+                  <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                    <p className="truncate">📞 {l.telefone || l.email || '—'}</p>
+                    <p className="truncate">
+                      {ROTULO_ORIGEM[l.origem] || l.origem}
+                      {l.campanha ? ' · ' + l.campanha : ''}
+                    </p>
+                    <p className="truncate">
+                      📅{' '}
+                      {(l.data_lead || l.criado_em || '')
+                        .slice(0, 10)
+                        .split('-')
+                        .reverse()
+                        .join('/') || '—'}
+                    </p>
+                  </div>
+
+                  {/* responsável */}
+                  <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+                    <p className="min-w-0 flex-1 truncate text-[11px] text-emerald-700">
+                      {l.owner_nome ? '👤 ' + l.owner_nome : '—'}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 shrink-0 px-2 text-xs"
+                      onClick={() => void abrirDetalhe(l)}
+                    >
+                      Abrir
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* PAGINAÇÃO (volta após os blocos — a tabela antiga trazia junto) */}
+      {!carregando && !erro && itens.length > 0 && vista === 'lista' && totalPaginas > 1 && (
+        <div className="flex items-center justify-center gap-3 pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pagina === 0}
+            onClick={() => setPagina((p) => Math.max(0, p - 1))}
+          >
+            ← anterior
+          </Button>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {pagina + 1} / {totalPaginas} · {filtrados.length} leads
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pagina >= totalPaginas - 1}
+            onClick={() => setPagina((p) => Math.min(totalPaginas - 1, p + 1))}
+          >
+            próxima →
+          </Button>
+        </div>
       )}
 
       {/* criar */}
