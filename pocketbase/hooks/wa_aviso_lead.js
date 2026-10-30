@@ -150,7 +150,7 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
       try {
         const colTr = $app.findCollectionByNameOrId('crm_lead_events')
         const ev = new Record(colTr)
-        ev.set('lead', l.id)
+        ev.set('lead_id', l.id)
         ev.set('tipo', 'status')
         ev.set(
           'texto',

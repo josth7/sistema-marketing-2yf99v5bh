@@ -1,0 +1,524 @@
+/// <reference path="../pb_data/types.d.ts" />
+/**
+ * CRON DO ROTEIRO — responde só quem chega com o GATILHO do anúncio (30/10).
+ *
+ * Decisão do dono: "siga como no agente atual". O agente atual da Movienari
+ * só responde quem chega com o texto do gatilho; quem chega sem gatilho NÃO
+ * recebe resposta automática (artifacts/agente-atendimento-haisan.md, seção 5).
+ *
+ * Gatilhos (tipo Contém, como no painel):
+ *   Google  → "Olá! Vi o anúncio da Haisan no Google"
+ *   Meta    → "Olá! Vi o anúncio da Haisan" + Instagram/Facebook/Meta
+ *   sem qualificador → META (o doc pede: "mensagens não-decifráveis" ATIVO,
+ *                      o agente entra em lead de anúncio sem gatilho decifrável)
+ * Sem gatilho → conversa fica em `sem_gatilho`: nenhuma resposta automática.
+ *
+ * O canal detectado alimenta o roteiro (organico pergunta a origem; meta não).
+ *
+ * LIÇÃO JSVM: `function`/`var` no TOPO quebra o arquivo inteiro (404 em tudo).
+ * Aqui a decisão está INLINE dentro do callback do cron.
+ */
+
+cronAdd('wa_roteiro', '* * * * *', () => {
+  // liga/desliga o ENVIO real. Enquanto a Meta bloquear (130497), fica false:
+  // o motor decide, grava a etapa e MARCA no log, mas não enfileira.
+  const MODO_ENSAIO = true
+
+  try {
+    // ---------- conexão central ----------
+    const colCx = $app.findCollectionByNameOrId('whatsapp_conexoes')
+    var centrais = []
+    try {
+      centrais = $app.findRecordsByFilter(colCx, "papel='central' && ativo=true", '', 5, 0)
+    } catch (e0) {
+      return
+    }
+    if (centrais.length === 0) return
+    const central = centrais[0]
+
+    // ---------- consultor do rodízio (nome + número reais) ----------
+    const colU = $app.findCollectionByNameOrId('users')
+    const colGe = $app.findCollectionByNameOrId('access_grants')
+    const colL = $app.findCollectionByNameOrId('crm_leads')
+    var consultor = { id: '', nome: '', numero: '' }
+    var vendedores = []
+    try {
+      const us = $app.findRecordsByFilter(colU, '', '', 200, 0)
+      const todosLeads = $app.findRecordsByFilter(colL, 'fixture=false', '', 6000, 0)
+      const carga = {}
+      for (const l0 of todosLeads) {
+        const ow = String(l0.get('owner_id') || '')
+        if (ow === '') continue
+        const st0 = String(l0.get('status') || 'entrada_lead')
+        if (st0 === 'venda_realizada' || st0 === 'finalizado' || st0 === 'descartado') continue
+        carga[ow] = (carga[ow] || 0) + 1
+      }
+      for (const u of us) {
+        const em = String(u.get('email') || '')
+        const nm = String(u.get('name') || '')
+        if (em === '' || em.toLowerCase().indexOf('fixture') >= 0) continue
+        if (nm.toLowerCase().indexOf('fixture') >= 0) continue
+        if (em.indexOf('josth') >= 0) continue
+        var vd = false
+        var gt = false
+        try {
+          const gs = $app.findRecordsByFilter(
+            colGe,
+            "user_id='" + u.id + "' && revoked_at=''",
+            '',
+            20,
+            0,
+          )
+          for (const g of gs) {
+            let a = []
+            let sc = []
+            try {
+              const rA = g.get('actions')
+              a =
+                Array.isArray(rA) && rA.length > 0 && typeof rA[0] === 'number'
+                  ? JSON.parse(String.fromCharCode.apply(null, rA))
+                  : typeof rA === 'string'
+                    ? JSON.parse(rA)
+                    : rA || []
+            } catch (eA) {}
+            try {
+              const rS = g.get('scope_accounts')
+              sc =
+                Array.isArray(rS) && rS.length > 0 && typeof rS[0] === 'number'
+                  ? JSON.parse(String.fromCharCode.apply(null, rS))
+                  : typeof rS === 'string'
+                    ? JSON.parse(rS)
+                    : rS || []
+            } catch (eS) {}
+            if (Array.isArray(sc) && sc.indexOf('*') >= 0) gt = true
+            if (a.indexOf('read_conversas') >= 0 || a.indexOf('read_leads') >= 0) vd = true
+          }
+        } catch (eG) {}
+        if (!vd || gt) continue
+        vendedores.push({ id: u.id, nome: nm || em, carga: carga[u.id] || 0 })
+      }
+      vendedores.sort(function (a, b) {
+        return a.carga - b.carga
+      })
+    } catch (e1) {}
+
+    var cxsVend = []
+    try {
+      cxsVend = $app.findRecordsByFilter(colCx, "papel='vendedor' && ativo=true", '', 20, 0)
+    } catch (e2) {}
+
+    if (vendedores.length > 0) {
+      consultor.id = vendedores[0].id
+      consultor.nome = vendedores[0].nome
+      for (const c of cxsVend) {
+        if (String(c.get('vendedor_user') || '') !== consultor.id) continue
+        const nd = String(c.get('numero') || '').replace(/[^0-9]/g, '')
+        if (nd.length === 13)
+          consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 9) + '-' + nd.slice(9)
+        else if (nd.length === 12)
+          consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 8) + '-' + nd.slice(8)
+      }
+    }
+
+    // ---------- conversas da central em triagem ----------
+    const colCv = $app.findCollectionByNameOrId('whatsapp_conversas')
+    var conversas = []
+    try {
+      conversas = $app.findRecordsByFilter(
+        colCv,
+        "conexao='" + central.id + "' && estado='triagem'",
+        '',
+        40,
+        0,
+      )
+    } catch (e3) {
+      return
+    }
+
+    const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
+    const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
+
+    const HORARIO =
+      'Nosso horário de atendimento é de segunda a sexta, das 8:00h às 17:30h. Se você mandou essa mensagem fora desse horário, um vendedor vai te responder assim que abrir o expediente. Obrigado pela paciência! ✨'
+    const MENU_META =
+      'Bem-vindo(a) a *Haisan*! 💎\n' +
+      'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
+      'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
+      'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
+      '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*'
+    const MENU_ORGANICO =
+      'Bem-vindo(a) a *Haisan*! 💎\n' +
+      'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
+      'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
+      'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
+      '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*\n🛠️ *Manutenção dos móveis Haisan*'
+
+    function normalizar(t) {
+      var s = String(t || '').toLowerCase()
+      s = s.replace(/[áàâãä]/g, 'a')
+      s = s.replace(/[éèêë]/g, 'e')
+      s = s.replace(/[íìîï]/g, 'i')
+      s = s.replace(/[óòôõö]/g, 'o')
+      s = s.replace(/[úùûü]/g, 'u')
+      s = s.replace(/[ç]/g, 'c')
+      return s
+    }
+    function contem(texto, lista) {
+      var t = normalizar(texto)
+      for (var i = 0; i < lista.length; i++) {
+        if (t.indexOf(normalizar(lista[i])) >= 0) return true
+      }
+      return false
+    }
+
+    for (const cv of conversas) {
+      try {
+        // ---------- última mensagem ----------
+        var ultimas = []
+        try {
+          ultimas = $app.findRecordsByFilter(colMsg, "conversa='" + cv.id + "'", '-created', 6, 0)
+        } catch (e4) {
+          continue
+        }
+        if (ultimas.length === 0) continue
+        const ultima = ultimas[0]
+        if (String(ultima.get('direcao')) !== 'entrada') continue // cliente tem de falar por último
+        var jaRespondeu = false
+        for (var i = 0; i < ultimas.length; i++) {
+          if (String(ultimas[i].get('direcao')) === 'saida') {
+            jaRespondeu = true
+            break
+          }
+        }
+        if (jaRespondeu) continue
+
+        const texto = String(ultima.get('texto') || '')
+
+        // ---------- GATILHO (regra do agente atual) ----------
+        // na primeira mensagem, sem gatilho => não responde (fica sem_gatilho)
+        var canal = String(cv.get('canal') || '')
+        var etapaAtual = String(cv.get('etapa_atual') || '')
+        if (etapaAtual === '') {
+          var tNorm = normalizar(texto)
+          var temAnuncio =
+            tNorm.indexOf('vi o anuncio') >= 0 || tNorm.indexOf('anuncio da haisan') >= 0
+          if (!temAnuncio) {
+            // não é lead de anúncio: o roteiro não se aplica
+            try {
+              cv.set('canal', 'sem_gatilho')
+              $app.save(cv)
+            } catch (eC0) {}
+            continue
+          }
+          if (tNorm.indexOf('google') >= 0) canal = 'google'
+          else canal = 'meta' // meta/instagram/facebook ou sem qualificador
+          try {
+            cv.set('canal', canal)
+            $app.save(cv)
+          } catch (eC1) {}
+        }
+        if (canal === '' || canal === 'sem_gatilho') continue
+        const MENU = canal === 'meta' ? MENU_META : MENU_ORGANICO
+
+        // ---------- DECISÃO (inline, mesmas regras da rota simular) ----------
+        var respostas = []
+        var novoEtapa = etapaAtual
+        var transfere = false
+        var motivo = ''
+        var origemDetectada = ''
+
+        const SINAIS_HUMANO = [
+          'atendente',
+          'humano',
+          'pessoa de verdade',
+          'alguem de verdade',
+          'falar com alguem',
+          'falar com uma pessoa',
+          'vendedor',
+          'vendedora',
+          'quero falar',
+          'me liga',
+          'saco',
+          'robo',
+          'bot',
+          'atendimento real',
+        ]
+        const SINAIS_ESTRESSE = [
+          'pessimo',
+          'horrivel',
+          'absurdo',
+          'ridiculo',
+          'ninguem responde',
+          'ja pedi',
+          'de novo',
+          'urgente',
+          'procon',
+          'processo',
+          'reclamacao',
+        ]
+        const FORA_ESCOPO = [
+          'preco',
+          'valor',
+          'quanto custa',
+          'quanto e',
+          'orcamento',
+          'frete',
+          'pagamento',
+          'parcela',
+          'desconto',
+          'disponivel',
+          'tem pronto',
+          'estoque',
+        ]
+        const FAQ = [
+          {
+            chaves: ['prazo', 'quanto tempo', 'demora', 'producao', 'entrega'],
+            resposta:
+              'O nosso prazo de produção é de 30 dias corridos. Mas também o prazo de transporte que deve ser confirmado com o nosso time de vendas.',
+          },
+          {
+            chaves: ['endereco', 'onde fica', 'onde voces ficam', 'localizacao', 'showroom'],
+            resposta:
+              'Estamos na Rua Kival Fernando Pereira, 125, Centro, São José dos Pinhais – PR. Temos fábrica e showroom no mesmo endereço.',
+          },
+        ]
+        const LINHAS = [
+          { chave: 'barbearia', termos: ['barbearia', 'barbeiro', 'barber'] },
+          { chave: 'salao', termos: ['salao', 'cabeleireiro', 'cabelo'] },
+          { chave: 'podologia', termos: ['podologia', 'podologo', 'estetica', 'esteta'] },
+          { chave: 'manicure', termos: ['manicure', 'pedicure', 'unha'] },
+          {
+            chave: 'manutencao',
+            termos: ['manutencao', 'consertar', 'conserto', 'quebrou', 'reparo'],
+          },
+        ]
+        const TXT_CONSULTOR =
+          'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *' +
+          (consultor.nome || 'nosso time') +
+          '*' +
+          (consultor.numero
+            ? ' — nos próximos minutos você recebe uma mensagem dele pelo número *' +
+              consultor.numero +
+              '*'
+            : '') +
+          '. Pode salvar como *Haisan Vendas*! 😊'
+
+        if (contem(texto, SINAIS_HUMANO)) {
+          novoEtapa = 'humano'
+          motivo = 'cliente_pediu_humano'
+          transfere = true
+          respostas = [
+            'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            HORARIO,
+          ]
+        } else if (contem(texto, SINAIS_ESTRESSE)) {
+          novoEtapa = 'humano'
+          motivo = 'cliente_impaciente'
+          transfere = true
+          respostas = [
+            'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            HORARIO,
+          ]
+        } else {
+          var faqA = null
+          for (var f2 = 0; f2 < FAQ.length; f2++) {
+            if (contem(texto, FAQ[f2].chaves)) {
+              faqA = FAQ[f2]
+              break
+            }
+          }
+          if (faqA) {
+            motivo = 'faq'
+            respostas = [faqA.resposta]
+          } else if (contem(texto, FORA_ESCOPO)) {
+            novoEtapa = 'humano'
+            motivo = 'pergunta_fora_do_escopo'
+            transfere = true
+            respostas = ['Vou te encaminhar para um de nossos vendedores, só um momento!', HORARIO]
+          } else if (etapaAtual === '') {
+            novoEtapa = 'menu'
+            motivo = 'boas_vindas'
+            respostas = [MENU]
+          } else if (etapaAtual === 'menu') {
+            var linhaA = null
+            for (var l2 = 0; l2 < LINHAS.length; l2++) {
+              if (contem(texto, LINHAS[l2].termos)) {
+                linhaA = LINHAS[l2]
+                break
+              }
+            }
+            if (!linhaA) {
+              motivo = 'menu_opcao_invalida'
+              respostas = ['Desculpe, não entendi. 😊 Pode escolher uma das opções?', MENU]
+            } else if (linhaA.chave === 'manutencao') {
+              novoEtapa = 'manut1'
+              motivo = 'manutencao_pede_documento'
+              respostas = [
+                'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor responsável.',
+              ]
+            } else if (canal === 'organico') {
+              novoEtapa = 'origem'
+              motivo = 'respondeu_linha_pergunta_origem'
+              respostas = [
+                'Me conte, de onde você nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+              ]
+            } else {
+              novoEtapa = 'e2'
+              motivo = 'respondeu_linha'
+              respostas = [
+                'Legal!😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+              ]
+            }
+          } else if (etapaAtual === 'origem') {
+            var tO = normalizar(texto)
+            if (tO.indexOf('google') >= 0 || tO.indexOf('pesquisei') >= 0)
+              origemDetectada = 'google'
+            else if (
+              tO.indexOf('instagram') >= 0 ||
+              tO.indexOf('facebook') >= 0 ||
+              tO.indexOf('anuncio') >= 0 ||
+              tO.indexOf('insta') >= 0
+            )
+              origemDetectada = 'meta'
+            if (origemDetectada === '') {
+              motivo = 'origem_invalida'
+              respostas = [
+                'Pode me dizer por onde nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+              ]
+            } else {
+              novoEtapa = 'e3'
+              motivo = 'origem_' + origemDetectada
+              respostas = [
+                origemDetectada === 'google'
+                  ? 'Legal que você veio pelo Google! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?'
+                  : 'Legal que você veio pelo Instagram/Facebook! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+              ]
+            }
+          } else if (etapaAtual === 'e2' || etapaAtual === 'e3') {
+            novoEtapa = 'e3b'
+            motivo = 'abrindo_ou_ampliando'
+            respostas = [
+              'Perfeito! 😊 Você já é cliente Haisan ou é seu primeiro contato com a gente?',
+            ]
+          } else if (etapaAtual === 'e3b') {
+            if (contem(texto, ['ja sou', 'sou cliente', 'cliente haisan', 'ja comprei', 'sim'])) {
+              novoEtapa = 'e5'
+              motivo = 'ja_e_cliente'
+              respostas = [
+                'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor de vendas.',
+              ]
+            } else {
+              novoEtapa = 'e4'
+              motivo = 'primeiro_contato'
+              transfere = true
+              respostas = [TXT_CONSULTOR, HORARIO]
+            }
+          } else if (etapaAtual === 'e5' || etapaAtual === 'manut1') {
+            var digs = String(texto).replace(/[^0-9]/g, '')
+            if (digs.length < 11) {
+              motivo = 'documento_invalido'
+              respostas = [
+                'Por favor, me informe o CPF ou CNPJ (só os números) para eu te encaminhar corretamente. 😊',
+              ]
+            } else if (etapaAtual === 'manut1') {
+              novoEtapa = 'manut2'
+              motivo = 'manutencao_transferida'
+              transfere = true
+              respostas = [
+                'Aguarde alguns minutos, que irei lhe encaminhar para o setor responsável. ☺️',
+                HORARIO,
+              ]
+            } else {
+              novoEtapa = 'e6'
+              motivo = 'cliente_transferido'
+              transfere = true
+              respostas = [
+                'Obrigado pela informação... Aguarde alguns minutos, que irei lhe encaminhar para um vendedor Haisan. ☺️',
+                HORARIO,
+              ]
+            }
+          } else {
+            novoEtapa = 'menu'
+            motivo = 'reinicio'
+            respostas = [MENU]
+          }
+        }
+
+        // ---------- grava etapa / canal / origem do lead ----------
+        try {
+          if (novoEtapa !== etapaAtual) cv.set('etapa_atual', novoEtapa)
+          if (transfere) cv.set('estado', 'transferida')
+          $app.save(cv)
+        } catch (eSave) {}
+
+        // origem detectada alimenta o lead (como no CRM antigo)
+        if (origemDetectada !== '' && String(cv.get('lead') || '') !== '') {
+          try {
+            const ld = $app.findRecordById(colL, String(cv.get('lead')))
+            ld.set('origem', origemDetectada)
+            $app.save(ld)
+          } catch (eOri) {}
+        }
+
+        // ---------- transfere: dá dono ao lead (ninguém fica sem dono) ----------
+        if (transfere && consultor.id !== '' && String(cv.get('lead') || '') !== '') {
+          try {
+            const ld2 = $app.findRecordById(colL, String(cv.get('lead')))
+            if (String(ld2.get('owner_id') || '') === '') {
+              ld2.set('owner_id', consultor.id)
+              ld2.set('vendedor_nome', consultor.nome)
+              $app.save(ld2)
+              try {
+                const colEvL = $app.findCollectionByNameOrId('crm_lead_events')
+                const evL = new Record(colEvL)
+                evL.set('lead_id', ld2.id)
+                evL.set('tipo', 'status')
+                evL.set(
+                  'texto',
+                  'Transferido pela IA para ' + consultor.nome + ' (roteiro: ' + motivo + ')',
+                )
+                $app.save(evL)
+              } catch (eEvL) {}
+            }
+          } catch (eOwn) {}
+        }
+
+        // ---------- enfileira ----------
+        if (MODO_ENSAIO) {
+          console.log(
+            'wa_roteiro[ENSAIO] conversa ' +
+              cv.id +
+              ' | ' +
+              motivo +
+              ' | -> ' +
+              novoEtapa +
+              ' | respostas: ' +
+              respostas.length,
+          )
+          continue
+        }
+        for (var k = 0; k < respostas.length; k++) {
+          const txt = String(respostas[k] || '')
+          if (txt === '') continue
+          try {
+            const env = new Record(colEnv)
+            env.set('lead', String(cv.get('lead') || ''))
+            env.set('conexao', central.id)
+            env.set('destino_telefone', String(cv.get('contato_telefone') || ''))
+            env.set('motivo', 'ia_roteiro')
+            env.set('modo', 'texto')
+            env.set('texto', txt)
+            env.set('legenda', '')
+            env.set('autor_user', '')
+            env.set('criado_por', '')
+            env.set('estado', 'pendente')
+            env.set('tentativas', 0)
+            env.set('fixture', false)
+            env.set('dedupe_key', 'iarot-' + cv.id + '-' + new Date().getTime() + '-' + k)
+            $app.save(env)
+          } catch (eEnv) {}
+        }
+      } catch (eCv) {}
+    }
+  } catch (eTop) {}
+})
