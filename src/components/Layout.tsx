@@ -14,34 +14,47 @@ import {
   MessageCircle,
   Smartphone,
   KeyRound,
+  LogOut,
 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 import { VERSAO_SISTEMA } from '@/lib/versao'
+import type { Sessao } from '@/App'
 
 /**
- * Layout único do sistema (SPEC-2-007, CA-2-16): cabeçalho com logo, nome e
- * navegação SÓ para módulos existentes; versão real no rodapé (sai o v1.0.0
- * fixo); cores só de tokens do tema (bg-background, bg-card, text-muted-*,
- * primary) + gradientes da marca (--marca-1/--marca-2 definidos em main.css).
+ * Layout único do sistema (SPEC-2-007, CA-2-16).
+ *
+ * Mudança de 30/10: o menu NÃO é mais uma lista fixa. Ele vem do servidor
+ * (/backend/v1/wa/sessao → `menu`), com só os módulos que os grants da pessoa
+ * permitem. Quem não tem a permissão não vê a aba — antes via tudo e tomava
+ * erro ao clicar. O cabeçalho mostra quem está logado e permite sair.
  */
-const ITENS_MENU = [
-  { para: '/painel', rotulo: 'Painel', Icone: BarChart3 },
-  { para: '/criterios', rotulo: 'Critérios', Icone: ListPlus },
-  { para: '/alertas', rotulo: 'Alertas', Icone: BellRing },
-  { para: '/decisoes', rotulo: 'Decisões', Icone: Scale },
-  { para: '/relatorios', rotulo: 'Relatórios', Icone: FileText },
-  { para: '/caixa', rotulo: 'Caixa', Icone: Inbox },
-  { para: '/leads', rotulo: 'Leads', Icone: Users },
-  { para: '/conversas', rotulo: 'Conversas', Icone: MessageCircle },
-  { para: '/numeros', rotulo: 'Números', Icone: Smartphone },
-  { para: '/concorrentes', rotulo: 'Concorrentes', Icone: Eye },
-  { para: '/analises', rotulo: 'Análises', Icone: BrainCircuit },
-  { para: '/saude-canal', rotulo: 'Saúde do canal', Icone: Activity },
-  { para: '/minha-senha', rotulo: 'Minha senha', Icone: KeyRound },
-]
 
-export default function Layout() {
+const ICONES: Record<string, typeof BarChart3> = {
+  '/painel': BarChart3,
+  '/criterios': ListPlus,
+  '/alertas': BellRing,
+  '/decisoes': Scale,
+  '/relatorios': FileText,
+  '/caixa': Inbox,
+  '/leads': Users,
+  '/conversas': MessageCircle,
+  '/numeros': Smartphone,
+  '/concorrentes': Eye,
+  '/analises': BrainCircuit,
+  '/saude-canal': Activity,
+}
+
+export default function Layout({ sessao }: { sessao: Sessao }) {
   const atual = useLocation().pathname
   const currentYear = new Date().getFullYear()
+
+  // Minha senha todo mundo tem; o resto vem do servidor
+  const itens = [...sessao.menu, { para: '/minha-senha', rotulo: 'Minha senha' }]
+
+  function sair() {
+    pb.authStore.clear()
+    window.location.replace('/')
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -59,7 +72,8 @@ export default function Layout() {
           className="flex items-center gap-0.5 md:gap-1 overflow-x-auto"
           aria-label="Navegação principal"
         >
-          {ITENS_MENU.map(({ para, rotulo, Icone }) => {
+          {itens.map(({ para, rotulo }) => {
+            const Icone = ICONES[para] || KeyRound
             const ativo = atual === para || atual.startsWith(para + '/')
             return (
               <Link
@@ -78,6 +92,15 @@ export default function Layout() {
               </Link>
             )
           })}
+          <button
+            type="button"
+            onClick={sair}
+            title={'Sair — ' + sessao.user.email}
+            className="ml-1 flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            Sair
+          </button>
         </nav>
       </header>
 
@@ -89,6 +112,7 @@ export default function Layout() {
       {/* Rodapé com a versão real (CA-2-16) */}
       <footer className="py-3 border-t border-border bg-card text-center text-xs text-muted-foreground">
         Sistema Marketing · {VERSAO_SISTEMA} · {currentYear}
+        {sessao.user.nome !== '' && <> · {sessao.user.nome}</>}
       </footer>
     </div>
   )

@@ -1,12 +1,21 @@
 import { Link } from 'react-router-dom'
-import { Rocket, BarChart3 } from 'lucide-react'
+import { Rocket, BarChart3, Lock } from 'lucide-react'
+import type { Sessao } from '@/App'
 
 /**
- * Página inicial no padrão da base visual (SPEC-2-007, CA-2-16): só tokens do
- * tema (primary, foreground, muted-foreground) + gradiente da marca
- * (--marca-1/--marca-2 em main.css). Nenhuma regra ou rota muda.
+ * Página inicial — depois do login (30/10).
+ *
+ * Antes esta tela era pública e dizia "dados demonstrativos", o que aparecia
+ * para quem ainda nem tinha entrado. Agora ela só existe atrás do login e
+ * mostra o que aquela pessoa realmente pode abrir, vindo dos grants dela.
+ *
+ * Sem permissão nenhuma de leitura, a tela diz isso com clareza em vez de
+ * oferecer um botão que vai dar erro.
  */
-export default function Index() {
+export default function Index({ sessao }: { sessao: Sessao }) {
+  const atalhos = sessao.menu.filter((m) => m.para !== '/minha-senha')
+  const primeiro = atalhos.length > 0 ? atalhos[0].para : ''
+
   return (
     <div className="flex-1 flex items-center justify-center p-6 md:p-12">
       <div className="max-w-xl w-full text-center space-y-6">
@@ -23,28 +32,60 @@ export default function Index() {
             Sistema Marketing
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-md mx-auto">
-            Plataforma unificada para planejamento, execução e análise de campanhas de marketing
-            digital.
+            Olá, {sessao.user.nome || sessao.user.email}.
           </p>
         </div>
 
-        {/* Acesso ao painel */}
-        <div className="rounded-xl border border-border bg-card p-8 sm:p-10 text-center shadow-sm space-y-4">
-          <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
-            <BarChart3 className="h-6 w-6" aria-hidden="true" />
+        {sessao.provisoria && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
+            <strong>Você ainda usa a senha provisória.</strong> Troque por uma senha só sua em{' '}
+            <Link to="/minha-senha" className="underline">
+              Minha senha
+            </Link>
+            .
           </div>
-          <h2 className="text-base font-semibold text-foreground">Painel consolidado disponível</h2>
-          <p className="text-sm text-muted-foreground">
-            Filtros por período, canal e objetivo — com dados demonstrativos identificados até a
-            conexão das fontes reais.
-          </p>
-          <Link
-            to="/painel"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
-          >
-            Abrir o painel
-          </Link>
-        </div>
+        )}
+
+        {primeiro !== '' ? (
+          <div className="rounded-xl border border-border bg-card p-8 sm:p-10 text-center shadow-sm space-y-4">
+            <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+              <BarChart3 className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h2 className="text-base font-semibold text-foreground">
+              {atalhos.length === 1
+                ? 'Seu módulo está disponível'
+                : atalhos.length + ' módulos disponíveis para você'}
+            </h2>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {atalhos.map((m) => (
+                <Link
+                  key={m.para}
+                  to={m.para}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+                >
+                  {m.rotulo}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-card p-8 text-center shadow-sm space-y-3">
+            <div className="h-12 w-12 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto">
+              <Lock className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h2 className="text-base font-semibold text-foreground">
+              Sua conta não tem módulos liberados
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Fale com a gerência para liberar o acesso que você precisa. Você já pode trocar sua
+              senha em{' '}
+              <Link to="/minha-senha" className="underline">
+                Minha senha
+              </Link>
+              .
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
