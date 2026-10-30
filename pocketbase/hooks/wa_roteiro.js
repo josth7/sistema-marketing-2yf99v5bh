@@ -634,3 +634,85 @@ routerAdd(
   },
   $apis.requireAuth(),
 )
+
+// ==================== SIMULAR FLUXO COMPLETO ====================
+// Repete a chamada de `simular` passo a passo, dentro do próprio servidor.
+// Vantagem de não duplicar a lógica: uma correção no roteiro vale para os dois.
+routerAdd(
+  'POST',
+  '/backend/v1/whatsapp/roteiro/simular-fluxo',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    var body = {}
+    try {
+      body = e.requestInfo().body || {}
+    } catch (eB) {}
+    var passos = body.passos || []
+    if (!Array.isArray(passos)) return e.json(400, { ok: false, erro: 'passos deve ser lista' })
+    const canal = String(body.canal || 'meta')
+
+    // chama a rota `simular` por HTTP interno, com o mesmo token do usuário.
+    // Assim a regra do roteiro existe num lugar só (lição: lógica duplicada
+    // diverge — foi o que quebrou o cron em 22/10).
+    const base =
+      String(e.request.url).indexOf('/backend/v1/whatsapp/roteiro/simular') >= 0
+        ? String(e.request.url).split('/backend/v1/whatsapp/roteiro/simular')[0]
+        : ''
+    var etapa = ''
+    var trilha = []
+    var transferiu = false
+
+    for (var p = 0; p < passos.length; p++) {
+      const texto = String(passos[p] || '')
+      const antes = etapa
+      var r = null
+      try {
+        const resp = $http.send({
+          url: base + '/backend/v1/whatsapp/roteiro/simular',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: e.request.header.get('Authorization') || '',
+          },
+          body: JSON.stringify({ etapa: etapa, texto: texto, canal: canal }),
+          timeout: 20,
+        })
+        var corpo = resp.body
+        if (Array.isArray(corpo)) corpo = String.fromCharCode.apply(null, corpo)
+        const D = JSON.parse(String(corpo))
+        r = D.saida
+      } catch (eS) {
+        r = {
+          etapa: etapa,
+          motivo: 'erro_simulacao',
+          transferir: false,
+          respostas: ['erro: ' + String(eS)],
+        }
+      }
+      if (!r) {
+        r = { etapa: etapa, motivo: 'sem_resposta', transferir: false, respostas: [] }
+      }
+      trilha.push({
+        recebido: texto,
+        etapa_antes: antes,
+        etapa_depois: String(r.etapa || ''),
+        motivo: String(r.motivo || ''),
+        transferir: r.transferir === true,
+        respostas: r.respostas || [],
+      })
+      etapa = String(r.etapa || '')
+      if (r.transferir === true) {
+        transferiu = true
+        break
+      }
+    }
+    return e.json(200, {
+      ok: true,
+      trilha: trilha,
+      etapa_final: etapa,
+      transferiu: transferiu,
+      canal: canal,
+    })
+  },
+  $apis.requireAuth(),
+)
