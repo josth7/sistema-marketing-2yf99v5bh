@@ -2,21 +2,18 @@
 /**
  * Sessão e permissões — alimenta o login da interface (30/10).
  *
- * PROBLEMA QUE RESOLVE: a tela inicial era pública e o painel abria sem
- * login; o pedido de senha só aparecia ao clicar nas abas, uma a uma. E o
- * menu mostrava módulos que a pessoa não podia usar.
- *
  * GET /backend/v1/wa/sessao
- *   { autenticado: true, user: {id,nome,email}, pode: [...], menu: [...] }
+ *   { autenticado, user, papeis, pode[], menu[], provisoria }
  *
- * `pode` é a INTERSEÇÃO de todas as ações dos grants válidos do usuário —
- * é exatamente o que a interface deve mostrar. Quem não tem a ação não vê a
- * aba (e o servidor recusa a rota de qualquer forma; a interface só evita
- * oferecer o que vai dar erro).
+ * `pode` é a soma das ações de todos os grants válidos do usuário — é
+ * exatamente o que a interface deve mostrar. Quem não tem a ação não vê a
+ * aba (e o servidor recusa a rota de qualquer forma).
  *
- * Regra de escopo: grant com scope_accounts vazio NÃO vale para ações de
- * carteira (deny por padrão) — exceto para papéis de gestão, que já vêm
- * com escopo '*' no cadastro.
+ * CORREÇÃO (30/10, v2): cada módulo declara uma LISTA de ações aceitas (OR).
+ * A v1 mapeou o CRM (tela Leads) para `read_metrics`, e o vendedor tem
+ * `read_leads` — resultado: o CRM não aparecia para o vendedor, que é
+ * justamente quem mais precisa dele. Agora `/leads` aceita `read_leads` OU
+ * `read_metrics`.
  */
 
 routerAdd(
@@ -72,31 +69,36 @@ routerAdd(
       }
     }
 
-    // menu: cada módulo só aparece se a ação que ele precisa estiver em `pode`
+    // cada módulo: QUALQUER uma das ações listadas libera (OR)
     const catalogo = [
-      { para: '/painel', rotulo: 'Painel', exige: 'read_metrics' },
-      { para: '/criterios', rotulo: 'Critérios', exige: 'manage_criteria' },
-      { para: '/alertas', rotulo: 'Alertas', exige: 'read_alerts' },
-      { para: '/decisoes', rotulo: 'Decisões', exige: 'read_decisions' },
-      { para: '/relatorios', rotulo: 'Relatórios', exige: 'read_reports' },
-      { para: '/caixa', rotulo: 'Caixa', exige: 'read_reports' },
-      { para: '/leads', rotulo: 'Leads', exige: 'read_metrics' },
-      { para: '/conversas', rotulo: 'Conversas', exige: 'read_conversas' },
-      { para: '/numeros', rotulo: 'Números', exige: 'manage_whatsapp' },
-      { para: '/concorrentes', rotulo: 'Concorrentes', exige: 'read_analyses' },
-      { para: '/analises', rotulo: 'Análises', exige: 'read_analyses' },
-      { para: '/saude-canal', rotulo: 'Saúde do canal', exige: 'read_metrics' },
+      { para: '/painel', rotulo: 'Painel', aceita: ['read_metrics'] },
+      { para: '/leads', rotulo: 'CRM', aceita: ['read_leads', 'read_metrics'] },
+      { para: '/conversas', rotulo: 'Conversas', aceita: ['read_conversas'] },
+      { para: '/criterios', rotulo: 'Critérios', aceita: ['manage_criteria'] },
+      { para: '/alertas', rotulo: 'Alertas', aceita: ['read_alerts'] },
+      { para: '/decisoes', rotulo: 'Decisões', aceita: ['read_decisions'] },
+      { para: '/relatorios', rotulo: 'Relatórios', aceita: ['read_reports'] },
+      { para: '/caixa', rotulo: 'Caixa', aceita: ['read_reports'] },
+      { para: '/numeros', rotulo: 'Números', aceita: ['manage_whatsapp'] },
+      { para: '/concorrentes', rotulo: 'Concorrentes', aceita: ['read_analyses'] },
+      { para: '/analises', rotulo: 'Análises', aceita: ['read_analyses'] },
+      { para: '/saude-canal', rotulo: 'Saúde do canal', aceita: ['read_metrics'] },
+      { para: '/acessos', rotulo: 'Acessos', aceita: ['manage_access'] },
     ]
 
     const menu = []
     for (const item of catalogo) {
-      if (pode.indexOf(item.exige) >= 0) menu.push({ para: item.para, rotulo: item.rotulo })
+      var liberado = false
+      for (const acao of item.aceita) {
+        if (pode.indexOf(acao) >= 0) liberado = true
+      }
+      if (liberado) menu.push({ para: item.para, rotulo: item.rotulo })
     }
 
     return e.json(200, {
       ok: true,
       autenticado: true,
-      v: 'sessao-v1',
+      v: 'sessao-v2',
       user: {
         id: e.auth.id,
         nome: String(eu.get('name') || eu.get('email') || ''),
