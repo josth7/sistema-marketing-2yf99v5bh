@@ -140,10 +140,11 @@ routerAdd(
       try {
         chave = String($secrets.get(secao) || '')
       } catch (errS) {}
-      if (chave === '' && secao !== 'DAPI_KEY_CENTRAL') {
-        // mesma conta D-API para todas as conexões (ver 30/10)
+      if (chave === '' && secao !== 'DAPI_USER_KEY') {
+        // a chave por SESSÃO só abre a sessão dela (401 provado 30/10);
+        // a USER API KEY abre todas as sessões da conta
         try {
-          chave = String($secrets.get('DAPI_KEY_CENTRAL') || '')
+          chave = String($secrets.get('DAPI_USER_KEY') || '')
         } catch (errS2) {}
       }
       if (String(e.request.url.query().get('debug') || '') === '2') {
