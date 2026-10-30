@@ -127,9 +127,17 @@ routerAdd(
       // temperatura do lead (neutro/positivo/frio — padrão do CRM atual):
       // orçamento ou fechado = positivo; perdido = frio; resto = neutro
       var temperatura = 'neutro'
-      const stTmp = String(l.get('status') || 'novo')
-      if (stTmp === 'orcamento' || stTmp === 'fechado') temperatura = 'positivo'
-      else if (stTmp === 'perdido') temperatura = 'frio'
+      const stTmp = String(l.get('status') || 'entrada_lead')
+      if (
+        stTmp === 'orcamento' ||
+        stTmp === 'negociacao' ||
+        stTmp === 'aguardando_pagamento' ||
+        stTmp === 'venda_realizada' ||
+        stTmp === 'producao' ||
+        stTmp === 'finalizado'
+      )
+        temperatura = 'positivo'
+      else if (stTmp === 'descartado') temperatura = 'frio'
       itens.push({
         id: l.id,
         nome: l.get('nome'),
@@ -138,7 +146,7 @@ routerAdd(
         origem: l.get('origem'),
         campanha: l.get('campanha'),
         data_lead: l.get('data_lead'),
-        status: l.get('status') || 'novo',
+        status: l.get('status') || 'entrada_lead',
         observacoes: l.get('observacoes'),
         owner_id: l.get('owner_id'),
         owner_nome: ownerNome,
@@ -209,13 +217,26 @@ routerAdd(
     const telefone = String(body.telefone || '').trim()
     const email = String(body.email || '').trim()
     const ORIGENS = ['meta', 'google', 'site', 'whatsapp', 'manual', 'importacao', 'organico']
-    const STATUSES = ['novo', 'em_contato', 'orcamento', 'fechado', 'perdido']
+    const STATUSES = [
+      'entrada_lead',
+      'pre_atendimento_ia',
+      'mql',
+      'orcamento',
+      'negociacao',
+      'aguardando_pagamento',
+      'venda_realizada',
+      'producao',
+      'finalizado',
+      'descartado',
+    ]
     const origem =
       ORIGENS.indexOf(String(body.origem || 'manual')) >= 0
         ? String(body.origem || 'manual')
         : 'manual'
     const status =
-      STATUSES.indexOf(String(body.status || 'novo')) >= 0 ? String(body.status || 'novo') : 'novo'
+      STATUSES.indexOf(String(body.status || 'entrada_lead')) >= 0
+        ? String(body.status || 'entrada_lead')
+        : 'entrada_lead'
     // dedupe por telefone (UNIQUE parcial no banco; erro amigável aqui)
     const colL = $app.findCollectionByNameOrId('crm_leads')
     if (telefone !== '') {
@@ -322,7 +343,18 @@ routerAdd(
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
     const body = e.requestInfo().body || {}
-    const STATUSES = ['novo', 'em_contato', 'orcamento', 'fechado', 'perdido']
+    const STATUSES = [
+      'entrada_lead',
+      'pre_atendimento_ia',
+      'mql',
+      'orcamento',
+      'negociacao',
+      'aguardando_pagamento',
+      'venda_realizada',
+      'producao',
+      'finalizado',
+      'descartado',
+    ]
     const mudancas = []
     if (body.status !== undefined) {
       const novo = String(body.status || '')
@@ -373,7 +405,7 @@ routerAdd(
       }
     }
     // status=perdido exige motivo (PDF da Anezia §8: motivos de perda no painel)
-    if (body.status === 'perdido' && String(body.motivo_perda || '').trim() === '') {
+    if (body.status === 'descartado' && String(body.motivo_perda || '').trim() === '') {
       const motivoAtual = String(lead.get('motivo_perda') || '')
       if (motivoAtual === '') {
         return e.json(422, {
@@ -543,8 +575,8 @@ routerAdd(
     $app.save(ev)
     // status → fechado (conversão = venda fechada)
     const statusAntigo = String(lead.get('status') || 'novo')
-    if (statusAntigo !== 'fechado') {
-      lead.set('status', 'fechado')
+    if (statusAntigo !== 'venda_realizada') {
+      lead.set('status', 'venda_realizada')
       $app.save(lead)
       const ev2 = new Record(colEv)
       ev2.set('lead_id', lead.id)
@@ -570,7 +602,7 @@ routerAdd(
       ok: true,
       id: lead.id,
       conversao: { valor: valor, canal: canalOk, descricao: descricao },
-      status: 'fechado',
+      status: 'venda_realizada',
       na_fila: true,
     })
   },
@@ -630,7 +662,18 @@ routerAdd(
       })
     }
     const ORIGENS = ['meta', 'google', 'site', 'whatsapp', 'manual', 'importacao']
-    const STATUSES = ['novo', 'em_contato', 'orcamento', 'fechado', 'perdido']
+    const STATUSES = [
+      'entrada_lead',
+      'pre_atendimento_ia',
+      'mql',
+      'orcamento',
+      'negociacao',
+      'aguardando_pagamento',
+      'venda_realizada',
+      'producao',
+      'finalizado',
+      'descartado',
+    ]
     const colL = $app.findCollectionByNameOrId('crm_leads')
     const colEv = $app.findCollectionByNameOrId('crm_lead_events')
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
@@ -688,7 +731,9 @@ routerAdd(
           ? String(l.origem || 'importacao')
           : 'importacao'
       const status =
-        STATUSES.indexOf(String(l.status || 'novo')) >= 0 ? String(l.status || 'novo') : 'novo'
+        STATUSES.indexOf(String(l.status || 'entrada_lead')) >= 0
+          ? String(l.status || 'entrada_lead')
+          : 'entrada_lead'
       try {
         const rec = new Record(colL)
         rec.set('nome', nome.slice(0, 200))
@@ -839,8 +884,8 @@ routerAdd(
     for (const l of leads) {
       const ow = String(l.get('owner_id') || '')
       if (ow === '') continue
-      const st = String(l.get('status') || 'novo')
-      if (st === 'fechado' || st === 'perdido') continue
+      const st = String(l.get('status') || 'entrada_lead')
+      if (st === 'venda_realizada' || st === 'finalizado' || st === 'descartado') continue
       carga[ow] = (carga[ow] || 0) + 1
     }
     // lista de vendedores (usuários reais com grant ativo — não fixture)

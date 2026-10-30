@@ -156,21 +156,32 @@ routerAdd(
       const v = Number(l.get('valor') || 0)
       if (!(v > 0)) continue
       const lid = l.id
-      const st = String(l.get('status') || 'novo')
-      if (st === 'fechado') {
+      const st = String(l.get('status') || 'entrada_lead')
+      if (st === 'venda_realizada' || st === 'finalizado') {
         // se já existe conversão registrada para este lead, o valor já está
         // contado acima — não soma de novo
         if (!convPorLead[lid]) {
           receitaHistorico += v
           nVendasHistorico++
         }
-      } else if (st !== 'perdido') {
+      } else if (st !== 'descartado') {
         pipelineHistorico += v
       }
     }
     // em aberto: leads não decididos (não fechado/perdido)
     var emAberto = 0
-    var porEstagio = { novo: 0, em_contato: 0, orcamento: 0, fechado: 0, perdido: 0 }
+    var porEstagio = {
+      entrada_lead: 0,
+      pre_atendimento_ia: 0,
+      mql: 0,
+      orcamento: 0,
+      negociacao: 0,
+      aguardando_pagamento: 0,
+      venda_realizada: 0,
+      producao: 0,
+      finalizado: 0,
+      descartado: 0,
+    }
     var porOrigem = {}
     var fechados = 0
     var perdidos = 0
@@ -179,11 +190,12 @@ routerAdd(
     var diasComLead = {}
     const nomes = {}
     for (const l of meusLeads) {
-      const st = String(l.get('status') || 'novo')
+      const st = String(l.get('status') || 'entrada_lead')
       if (porEstagio[st] !== undefined) porEstagio[st]++
-      if (st === 'fechado') fechados++
-      if (st === 'perdido') perdidos++
-      if (st !== 'fechado' && st !== 'perdido') emAberto++
+      const ehVenda = st === 'venda_realizada' || st === 'finalizado'
+      if (ehVenda) fechados++
+      if (st === 'descartado') perdidos++
+      if (!ehVenda && st !== 'descartado') emAberto++
       const o = String(l.get('origem') || 'manual')
       porOrigem[o] = (porOrigem[o] || 0) + 1
       const dl = String(l.get('data_lead') || '')
@@ -195,8 +207,21 @@ routerAdd(
       }
       nomes[l.id] = String(l.get('nome') || '')
     }
+    // TAXA (30/10): so conta VENDA COM VALOR.
+    // Antes era `fechados / (fechados + perdidos)` e `fechado` incluia lead
+    // marcado como fechado sem nenhuma venda registrada (19 casos na base
+    // importada) -> a taxa aparecia como 69% quando a venda real era 8.
+    var vendasComValor = 0
+    for (const l of meusLeads) {
+      const stT = String(l.get('status') || 'entrada_lead')
+      if (stT !== 'venda_realizada' && stT !== 'finalizado') continue
+      const temConvT = convPorLead[l.id]
+      const vT = Number(l.get('valor') || 0)
+      if (temConvT || vT > 0) vendasComValor++
+    }
     var taxa = null
-    if (fechados + perdidos > 0) taxa = Math.round((fechados / (fechados + perdidos)) * 1000) / 10
+    if (vendasComValor + perdidos > 0)
+      taxa = Math.round((vendasComValor / (vendasComValor + perdidos)) * 1000) / 10
     var ticketMedio = null
     if (nConversoes > 0) ticketMedio = Math.round((receitaGanha / nConversoes) * 100) / 100
     // ---- lead time (entrada → conversão) ----
@@ -248,7 +273,8 @@ routerAdd(
       if (ow === '') continue
       if (!porOwner[ow]) porOwner[ow] = { leads: 0, fechados: 0, valor: 0 }
       porOwner[ow].leads++
-      if (String(l.get('status')) === 'fechado') porOwner[ow].fechados++
+      const stOw = String(l.get('status'))
+      if (stOw === 'venda_realizada' || stOw === 'finalizado') porOwner[ow].fechados++
       const cv = convPorLead[l.id]
       if (cv) porOwner[ow].valor += cv.valor
     }
@@ -285,12 +311,12 @@ routerAdd(
       if (vn === '') continue
       if (!porVendedor[vn]) porVendedor[vn] = { leads: 0, fechados: 0, valor: 0, pipeline: 0 }
       porVendedor[vn].leads++
-      const st = String(l.get('status') || 'novo')
+      const st = String(l.get('status') || 'entrada_lead')
       const v = Number(l.get('valor') || 0)
-      if (st === 'fechado') {
+      if (st === 'venda_realizada' || st === 'finalizado') {
         porVendedor[vn].fechados++
         porVendedor[vn].valor += v
-      } else if (st !== 'perdido') {
+      } else if (st !== 'descartado') {
         porVendedor[vn].pipeline += v
       }
     }
@@ -322,6 +348,8 @@ routerAdd(
       ticket_medio: ticketTotal,
       por_vendedor: listaVendedores,
       taxa_conversao: taxa,
+      vendas_com_valor: vendasComValor,
+      fechados_sem_venda: fechados - vendasComValor,
       lead_time: {
         media: ltMedia,
         mediana: ltMediana,

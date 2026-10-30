@@ -12,7 +12,17 @@ export interface Lead {
   origem: string
   campanha: string
   data_lead: string
-  status: 'novo' | 'em_contato' | 'orcamento' | 'fechado' | 'perdido'
+  status:
+    | 'entrada_lead'
+    | 'pre_atendimento_ia'
+    | 'mql'
+    | 'orcamento'
+    | 'negociacao'
+    | 'aguardando_pagamento'
+    | 'venda_realizada'
+    | 'producao'
+    | 'finalizado'
+    | 'descartado'
   observacoes: string
   owner_id: string
   owner_nome: string
@@ -20,6 +30,8 @@ export interface Lead {
   conta_id: string
   criado_em: string
   atualizado_em: string
+  valor: number
+  vendedor_nome: string
 }
 
 export interface LeadEvento {
@@ -53,12 +65,28 @@ function mensagemErro(e: unknown): string {
   return err?.message || 'não foi possível completar a operação'
 }
 
+/**
+ * Funil de 10 etapas — o mesmo do CRM antigo da Haisan (30/10).
+ *
+ * A ordem é a do fluxo real: o lead entra, a IA faz o pré-atendimento, vira
+ * MQL quando o cliente responde, passa por orçamento e negociação, aguarda
+ * pagamento, é venda realizada, vai para produção, finaliza. `descartado`
+ * fica no fim porque é saída do funil.
+ *
+ * `cor` segue a leitura visual do CRM antigo: verde para venda, vermelho para
+ * descarte, neutro no meio.
+ */
 export const STATUS_LEADS = [
-  { valor: 'novo', rotulo: 'Novo' },
-  { valor: 'em_contato', rotulo: 'Em contato' },
-  { valor: 'orcamento', rotulo: 'Orçamento' },
-  { valor: 'fechado', rotulo: 'Fechado' },
-  { valor: 'perdido', rotulo: 'Perdido' },
+  { valor: 'entrada_lead', rotulo: 'Entrada de lead', cor: 'neutro' },
+  { valor: 'pre_atendimento_ia', rotulo: 'Pré-atendimento com IA', cor: 'neutro' },
+  { valor: 'mql', rotulo: 'MQL (cliente respondeu)', cor: 'neutro' },
+  { valor: 'orcamento', rotulo: 'Orçamento', cor: 'neutro' },
+  { valor: 'negociacao', rotulo: 'Negociação', cor: 'neutro' },
+  { valor: 'aguardando_pagamento', rotulo: 'Aguardando pagamento', cor: 'neutro' },
+  { valor: 'venda_realizada', rotulo: 'Venda realizada', cor: 'verde' },
+  { valor: 'producao', rotulo: 'Produção', cor: 'neutro' },
+  { valor: 'finalizado', rotulo: 'Finalizado', cor: 'verde' },
+  { valor: 'descartado', rotulo: 'Descartado', cor: 'vermelho' },
 ] as const
 
 export const ORIGENS_LEADS = ['meta', 'google', 'site', 'whatsapp', 'manual', 'importacao'] as const

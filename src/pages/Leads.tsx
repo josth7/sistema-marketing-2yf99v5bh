@@ -57,16 +57,28 @@ import {
 } from '@/lib/marketing/crm'
 
 const ROTULO_STATUS: Record<string, string> = {
-  novo: 'Novo',
-  em_contato: 'Em contato',
+  entrada_lead: 'Entrada de lead',
+  pre_atendimento_ia: 'Pré-atendimento com IA',
+  mql: 'MQL (cliente respondeu)',
   orcamento: 'Orçamento',
-  fechado: 'Fechado',
-  perdido: 'Perdido',
+  negociacao: 'Negociação',
+  aguardando_pagamento: 'Aguardando pagamento',
+  venda_realizada: 'Venda realizada',
+  producao: 'Produção',
+  finalizado: 'Finalizado',
+  descartado: 'Descartado',
 }
 
 const COR_STATUS: Record<string, string> = {
-  novo: 'bg-blue-100 text-blue-800',
-  em_contato: 'bg-amber-100 text-amber-800',
+  entrada_lead: 'bg-slate-100 text-slate-800',
+  pre_atendimento_ia: 'bg-indigo-100 text-indigo-800',
+  mql: 'bg-amber-100 text-amber-800',
+  negociacao: 'bg-blue-100 text-blue-800',
+  aguardando_pagamento: 'bg-orange-100 text-orange-800',
+  venda_realizada: 'bg-emerald-100 text-emerald-800',
+  producao: 'bg-cyan-100 text-cyan-800',
+  finalizado: 'bg-emerald-200 text-emerald-900',
+  descartado: 'bg-red-100 text-red-800',
   orcamento: 'bg-purple-100 text-purple-800',
   fechado: 'bg-emerald-100 text-emerald-800',
   perdido: 'bg-gray-200 text-gray-700',
@@ -688,17 +700,38 @@ export default function Leads() {
       {!carregando && !erro && itens.length > 0 && vista === 'funil' && (
         <div
           className="grid gap-3 overflow-x-auto pb-2"
-          style={{ gridTemplateColumns: 'repeat(5, minmax(220px, 1fr))' }}
+          style={{ gridTemplateColumns: 'repeat(10, minmax(200px, 1fr))' }}
         >
           {STATUS_LEADS.map((s) => {
             const coluna = itens.filter((l) => l.status === s.valor)
+            // valor somado da coluna — só conta o que tem venda registrada
+            const valorColuna = coluna.reduce((acc, l) => acc + Number(l.valor || 0), 0)
+            const corBorda =
+              s.cor === 'verde'
+                ? 'border-emerald-300'
+                : s.cor === 'vermelho'
+                  ? 'border-red-300'
+                  : 'border-border'
             return (
-              <div key={s.valor} className="rounded-lg border bg-muted/30 p-2">
-                <p className="mb-2 flex items-center justify-between px-1 text-sm font-medium">
-                  {s.rotulo}
-                  <span className="rounded-full bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+              <div
+                key={s.valor}
+                className={
+                  'rounded-lg border ' +
+                  corBorda +
+                  ' bg-muted/30 p-2 ' +
+                  (s.cor === 'vermelho' ? 'bg-red-50/40' : '')
+                }
+              >
+                <p className="mb-1 flex items-start justify-between gap-1 px-1 text-xs font-semibold leading-tight">
+                  <span className="flex-1">{s.rotulo}</span>
+                  <span className="shrink-0 rounded-full bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
                     {coluna.length}
                   </span>
+                </p>
+                <p className="mb-2 px-1 text-[10px] tabular-nums text-muted-foreground">
+                  {valorColuna > 0
+                    ? 'R$ ' + valorColuna.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                    : 'R$ 0,00'}
                 </p>
                 <div className="space-y-2">
                   {coluna.length === 0 && (
@@ -725,22 +758,35 @@ export default function Leads() {
                               : 'neutro'}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[11px] tabular-nums text-muted-foreground">
+                        R${' '}
+                        {Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="truncate text-[11px] text-muted-foreground">
                         {l.telefone || l.email || '—'}
                       </p>
                       {l.owner_nome && (
-                        <p className="mt-0.5 text-xs text-emerald-700">👤 {l.owner_nome}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-emerald-700">
+                          👤 {l.owner_nome}
+                        </p>
                       )}
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {ROTULO_ORIGEM[l.origem] || l.origem}
-                        {l.campanha ? ' · ' + l.campanha : ''}
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        {(l.data_lead || l.criado_em || '')
+                          .slice(0, 10)
+                          .split('-')
+                          .reverse()
+                          .join('/')}
+                        {l.atualizado_em
+                          ? ' · etapa ' +
+                            l.atualizado_em.slice(0, 10).split('-').reverse().join('/')
+                          : ''}
                       </p>
                       <div className="mt-1.5 flex items-center gap-1">
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-6 px-2 text-xs"
-                          disabled={s.valor === 'novo'}
+                          disabled={STATUS_LEADS[0].valor === s.valor}
                           onClick={() => void moverNoFunil(l, 'voltar')}
                         >
                           ←
@@ -749,7 +795,7 @@ export default function Leads() {
                           size="sm"
                           variant="outline"
                           className="h-6 px-2 text-xs"
-                          disabled={s.valor === 'perdido'}
+                          disabled={STATUS_LEADS[STATUS_LEADS.length - 1].valor === s.valor}
                           onClick={() => void moverNoFunil(l, 'avancar')}
                         >
                           →
