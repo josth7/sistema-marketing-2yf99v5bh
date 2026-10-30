@@ -1,0 +1,143 @@
+/// <reference path="../pb_data/types.d.ts" />
+/**
+ * WhatsApp — upload de mídia para o vendedor enviar (SPEC-3-005, 30/10).
+ *
+ * POST /backend/v1/whatsapp/midia   (multipart/form-data, campo `arquivo`)
+ *
+ * Por que uma rota e não criar direto na coleção: `whatsapp_midia` tem
+ * createRule travada (ninguém cria registro por fora), e o arquivo precisa
+ * ficar legível para a D-API buscar por URL. A rota valida o login, o tamanho
+ * e o tipo, grava o registro pelo $app (contexto de servidor) e devolve o id.
+ *
+ * O id do registro é aleatório de 15 caracteres: o link do arquivo não é
+ * adivinhável, então servir sem login não expõe mídia de ninguém por varredura.
+ *
+ * Limites: 16 MB (vídeo de celular costuma passar disso — o WhatsApp aceita
+ * até 16 MB para vídeo e áudio; imagem 5 MB, mas cabe no mesmo teto).
+ *
+ * JSVM: e.findUploadedFiles() e $filesystem não são necessários aqui — o
+ * Record aceita o arquivo direto via set('arquivo', file).
+ */
+
+routerAdd(
+  'POST',
+  '/backend/v1/whatsapp/midia',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    // ---------- permissão: quem responde conversa pode anexar ----------
+    function lerLista(raw) {
+      let out = []
+      try {
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          out = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          out = JSON.parse(raw)
+        } else {
+          out = raw || []
+        }
+      } catch (err) {}
+      return Array.isArray(out) ? out : []
+    }
+    const hoje = new Date().toISOString().slice(0, 10)
+    const colG = $app.findCollectionByNameOrId('access_grants')
+    const meus = $app.findRecordsByFilter(
+      colG,
+      "user_id='" + e.auth.id + "' && revoked_at=''",
+      '-created',
+      60,
+      0,
+    )
+    var pode = false
+    for (const g of meus) {
+      const de = String(g.get('valid_from') || '')
+      const ate = String(g.get('valid_until') || '')
+      if (de !== '' && de.slice(0, 10) > hoje) continue
+      if (ate !== '' && ate.slice(0, 10) < hoje) continue
+      const acts = lerLista(g.get('actions'))
+      if (acts.indexOf('read_conversas') >= 0) pode = true
+    }
+    if (!pode) {
+      return e.json(403, { ok: false, erro: 'sem permissão para anexar arquivos (read_conversas)' })
+    }
+
+    // ---------- arquivo ----------
+    var arquivos = []
+    try {
+      arquivos = e.findUploadedFiles('arquivo')
+    } catch (errF) {}
+    if (!arquivos || arquivos.length === 0) {
+      return e.json(422, {
+        ok: false,
+        erro: 'entrada inválida',
+        campos: { arquivo: 'envie o arquivo no campo `arquivo`' },
+      })
+    }
+    const f = arquivos[0]
+
+    const nome = String(f.originalName || 'arquivo')
+    const mime = String(f.contentType || '')
+    var tamanho = 0
+    try {
+      tamanho = Number(f.size || 0)
+    } catch (errT) {}
+
+    if (tamanho > 16 * 1024 * 1024) {
+      return e.json(413, {
+        ok: false,
+        erro: 'arquivo grande demais para o WhatsApp',
+        detalhe: 'o limite é 16 MB',
+      })
+    }
+
+    // tipo pelo mimetype (o WhatsApp exige coerência entre rota e arquivo)
+    var tipo = 'document'
+    if (mime.indexOf('image/') === 0) tipo = 'image'
+    else if (mime.indexOf('audio/') === 0) tipo = 'audio'
+    else if (mime.indexOf('video/') === 0) tipo = 'video'
+
+    const colMidia = $app.findCollectionByNameOrId('whatsapp_midia')
+    const rec = new Record(colMidia)
+    rec.set('arquivo', f)
+    rec.set('tipo', tipo)
+    rec.set('mimetype', mime.slice(0, 120))
+    rec.set('nome_arquivo', nome.slice(0, 200))
+    rec.set('enviado_por', e.auth.id)
+    const body = e.requestInfo().body || {}
+    rec.set('conexao', String(body.conexao || '').slice(0, 15))
+    rec.set('lead', String(body.lead || '').slice(0, 15))
+    if (body.duracao_s) rec.set('duracao_s', Number(body.duracao_s))
+
+    try {
+      $app.save(rec)
+    } catch (errSave) {
+      return e.json(500, {
+        ok: false,
+        erro: 'falha ao salvar arquivo: ' + String(errSave).slice(0, 150),
+      })
+    }
+
+    // URL de leitura: host INTERNO é o que a D-API alcança (o domínio público
+    // serve só o frontend — /api/files/* lá devolve HTML). Verificado em 30/10.
+    var base = ''
+    try {
+      base = String($secrets.get('PB_INSTANCE_URL') || '')
+    } catch (errB) {}
+    if (base === '') {
+      try {
+        base = String($secrets.get('SITE_URL') || '')
+      } catch (errB2) {}
+    }
+
+    return e.json(200, {
+      ok: true,
+      id: rec.id,
+      tipo: tipo,
+      mimetype: mime,
+      nome_arquivo: nome,
+      tamanho: tamanho,
+      url: base + '/api/files/whatsapp_midia/' + rec.id + '/' + String(rec.get('arquivo')),
+    })
+  },
+  $apis.requireAuth(),
+)
