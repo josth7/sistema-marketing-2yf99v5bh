@@ -146,6 +146,10 @@ routerAdd(
           chave = String($secrets.get('DAPI_KEY_CENTRAL') || '')
         } catch (errS2) {}
       }
+      if (String(e.request.url.query().get('debug') || '') === '2') {
+        resultado[cid] =
+          'tentando tele=' + telefone + ' session=' + sessionId + ' chave=' + chave.slice(0, 6)
+      }
       if (String(e.request.url.query().get('debug') || '') === '1') {
         resultado[cid] =
           'diag tele=' +
@@ -202,6 +206,10 @@ routerAdd(
 
       if (String(e.request.url.query().get('debug') || '') === '1') {
         resultado[cid] = '[' + debugStatus + '] ' + debugCorpo
+        continue
+      }
+      if (String(e.request.url.query().get('debug') || '') === '2') {
+        resultado[cid] = 'status=' + debugStatus + ' corpo=' + debugCorpo + ' foto=' + foto
         continue
       }
       try {
