@@ -902,6 +902,48 @@ routerAdd(
       )
         continue
       if (email.indexOf('josth') >= 0) continue // dono não recebe rodízio
+
+      // SÓ VENDEDOR entra no rodízio (30/10). Antes entrava qualquer usuário,
+      // e o rodízio sugeria a ANEZIA (gerente) e o Marketing — que não
+      // atendem. Critério: ter grant de `read_conversas` (o vendedor tem) e
+      // NÃO ser gestão (escopo '*'). Gestão acompanha, não recebe lead.
+      var ehVendedor = false
+      var ehGestao = false
+      try {
+        const gs = $app.findRecordsByFilter(
+          $app.findCollectionByNameOrId('access_grants'),
+          "user_id='" + u.id + "' && revoked_at=''",
+          '',
+          20,
+          0,
+        )
+        for (const g of gs) {
+          let a = []
+          let sc = []
+          try {
+            const rawA = g.get('actions')
+            a =
+              Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number'
+                ? JSON.parse(String.fromCharCode.apply(null, rawA))
+                : typeof rawA === 'string'
+                  ? JSON.parse(rawA)
+                  : rawA || []
+          } catch (eA) {}
+          try {
+            const rawS = g.get('scope_accounts')
+            sc =
+              Array.isArray(rawS) && rawS.length > 0 && typeof rawS[0] === 'number'
+                ? JSON.parse(String.fromCharCode.apply(null, rawS))
+                : typeof rawS === 'string'
+                  ? JSON.parse(rawS)
+                  : rawS || []
+          } catch (eS) {}
+          if (Array.isArray(sc) && sc.indexOf('*') >= 0) ehGestao = true
+          if (a.indexOf('read_conversas') >= 0 || a.indexOf('read_leads') >= 0) ehVendedor = true
+        }
+      } catch (eG) {}
+      if (!ehVendedor || ehGestao) continue
+
       vendedores.push({
         id: u.id,
         nome: String(u.get('name') || email),
