@@ -415,7 +415,11 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       novo.set('nome', nomeLead)
       novo.set('telefone', telefone)
       novo.set('origem', 'whatsapp')
-      novo.set('status', 'novo')
+      // `novo` NAO EXISTE no funil de 10 etapas (mig 0097 renomeou para
+      // `entrada_lead`). O set falhava no save e o catch vazio engolia: TODO
+      // lead novo pelo WhatsApp ficava fora do CRM desde 30/10 — 12 clientes
+      // reais do Google Ads entraram sem lead (03/11).
+      novo.set('status', 'entrada_lead')
       novo.set('conta_id', 'haisan')
       novo.set('fixture', ehFixture)
       novo.set('entrada_whatsapp', conexao.id)
@@ -441,11 +445,19 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
         $app.save(evL)
       } catch (eEvL) {}
     } catch (eNovo) {
-      // UNIQUE de telefone: relê e liga (corrida)
+      // Relê o telefone: o caso comum é UNIQUE (corrida) — mas ANTES eu
+      // assumia "duplicado" para QUALQUER erro e o catch vazio escondia
+      // falha real de schema. Agora registra o erro de verdade no log, para
+      // nunca mais passar 4 dias criando zero lead sem ninguém ver (03/11).
       try {
         const rr = $app.findRecordsByFilter(colLeads, "telefone='" + telefone + "'", '', 1, 0)
         if (rr && rr.length > 0) lead = rr[0]
-      } catch (eRel) {}
+        else console.log('whatsapp_dapi: FALHA ao criar lead ' + telefone + ': ' + String(eNovo))
+      } catch (eRel) {
+        console.log(
+          'whatsapp_dapi: FALHA ao criar lead ' + telefone + ' (e releitura): ' + String(eNovo),
+        )
+      }
     }
   }
 
