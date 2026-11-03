@@ -178,6 +178,9 @@ export default function Conversas() {
   const [erroMsg, setErroMsg] = useState('')
 
   const [rascunho, setRascunho] = useState('')
+  const [sugestao, setSugestao] = useState('')
+  const [sugerindo, setSugerindo] = useState(false)
+  const [copiado, setCopiado] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [avisoEnvio, setAvisoEnvio] = useState('')
   const [gravando, setGravando] = useState(false)
@@ -279,11 +282,43 @@ export default function Conversas() {
     setMensagens([])
     setObservacoes([])
     setAvisoEnvio('')
+    setSugestao('')
     void carregarMensagens(c.id)
     void carregarObservacoes(c.id)
   }
 
   const convAberta = conversas.find((c) => c.id === aberta) || null
+
+  // A IA escreve, voce envia pelo celular (03/11): a Meta bloqueia o envio
+  // pela API, mas nao impede a IA de pensar. Este botao traz a resposta certa
+  // para a etapa da conversa e preenche o campo — o vendedor copia e manda.
+  const pedirSugestao = useCallback(async (idConversa: string) => {
+    setSugerindo(true)
+    setSugestao('')
+    try {
+      const r = await pb.send('/backend/v1/whatsapp/conversas/' + idConversa + '/sugestao', {
+        method: 'GET',
+      })
+      const txt = String((r as { sugestao?: string }).sugestao || '')
+      setSugestao(txt)
+      if (txt !== '') setRascunho(txt)
+    } catch (e) {
+      setAvisoEnvio('Não consegui sugerir: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setSugerindo(false)
+    }
+  }, [])
+
+  const copiarSugestao = useCallback(async (txt: string) => {
+    try {
+      await navigator.clipboard.writeText(txt)
+      setCopiado('Copiado! Cole no WhatsApp do celular.')
+      window.setTimeout(() => setCopiado(''), 4000)
+    } catch {
+      setCopiado('Selecione o texto e copie manualmente.')
+      window.setTimeout(() => setCopiado(''), 5000)
+    }
+  }, [])
 
   const responder = async (texto: string, midiaId?: string, legenda?: string) => {
     if (!aberta) return
@@ -683,6 +718,32 @@ export default function Conversas() {
                     nesta tela normalmente.
                   </div>
                 )}
+
+                {/* IA escreve, vendedor envia pelo celular */}
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => aberta && void pedirSugestao(aberta)}
+                    disabled={sugerindo}
+                    title="A IA escreve a resposta certa para esta etapa"
+                  >
+                    {sugerindo ? 'Pensando…' : '✨ Sugerir resposta'}
+                  </Button>
+                  {sugestao !== '' && (
+                    <>
+                      <Button size="sm" onClick={() => void copiarSugestao(sugestao)}>
+                        Copiar para o celular
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">
+                        Revise antes de enviar — a IA segue o roteiro, não decide preço.
+                      </span>
+                    </>
+                  )}
+                  {copiado !== '' && (
+                    <span className="text-[11px] font-medium text-emerald-700">{copiado}</span>
+                  )}
+                </div>
                 {avisoEnvio && (
                   <p className="mb-1 text-[11px] text-muted-foreground">{avisoEnvio}</p>
                 )}
