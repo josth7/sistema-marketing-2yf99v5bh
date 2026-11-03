@@ -179,7 +179,19 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         // rodava e nada acontecia, 03/11). Ordeno em JS.
         var ultimas = []
         try {
-          ultimas = $app.findRecordsByFilter(colMsg, "conversa='" + cv.id + "'", '', 12, 0)
+          // vinculo por conexao + telefone: whatsapp_mensagens NAO tem campo
+          // `conversa` (era a causa do "invalid filter expression", 03/11)
+          ultimas = $app.findRecordsByFilter(
+            colMsg,
+            "conexao='" +
+              String(cv.get('conexao') || '') +
+              "' && contato_telefone='" +
+              String(cv.get('contato_telefone') || '') +
+              "'",
+            '',
+            12,
+            0,
+          )
         } catch (e4) {
           continue
         }
@@ -566,7 +578,17 @@ routerAdd(
       var ultimas = []
       var erroMsg = ''
       try {
-        ultimas = $app.findRecordsByFilter(colMsg, "conversa='" + cv.id + "'", '', 12, 0)
+        ultimas = $app.findRecordsByFilter(
+          colMsg,
+          "conexao='" +
+            String(cv.get('conexao') || '') +
+            "' && contato_telefone='" +
+            String(cv.get('contato_telefone') || '') +
+            "'",
+          '',
+          12,
+          0,
+        )
       } catch (e2) {
         erroMsg = String(e2)
       }
