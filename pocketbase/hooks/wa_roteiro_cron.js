@@ -174,12 +174,18 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     for (const cv of conversas) {
       try {
         // ---------- última mensagem ----------
+        // sort sempre VAZIO: findRecordsByFilter com sort lanca erro no JSVM e
+        // o catch engolia a conversa em silencio (era por isso que o cron
+        // rodava e nada acontecia, 03/11). Ordeno em JS.
         var ultimas = []
         try {
-          ultimas = $app.findRecordsByFilter(colMsg, "conversa='" + cv.id + "'", '-created', 6, 0)
+          ultimas = $app.findRecordsByFilter(colMsg, "conversa='" + cv.id + "'", '', 12, 0)
         } catch (e4) {
           continue
         }
+        ultimas.sort(function (a, b) {
+          return String(b.get('created') || '').localeCompare(String(a.get('created') || ''))
+        })
         if (ultimas.length === 0) continue
         const ultima = ultimas[0]
         if (String(ultima.get('direcao')) !== 'entrada') continue // cliente tem de falar por último
@@ -522,3 +528,95 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     }
   } catch (eTop) {}
 })
+
+// ==================== DIAGNOSTICO DO MOTOR ====================
+// Mostra, para as conversas da central, por que cada uma foi ou nao atendida.
+// Criado porque o cron "rodava e nada acontecia": sem visibilidade eu ficava
+// adivinhando (03/11). Agora a causa aparece na hora.
+routerAdd(
+  'GET',
+  '/backend/v1/whatsapp/roteiro/diagnostico',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    const colCx = $app.findCollectionByNameOrId('whatsapp_conexoes')
+    var centrais = []
+    try {
+      centrais = $app.findRecordsByFilter(colCx, "papel='central' && ativo=true", '', 5, 0)
+    } catch (e0) {}
+    const central = centrais.length > 0 ? centrais[0] : null
+
+    const colCv = $app.findCollectionByNameOrId('whatsapp_conversas')
+    const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
+
+    var conversas = []
+    try {
+      conversas = $app.findRecordsByFilter(colCv, '', '', 60, 0)
+    } catch (e1) {
+      return e.json(200, { ok: false, erro: 'falha ao listar conversas: ' + String(e1) })
+    }
+    conversas.sort(function (a, b) {
+      return String(b.get('ultima_mensagem_em') || '').localeCompare(
+        String(a.get('ultima_mensagem_em') || ''),
+      )
+    })
+
+    const itens = []
+    for (const cv of conversas) {
+      var ultimas = []
+      var erroMsg = ''
+      try {
+        ultimas = $app.findRecordsByFilter(colMsg, "conversa='" + cv.id + "'", '', 12, 0)
+      } catch (e2) {
+        erroMsg = String(e2)
+      }
+      ultimas.sort(function (a, b) {
+        return String(b.get('created') || '').localeCompare(String(a.get('created') || ''))
+      })
+      const ultima = ultimas.length > 0 ? ultimas[0] : null
+      var houveSaida = false
+      for (var i = 0; i < ultimas.length; i++) {
+        if (String(ultimas[i].get('direcao')) === 'saida') houveSaida = true
+      }
+      const est = String(cv.get('estado') || '')
+      const etapa = String(cv.get('etapa_atual') || '')
+      const canal = String(cv.get('canal') || '')
+      var motivo = 'ok'
+      if (erroMsg !== '') motivo = 'ERRO ao ler mensagens: ' + erroMsg
+      else if (!central) motivo = 'sem conexao central ativa'
+      else if (String(cv.get('conexao') || '') !== central.id) motivo = 'nao e da central'
+      else if (est !== 'triagem') motivo = 'estado=' + est
+      else if (!ultima) motivo = 'sem mensagens'
+      else if (String(ultima.get('direcao')) !== 'entrada') motivo = 'ultima nao e do cliente'
+      else if (houveSaida) motivo = 'ja houve resposta nossa'
+      else if (etapa === '' && canal === '') motivo = 'AGIRIA: detectar gatilho'
+      else if (canal === 'sem_gatilho') motivo = 'sem gatilho (nao responde, por regra)'
+      else motivo = 'AGIRIA: etapa ' + etapa
+
+      itens.push({
+        id: cv.id,
+        nome: String(cv.get('contato_nome') || ''),
+        telefone: String(cv.get('contato_telefone') || ''),
+        estado: est,
+        canal: canal,
+        etapa_atual: etapa,
+        ultima_direcao: ultima ? String(ultima.get('direcao')) : '',
+        ultima_em: String(cv.get('ultima_mensagem_em') || '').slice(0, 19),
+        total_msgs: ultimas.length,
+        motivo: motivo,
+      })
+    }
+    var agiriam = 0
+    for (const it of itens) if (it.motivo.indexOf('AGIRIA') === 0) agiriam++
+    return e.json(200, {
+      ok: true,
+      central: central
+        ? { id: central.id, nome: String(central.get('nome_exibicao') || '') }
+        : null,
+      total: itens.length,
+      agiriam: agiriam,
+      itens: itens,
+    })
+  },
+  $apis.requireAuth(),
+)
