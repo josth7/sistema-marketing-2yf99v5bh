@@ -96,6 +96,8 @@ cronAdd('wa_aviso_email', '*/5 * * * *', () => {
   const ATIVO = true
 
   if (!ATIVO) return
+  // heartbeat: sem isso eu nao sabia se o cron rodava ou nao (03/11)
+  console.log('wa_aviso_email: rodando')
   try {
     const colDest = $app.findCollectionByNameOrId('whatsapp_avisos_email')
     var dests = []
@@ -126,7 +128,9 @@ cronAdd('wa_aviso_email', '*/5 * * * *', () => {
       const upd = String(l.get('updated') || '')
       if (upd === '') continue
       const idade = agora - new Date(upd).getTime()
-      if (!(idade >= 0) || idade > 3600000) continue // ultima hora
+      // 24h (nao 1h): o primeiro aviso cobre o dia inteiro, senao lead
+      // distribuido de manha nunca e avisado
+      if (!(idade >= 0) || idade > 24 * 3600000) continue
       porDono[ow] = porDono[ow] || []
       porDono[ow].push(l)
     }
