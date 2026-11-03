@@ -467,6 +467,57 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           }
         }
 
+        // ---------- MODO ENSAIO: nao toca no estado real ----------
+        // Antes eu gravava a etapa mesmo em ensaio, e como a resposta nao saia
+        // o cliente nunca recebia o menu — mas a etapa avancava. A conversa
+        // ficava "adiantada" e a IA respondia coisa fora de contexto (03/11).
+        // Em ensaio: registra o que faria, uma vez por mensagem (dedupe).
+        if (MODO_ENSAIO) {
+          const chaveEnsaio = 'roteiro_ensaio|' + cv.id + '|' + String(ultima.id || '')
+          var jaLogado = false
+          try {
+            const colEvE = $app.findCollectionByNameOrId('whatsapp_eventos')
+            const ex = $app.findRecordsByFilter(
+              colEvE,
+              "dedupe_key='" + chaveEnsaio + "'",
+              '',
+              1,
+              0,
+            )
+            if (ex && ex.length > 0) jaLogado = true
+          } catch (eEx) {}
+          if (!jaLogado) {
+            try {
+              const colEvE2 = $app.findCollectionByNameOrId('whatsapp_eventos')
+              const evE = new Record(colEvE2)
+              evE.set('dedupe_key', chaveEnsaio)
+              evE.set('evento', 'roteiro_ensaio')
+              evE.set('session_id', '')
+              evE.set('ref_id', cv.id)
+              evE.set('resultado', motivo + ' -> ' + novoEtapa)
+              evE.set('codigo_erro', 'canal=' + canal + ' | respostas=' + respostas.length)
+              evE.set('trace_id', '')
+              evE.set('duracao_ms', 0)
+              evE.set('recebido_em', new Date().toISOString())
+              evE.set('fixture', false)
+              $app.save(evE)
+            } catch (eEvE) {}
+            console.log(
+              'wa_roteiro[ENSAIO] ' +
+                cv.id +
+                ' | ' +
+                motivo +
+                ' | ' +
+                etapaAtual +
+                ' -> ' +
+                novoEtapa +
+                ' | respostas=' +
+                respostas.length,
+            )
+          }
+          continue
+        }
+
         // ---------- grava etapa / canal / origem do lead ----------
         try {
           if (novoEtapa !== etapaAtual) cv.set('etapa_atual', novoEtapa)
@@ -508,20 +559,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           } catch (eOwn) {}
         }
 
-        // ---------- enfileira ----------
-        if (MODO_ENSAIO) {
-          console.log(
-            'wa_roteiro[ENSAIO] conversa ' +
-              cv.id +
-              ' | ' +
-              motivo +
-              ' | -> ' +
-              novoEtapa +
-              ' | respostas: ' +
-              respostas.length,
-          )
-          continue
-        }
+        // ---------- enfileira (so quando o envio estiver ligado) ----------
         for (var k = 0; k < respostas.length; k++) {
           const txt = String(respostas[k] || '')
           if (txt === '') continue
