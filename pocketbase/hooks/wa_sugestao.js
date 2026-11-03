@@ -94,6 +94,17 @@ routerAdd(
     const HORARIO =
       'Nosso horário de atendimento é de segunda a sexta, das 8:00h às 17:30h. Se você mandou essa mensagem fora desse horário, um vendedor vai te responder assim que abrir o expediente. Obrigado pela paciência! ✨'
 
+    // Ja houve resposta NOSSA nesta conversa? Se nunca houve, a proxima
+    // mensagem e o MENU, nao importa o que a etapa diga — a etapa pode ter
+    // sido adiantada pelo ensaio (medido em 03/11: Franzinha aparecia em
+    // `menu` e a sugestao respondia "nao entendi" sem nunca ter falado nada).
+    var houveSaida = false
+    for (var i2 = 0; i2 < msgs.length; i2++) {
+      if (String(msgs[i2].get('direcao')) === 'saida') houveSaida = true
+    }
+    var etapaReal = etapa
+    if (!houveSaida) etapaReal = ''
+
     var sugestao = ''
     var motivo = ''
     var transferir = false
@@ -257,29 +268,34 @@ routerAdd(
       sugestao = 'Vou te encaminhar para um de nossos vendedores, só um momento!\n\n' + HORARIO
       motivo = 'pergunta_fora_do_escopo'
       transferir = true
-    } else if (etapa === '') {
+    } else if (etapaReal === '') {
       sugestao = canal === 'meta' ? MENU_META : MENU_ORGANICO
       motivo = 'boas_vindas'
-    } else if (etapa === 'menu') {
+    } else if (etapaReal === 'menu') {
       sugestao =
         'Desculpe, não entendi. 😊 Pode escolher uma das opções?\n\n' +
         (canal === 'meta' ? MENU_META : MENU_ORGANICO)
       motivo = 'menu_opcao_invalida'
-    } else if (etapa === 'origem') {
+    } else if (etapaReal === 'origem') {
       sugestao =
         'Pode me dizer por onde nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*'
       motivo = 'pergunta_origem'
-    } else if (etapa === 'e2' || etapa === 'e3') {
+    } else if (etapaReal === 'e2' || etapaReal === 'e3') {
       sugestao = 'Legal!😃 Você está abrindo um novo espaço ou ampliando um que já existe?'
       motivo = 'abrindo_ou_ampliando'
-    } else if (etapa === 'e3b') {
+    } else if (etapaReal === 'e3b') {
       sugestao = 'Perfeito! 😊 Você já é cliente Haisan ou é seu primeiro contato com a gente?'
       motivo = 'ja_cliente_ou_novo'
-    } else if (etapa === 'e5' || etapa === 'manut1') {
+    } else if (etapaReal === 'e5' || etapaReal === 'manut1') {
       sugestao =
         'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor responsável.'
       motivo = 'pede_documento'
-    } else if (etapa === 'e4' || etapa === 'e6' || etapa === 'manut2' || etapa === 'humano') {
+    } else if (
+      etapaReal === 'e4' ||
+      etapaReal === 'e6' ||
+      etapaReal === 'manut2' ||
+      etapaReal === 'humano'
+    ) {
       sugestao =
         'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *' +
         consultorNome +
