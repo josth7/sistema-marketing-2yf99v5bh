@@ -78,7 +78,9 @@ routerAdd(
           {
             role: 'system',
             content:
-              'Você é um analista de vendas. Com base na conversa, atribua uma nota de 0 a 100 para o lead.\n' +
+              'Você é um analista de vendas da HAISAN, fábrica de MÓVEIS para salão de beleza, barbearia e clínica de estética. ' +
+              'Avalie o lead SEMPRE como comprador de móveis desse setor — nunca invente outro ramo.\n' +
+              'Com base na conversa, atribua uma nota de 0 a 100 para o lead.\n' +
               'Critérios:\n' +
               '- Interesse demonstrado (0-25)\n' +
               '- Poder de compra aparente (0-25)\n' +
@@ -292,7 +294,9 @@ cronAdd('wa_ia_lead', '*/5 * * * *', () => {
               {
                 role: 'system',
                 content:
-                  'Você é um analista de vendas. Com base na conversa, atribua uma nota de 0 a 100 para o lead.\n' +
+                  'Você é um analista de vendas da HAISAN, fábrica de MÓVEIS para salão de beleza, barbearia e clínica de estética. ' +
+                  'Avalie o lead SEMPRE como comprador de móveis desse setor — nunca invente outro ramo.\n' +
+                  'Com base na conversa, atribua uma nota de 0 a 100 para o lead.\n' +
                   'Critérios:\n- Interesse demonstrado (0-25)\n- Poder de compra aparente (0-25)\n' +
                   '- Urgencia da necessidade (0-25)\n- Adequacao ao perfil ideal (0-25)\n' +
                   'Responda APENAS com um JSON: {"nota": <numero>, "justificativa": "<texto curto>"}',
