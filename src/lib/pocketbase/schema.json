@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-03T14:28:29.161Z",
+  "generatedAt": "2026-11-03T14:36:40.893Z",
   "collections": [
     {
       "name": "users",
@@ -2634,11 +2634,11 @@
       "name": "crm_leads",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "",
-        "update": "",
-        "delete": ""
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
       },
       "fields": [
         {
@@ -2868,11 +2868,11 @@
       "name": "crm_lead_events",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "",
-        "update": "",
-        "delete": ""
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
       },
       "fields": [
         {
