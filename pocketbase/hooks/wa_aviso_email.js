@@ -150,12 +150,26 @@ cronAdd('wa_aviso_email', '*/5 * * * *', () => {
       }
       if (lista.length === 0) continue
 
-      // dedupe: um aviso por destinatario a cada 30 min (resume, nao inunda)
-      const chave = 'aviso_email|' + email + '|' + Math.floor(agora / 1800000)
-      try {
-        const ja = $app.findRecordsByFilter(colEv, "dedupe_key='" + chave + "'", '', 1, 0)
-        if (ja && ja.length > 0) continue
-      } catch (e2) {}
+      // ---------- DEDUPE POR LEAD (nao por tempo) ----------
+      // A primeira versao usava chave por janela de 30 min: isso REENVIAVA
+      // tudo a cada meia hora, para sempre (medido em 03/11 — 5 e-mails com
+      // 343 leads). Agora a chave e o LEAD: cada lead avisa uma vez por
+      // destinatario, e so os novos entram no proximo e-mail.
+      var novos = []
+      for (const l of lista) {
+        const k = 'aviso_email|' + email + '|' + l.id
+        var jaFoi = false
+        try {
+          const ja = $app.findRecordsByFilter(colEv, "dedupe_key='" + k + "'", '', 1, 0)
+          if (ja && ja.length > 0) jaFoi = true
+        } catch (eDed) {
+          jaFoi = false
+        }
+        if (!jaFoi) novos.push(l)
+      }
+      if (novos.length === 0) continue
+      lista = novos
+      const chave = 'aviso_email|' + email + '|' + lista[0].id
 
       // monta o corpo
       var corpo =
@@ -201,20 +215,23 @@ cronAdd('wa_aviso_email', '*/5 * * * *', () => {
         console.log('wa_aviso_email: falha ao enviar para ' + email + ': ' + String(eMail))
       }
 
-      try {
-        const ev = new Record(colEv)
-        ev.set('dedupe_key', chave)
-        ev.set('evento', 'aviso_email')
-        ev.set('session_id', '')
-        ev.set('ref_id', uid)
-        ev.set('resultado', enviado ? 'enviado' : 'falha_smtp')
-        ev.set('codigo_erro', email + ' | leads=' + lista.length)
-        ev.set('trace_id', '')
-        ev.set('duracao_ms', 0)
-        ev.set('recebido_em', new Date().toISOString())
-        ev.set('fixture', false)
-        $app.save(ev)
-      } catch (e3) {}
+      // marca CADA lead do lote como avisado
+      for (const l of lista) {
+        try {
+          const ev = new Record(colEv)
+          ev.set('dedupe_key', 'aviso_email|' + email + '|' + l.id)
+          ev.set('evento', 'aviso_email')
+          ev.set('session_id', '')
+          ev.set('ref_id', l.id)
+          ev.set('resultado', enviado ? 'enviado' : 'falha_smtp')
+          ev.set('codigo_erro', email)
+          ev.set('trace_id', '')
+          ev.set('duracao_ms', 0)
+          ev.set('recebido_em', new Date().toISOString())
+          ev.set('fixture', false)
+          $app.save(ev)
+        } catch (e3) {}
+      }
     }
   } catch (eTop) {}
 })
