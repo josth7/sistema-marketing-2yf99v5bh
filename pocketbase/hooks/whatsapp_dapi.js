@@ -516,6 +516,42 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
 
   const mediaData = data.media_data || {}
   const textoMsg = String(data.message || mediaData.caption || '').slice(0, 10000)
+
+  // ---------- 11b. ATRIBUIÇÃO DE ANÚNCIO (Click-to-WhatsApp) ----------
+  // A Meta não manda "vi o anúncio" em texto: manda o objeto `referral` junto
+  // da primeira mensagem de quem clicou no anúncio. O webhook ignorava isso
+  // (03/11), então o lead ficava sem origem e sem atendimento.
+  // Leitura DEFENSIVA: a D-API pode repassar o bloco com outro nome, então
+  // procuro em data.referral, data.contextInfo.referral e data.message.referral.
+  var ref = null
+  try {
+    if (data.referral && typeof data.referral === 'object') ref = data.referral
+    else if (data.contextInfo && data.contextInfo.referral) ref = data.contextInfo.referral
+    else if (data.message && typeof data.message === 'object' && data.message.referral)
+      ref = data.message.referral
+    else if (data.referral_data && typeof data.referral_data === 'object') ref = data.referral_data
+  } catch (eRef) {}
+  var anuncio = null
+  if (ref) {
+    var urlA = String(ref.source_url || ref.sourceUrl || '')
+    var tipoA = String(ref.source_type || ref.sourceType || '')
+    var idA = String(ref.source_id || ref.sourceId || ref.ad_id || ref.adId || '')
+    var fonteA = ''
+    if (urlA.indexOf('instagram') >= 0) fonteA = 'instagram'
+    else if (urlA.indexOf('facebook') >= 0) fonteA = 'facebook'
+    else if (tipoA !== '') fonteA = tipoA
+    anuncio = {
+      id: idA.slice(0, 120),
+      tipo: tipoA.slice(0, 60),
+      url: urlA.slice(0, 500),
+      titulo: String(ref.headline || '').slice(0, 300),
+      corpo: String(ref.body || '').slice(0, 1000),
+      ctwa: String(ref.ctwa_clid || ref.ctwaClid || '').slice(0, 300),
+      fonte: fonteA.slice(0, 60),
+      // recorte para descobrir o nome real dos campos que a D-API repassa
+      bruto: JSON.stringify(ref).slice(0, 1800),
+    }
+  }
   // A D-API manda `timestamp` em SEGUNDOS (ex.: 1761672000). Tratar como
   // milissegundos jogava a data para 1970 — provado em 28/10 com a primeira
   // mensagem real: veio "1970-01-21 18:06". Aceita os dois formatos: acima de
@@ -675,6 +711,55 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
         conversa.set('ultima_previa', String(previa).slice(0, 160))
         conversa.set('ultimo_autor', autor)
         conversa.set('total_mensagens', Number(conversa.get('total_mensagens') || 0) + 1)
+
+        // ---------- atribuicao de anuncio (CTWA) ----------
+        // guarda na conversa e consolida no lead. So grava quando veio
+        // referral, para nao apagar a atribuicao em mensagens seguintes.
+        if (anuncio) {
+          try {
+            if (anuncio.id !== '') conversa.set('anuncio_id', anuncio.id)
+            if (anuncio.tipo !== '') conversa.set('anuncio_tipo', anuncio.tipo)
+            if (anuncio.url !== '') conversa.set('anuncio_url', anuncio.url)
+            if (anuncio.titulo !== '') conversa.set('anuncio_titulo', anuncio.titulo)
+            if (anuncio.corpo !== '') conversa.set('anuncio_corpo', anuncio.corpo)
+            if (anuncio.ctwa !== '') conversa.set('anuncio_ctwa', anuncio.ctwa)
+            if (anuncio.bruto !== '') conversa.set('anuncio_bruto', anuncio.bruto)
+            // canal: quem veio de anuncio Meta/Instagram/Facebook e `meta`
+            if (
+              anuncio.fonte === 'instagram' ||
+              anuncio.fonte === 'facebook' ||
+              anuncio.fonte === 'ad'
+            ) {
+              conversa.set('canal', 'meta')
+            }
+          } catch (eAnC) {}
+          if (lead) {
+            try {
+              var mudouLead = false
+              if (anuncio.id !== '') {
+                lead.set('anuncio_id', anuncio.id)
+                mudouLead = true
+              }
+              if (anuncio.fonte !== '') {
+                lead.set('anuncio_fonte', anuncio.fonte)
+                mudouLead = true
+              }
+              // origem do lead passa a refletir o anuncio
+              if (
+                anuncio.fonte === 'instagram' ||
+                anuncio.fonte === 'facebook' ||
+                anuncio.fonte === 'ad'
+              ) {
+                lead.set('origem', 'meta')
+                mudouLead = true
+              } else if (anuncio.fonte === 'google') {
+                lead.set('origem', 'google')
+                mudouLead = true
+              }
+              if (mudouLead) $app.save(lead)
+            } catch (eAnL) {}
+          }
+        }
 
         // ---------- pausa da IA por intervenção humana (CA-3-17) ----------
         // Regra: se um HUMANO responde (equipe central pelo celular, ou

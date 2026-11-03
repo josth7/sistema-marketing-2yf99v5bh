@@ -126,7 +126,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     try {
       conversas = $app.findRecordsByFilter(
         colCv,
-        "conexao='" + central.id + "' && estado='triagem'",
+        // fixture=false: conversa de teste NUNCA recebe resposta automatica
+        "conexao='" + central.id + "' && estado='triagem' && fixture=false",
         '',
         40,
         0,
@@ -217,30 +218,83 @@ cronAdd('wa_roteiro', '* * * * *', () => {
 
         const texto = String(ultima.get('texto') || '')
 
-        // ---------- GATILHO (regra do agente atual) ----------
-        // na primeira mensagem, sem gatilho => não responde (fica sem_gatilho)
+        // lead da conversa (para herdar a atribuicao de anuncio)
+        var lead = null
+        if (String(cv.get('lead') || '') !== '') {
+          try {
+            lead = $app.findRecordById(colL, String(cv.get('lead')))
+          } catch (eLead) {}
+        }
+
+        // ---------- SPAM: nunca responde ----------
+        // mensagem com cara de golpe/corrente. Se responder, o numero leva
+        // denuncia e a reputacao cai (justo o que nao podemos agora).
+        var tSpam = normalizar(texto)
+        if (
+          tSpam.indexOf('auxilio') >= 0 ||
+          tSpam.indexOf('reconstrucao 2026') >= 0 ||
+          tSpam.indexOf('consulta liberada') >= 0 ||
+          tSpam.indexOf('clique no link') >= 0 ||
+          tSpam.indexOf('ganhe dinheiro') >= 0 ||
+          tSpam.indexOf('emprestimo') >= 0 ||
+          tSpam.indexOf('sorteio') >= 0
+        ) {
+          try {
+            cv.set('canal', 'sem_gatilho')
+            $app.save(cv)
+          } catch (eSpam) {}
+          continue
+        }
+
+        // ---------- CANAL: ATRIBUIÇÃO REAL, NÃO TEXTO ----------
+        // MUDANÇA DE 03/11 (a regra antiga barrava lead de anúncio):
+        // a Meta não manda "vi o anúncio" em texto — manda o `referral` com a
+        // mensagem. O texto do gatilho era premissa do agente antigo, que lia
+        // texto; no WhatsApp oficial a atribuição vem em campo próprio.
+        // Agora:
+        //   1) tem anúncio salvo na conversa/lead  -> `meta`
+        //   2) texto menciona google               -> `google`
+        //   3) texto tem o gatilho antigo          -> `meta`
+        //   4) nada disso                          -> `organico` (pergunta a
+        //      origem), em vez de silenciar o cliente
         var canal = String(cv.get('canal') || '')
         var etapaAtual = String(cv.get('etapa_atual') || '')
+        if (canal === 'sem_gatilho') canal = '' // reprocessa as antigas
         if (etapaAtual === '') {
           var tNorm = normalizar(texto)
-          var temAnuncio =
-            tNorm.indexOf('vi o anuncio') >= 0 || tNorm.indexOf('anuncio da haisan') >= 0
-          if (!temAnuncio) {
-            // não é lead de anúncio: o roteiro não se aplica
+          var anuncioId = String(cv.get('anuncio_id') || '')
+          if (anuncioId === '' && lead) {
             try {
-              cv.set('canal', 'sem_gatilho')
-              $app.save(cv)
-            } catch (eC0) {}
-            continue
+              anuncioId = String(lead.get('anuncio_id') || '')
+            } catch (eAd) {}
           }
-          if (tNorm.indexOf('google') >= 0) canal = 'google'
-          else canal = 'meta' // meta/instagram/facebook ou sem qualificador
+          if (anuncioId !== '' || String(cv.get('anuncio_url') || '') !== '') {
+            canal = 'meta'
+          } else if (tNorm.indexOf('google') >= 0) {
+            canal = 'google'
+          } else if (
+            tNorm.indexOf('vi o anuncio') >= 0 ||
+            tNorm.indexOf('anuncio da haisan') >= 0
+          ) {
+            canal = 'meta'
+          } else if (
+            tNorm.indexOf('instagram') >= 0 ||
+            tNorm.indexOf('facebook') >= 0 ||
+            tNorm.indexOf('insta') >= 0
+          ) {
+            canal = 'meta'
+          } else {
+            // chegou sem atribuição: trata como orgânico e PERGUNTA a origem.
+            // Antes daqui saía `sem_gatilho` + silêncio, e o cliente ficava
+            // sem resposta (17 casos medidos em 03/11).
+            canal = 'organico'
+          }
           try {
             cv.set('canal', canal)
             $app.save(cv)
           } catch (eC1) {}
         }
-        if (canal === '' || canal === 'sem_gatilho') continue
+        if (canal === 'sem_gatilho') canal = 'organico'
         const MENU = canal === 'meta' ? MENU_META : MENU_ORGANICO
 
         // ---------- DECISÃO (inline, mesmas regras da rota simular) ----------
@@ -654,9 +708,16 @@ routerAdd(
       else if (!ultima) motivo = 'sem mensagens'
       else if (String(ultima.get('direcao')) !== 'entrada') motivo = 'ultima nao e do cliente'
       else if (houveSaida) motivo = 'ultima e nossa (aguardando cliente)'
-      else if (etapa === '' && canal === '') motivo = 'AGIRIA: detectar gatilho'
-      else if (canal === 'sem_gatilho') motivo = 'sem gatilho (nao responde, por regra)'
-      else motivo = 'AGIRIA: etapa ' + etapa
+      else if (
+        normalizar(String(ultima ? ultima.get('texto') || '' : '')).indexOf('auxilio') >= 0 ||
+        normalizar(String(ultima ? ultima.get('texto') || '' : '')).indexOf('reconstrucao') >= 0
+      )
+        motivo = 'spam (nao responde, por regra)'
+      else if (etapa === '' && canal === '') {
+        motivo = 'AGIRIA: definir canal (anuncio/google/organico) e mandar o menu'
+      } else if (canal === 'sem_gatilho') {
+        motivo = 'AGIRIA: legado sem_gatilho -> vira organico'
+      } else motivo = 'AGIRIA: etapa ' + etapa + ' (canal ' + canal + ')'
 
       itens.push({
         id: cv.id,
