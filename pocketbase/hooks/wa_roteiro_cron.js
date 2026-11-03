@@ -709,8 +709,15 @@ routerAdd(
       else if (String(ultima.get('direcao')) !== 'entrada') motivo = 'ultima nao e do cliente'
       else if (houveSaida) motivo = 'ultima e nossa (aguardando cliente)'
       else if (
-        normalizar(String(ultima ? ultima.get('texto') || '' : '')).indexOf('auxilio') >= 0 ||
-        normalizar(String(ultima ? ultima.get('texto') || '' : '')).indexOf('reconstrucao') >= 0
+        String(ultima ? ultima.get('texto') || '' : '')
+          .toLowerCase()
+          .indexOf('auxilio') >= 0 ||
+        String(ultima ? ultima.get('texto') || '' : '')
+          .toLowerCase()
+          .indexOf('reconstrucao') >= 0 ||
+        String(ultima ? ultima.get('texto') || '' : '')
+          .toLowerCase()
+          .indexOf('auxílio') >= 0
       )
         motivo = 'spam (nao responde, por regra)'
       else if (etapa === '' && canal === '') {
