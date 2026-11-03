@@ -69,6 +69,39 @@ const ROTULO_STATUS: Record<string, string> = {
   descartado: 'Descartado',
 }
 
+// ---------- IA do lead (CA-3-23) ----------
+// A nota de 0 a 100 vem da conversa (interesse, poder de compra, urgência,
+// perfil). Antes o card mostrava `temperatura`, que era só um espelho do
+// status — ou seja, não informava nada sobre a chance real de venda.
+function corNota(n: number | null): string {
+  if (n === null || n === undefined) return 'bg-gray-100 text-gray-500'
+  if (n >= 80) return 'bg-emerald-600 text-white'
+  if (n >= 60) return 'bg-emerald-100 text-emerald-800'
+  if (n >= 40) return 'bg-amber-100 text-amber-800'
+  return 'bg-gray-100 text-gray-600'
+}
+
+function rotuloNota(n: number | null): string {
+  if (n === null || n === undefined) return '—'
+  return String(n)
+}
+
+const COR_HUMOR: Record<string, string> = {
+  positivo: 'bg-emerald-100 text-emerald-800',
+  neutro: 'bg-gray-100 text-gray-600',
+  negativo: 'bg-amber-100 text-amber-800',
+  raiva: 'bg-orange-100 text-orange-800',
+  ameaca: 'bg-red-600 text-white',
+}
+
+const EMOJI_HUMOR: Record<string, string> = {
+  positivo: '🙂',
+  neutro: '😐',
+  negativo: '🙁',
+  raiva: '😠',
+  ameaca: '🚨',
+}
+
 const COR_STATUS: Record<string, string> = {
   entrada_lead: 'bg-slate-100 text-slate-800',
   pre_atendimento_ia: 'bg-indigo-100 text-indigo-800',
@@ -103,6 +136,7 @@ export default function Leads() {
   const [erroAuth, setErroAuth] = useState<string | null>(null)
   const [entrando, setEntrando] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [soQuentes, setSoQuentes] = useState(false)
   const [busca, setBusca] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
   // criação
@@ -221,6 +255,9 @@ export default function Leads() {
   const filtrados = useMemo(() => {
     let out = itens
     if (filtroStatus !== 'todos') out = out.filter((l) => l.status === filtroStatus)
+    // "só os quentes": nota 60+ da IA. É o filtro que o vendedor usa para
+    // decidir a ordem do dia — sem ele, 40 conversas parecem todas iguais.
+    if (soQuentes) out = out.filter((l) => (l.ia_nota ?? -1) >= 60)
     if (busca.trim() !== '') {
       const q = busca.trim().toLowerCase()
       out = out.filter(
@@ -230,8 +267,16 @@ export default function Leads() {
           l.email.toLowerCase().includes(q),
       )
     }
+    // maior nota primeiro: quem tem mais chance aparece no topo.
+    // Lead sem nota (null) vai para o fim — não foi analisado ainda.
+    out = [...out].sort((a, b) => {
+      const na = a.ia_nota ?? -1
+      const nb = b.ia_nota ?? -1
+      if (nb !== na) return nb - na
+      return String(b.criado_em || '').localeCompare(String(a.criado_em || ''))
+    })
     return out
-  }, [itens, filtroStatus, busca])
+  }, [itens, filtroStatus, busca, soQuentes])
 
   /** Quantas páginas a lista filtrada tem (mínimo 1, para a tabela não sumir). */
   const totalPaginas = useMemo(
@@ -601,6 +646,14 @@ export default function Leads() {
           onChange={(e) => setBusca(e.target.value)}
           className="max-w-xs"
         />
+        <Button
+          variant={soQuentes ? 'default' : 'outline'}
+          onClick={() => setSoQuentes((v) => !v)}
+          title="Mostra só os leads com nota 60 ou mais, que a IA avaliou como bons"
+        >
+          🔥 Só os quentes
+          {soQuentes ? ' (' + filtrados.length + ')' : ''}
+        </Button>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" onClick={() => setAbrirImportar(true)}>
             Importar CSV
@@ -743,19 +796,15 @@ export default function Leads() {
                         <p className="truncate text-sm font-medium">{l.nome}</p>
                         <span
                           className={
-                            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ' +
-                            (l.temperatura === 'positivo'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : l.temperatura === 'frio'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-gray-100 text-gray-600')
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' +
+                            corNota(l.ia_nota)
+                          }
+                          title={
+                            l.ia_justificativa ||
+                            'Nota da IA pela conversa (0 a 100). Sem nota = conversa ainda não analisada.'
                           }
                         >
-                          {l.temperatura === 'positivo'
-                            ? 'quente'
-                            : l.temperatura === 'frio'
-                              ? 'frio'
-                              : 'neutro'}
+                          {rotuloNota(l.ia_nota)}
                         </span>
                       </div>
                       <p className="text-[11px] tabular-nums text-muted-foreground">
@@ -765,6 +814,17 @@ export default function Leads() {
                       <p className="truncate text-[11px] text-muted-foreground">
                         {l.telefone || l.email || '—'}
                       </p>
+                      {l.ia_humor && (
+                        <span
+                          className={
+                            'mt-0.5 inline-block rounded px-1 py-0.5 text-[10px] ' +
+                            (COR_HUMOR[l.ia_humor] || 'bg-gray-100 text-gray-600')
+                          }
+                          title="Humor da última mensagem do cliente"
+                        >
+                          {(EMOJI_HUMOR[l.ia_humor] || '') + ' ' + l.ia_humor}
+                        </span>
+                      )}
                       {l.owner_nome && (
                         <p className="mt-0.5 truncate text-[11px] text-emerald-700">
                           👤 {l.owner_nome}
@@ -860,10 +920,39 @@ export default function Leads() {
                     </Badge>
                   </div>
 
-                  {/* valor em destaque, como no CRM antigo */}
-                  <p className="mt-1 text-base font-bold tabular-nums text-foreground">
-                    R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
+                  {/* nota da IA em destaque: é o que diz quem atacar primeiro */}
+                  <div className="mt-1 flex items-center gap-2">
+                    <span
+                      className={'rounded-full px-2 py-0.5 text-sm font-bold ' + corNota(l.ia_nota)}
+                      title={
+                        l.ia_justificativa ||
+                        'Nota da IA pela conversa (0 a 100). — = conversa ainda não analisada.'
+                      }
+                    >
+                      {rotuloNota(l.ia_nota)}
+                    </span>
+                    {l.ia_humor && (
+                      <span
+                        className={
+                          'rounded px-1.5 py-0.5 text-[10px] ' +
+                          (COR_HUMOR[l.ia_humor] || 'bg-gray-100 text-gray-600')
+                        }
+                      >
+                        {(EMOJI_HUMOR[l.ia_humor] || '') + ' ' + l.ia_humor}
+                      </span>
+                    )}
+                    <span className="ml-auto text-base font-bold tabular-nums text-foreground">
+                      R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  {l.ia_resumo && (
+                    <p
+                      className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground"
+                      title={l.ia_resumo}
+                    >
+                      {l.ia_resumo}
+                    </p>
+                  )}
 
                   {/* telefone com atalho de WhatsApp */}
                   <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">

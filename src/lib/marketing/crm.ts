@@ -32,6 +32,13 @@ export interface Lead {
   atualizado_em: string
   valor: number
   vendedor_nome: string
+  // IA do lead (CA-3-23) — resumo, nota 0-100 e humor da conversa
+  ia_nota: number | null
+  ia_humor: string
+  ia_resumo: string
+  ia_justificativa: string
+  ia_humor_score: number | null
+  ia_calculado_em: string
 }
 
 export interface LeadEvento {

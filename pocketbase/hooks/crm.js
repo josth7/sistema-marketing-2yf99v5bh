@@ -162,6 +162,12 @@ routerAdd(
         canal_atendimento: l.get('canal_atendimento'),
         ia_nota: l.get('ia_nota'),
         ia_humor: l.get('ia_humor'),
+        // IA do lead (CA-3-23): a tela precisa do resumo e da justificativa
+        // para o vendedor decidir sem abrir a conversa inteira
+        ia_resumo: l.get('ia_resumo'),
+        ia_justificativa: l.get('ia_justificativa'),
+        ia_humor_score: l.get('ia_humor_score'),
+        ia_calculado_em: l.get('ia_calculado_em'),
       })
     }
     return e.json(200, { ok: true, total: itens.length, itens: itens })

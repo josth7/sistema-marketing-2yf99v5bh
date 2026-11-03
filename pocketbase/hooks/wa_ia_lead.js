@@ -224,8 +224,10 @@ routerAdd(
 
 // ==================== CRON: calcula para quem mudou ====================
 cronAdd('wa_ia_lead', '*/5 * * * *', () => {
-  // 3 por rodada: mantém o custo baixo e o cron dentro do tempo
-  const LIMITE = 3
+  // 20 por rodada (03/11): com 3 a fila de 144 leads com conversa levaria 4
+  // horas. Com 20 sai em ~40 min. Custo segue baixo: só entram leads cuja
+  // conversa mudou desde o último cálculo.
+  const LIMITE = 20
 
   try {
     const colL = $app.findCollectionByNameOrId('crm_leads')
