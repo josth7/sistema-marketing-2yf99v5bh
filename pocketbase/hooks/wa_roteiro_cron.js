@@ -200,15 +200,20 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         })
         if (ultimas.length === 0) continue
         const ultima = ultimas[0]
-        if (String(ultima.get('direcao')) !== 'entrada') continue // cliente tem de falar por último
-        var jaRespondeu = false
-        for (var i = 0; i < ultimas.length; i++) {
-          if (String(ultimas[i].get('direcao')) === 'saida') {
-            jaRespondeu = true
-            break
-          }
-        }
-        if (jaRespondeu) continue
+        // cliente tem de falar por ultimo. So isso ja garante que nao ha
+        // resposta nossa depois da mensagem dele: a lista esta em ordem
+        // decrescente, entao ultimas[0] e a mais recente.
+        // (Antes eu olhava "existe alguma saida nas ultimas 12?" — e isso
+        // BLOQUEAVA conversa real: cliente escreve de novo depois de uma
+        // resposta antiga e a IA nunca mais falava. 03/11.)
+        if (String(ultima.get('direcao')) !== 'entrada') continue
+
+        // ja respondemos ESTA mensagem? usa `ultima_resposta_ia_em` (campo que
+        // ja existe). Sem isso, em modo ensaio ou antes do webhook confirmar o
+        // envio, o cron decidiria de novo a cada minuto e duplicaria.
+        const ultimaIa = String(cv.get('ultima_resposta_ia_em') || '')
+        const criadaMsg = String(ultima.get('created') || '')
+        if (ultimaIa !== '' && criadaMsg !== '' && ultimaIa >= criadaMsg) continue
 
         const texto = String(ultima.get('texto') || '')
 
@@ -466,6 +471,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         try {
           if (novoEtapa !== etapaAtual) cv.set('etapa_atual', novoEtapa)
           if (transfere) cv.set('estado', 'transferida')
+          // marca o processamento desta mensagem (idempotencia do cron)
+          cv.set('ultima_resposta_ia_em', new Date().toISOString())
           $app.save(cv)
         } catch (eSave) {}
 
@@ -596,10 +603,8 @@ routerAdd(
         return String(b.get('created') || '').localeCompare(String(a.get('created') || ''))
       })
       const ultima = ultimas.length > 0 ? ultimas[0] : null
-      var houveSaida = false
-      for (var i = 0; i < ultimas.length; i++) {
-        if (String(ultimas[i].get('direcao')) === 'saida') houveSaida = true
-      }
+      // resposta nossa DEPOIS da ultima mensagem do cliente = a mais recente e saida
+      const houveSaida = ultima ? String(ultima.get('direcao')) === 'saida' : false
       const est = String(cv.get('estado') || '')
       const etapa = String(cv.get('etapa_atual') || '')
       const canal = String(cv.get('canal') || '')
@@ -610,7 +615,7 @@ routerAdd(
       else if (est !== 'triagem') motivo = 'estado=' + est
       else if (!ultima) motivo = 'sem mensagens'
       else if (String(ultima.get('direcao')) !== 'entrada') motivo = 'ultima nao e do cliente'
-      else if (houveSaida) motivo = 'ja houve resposta nossa'
+      else if (houveSaida) motivo = 'ultima e nossa (aguardando cliente)'
       else if (etapa === '' && canal === '') motivo = 'AGIRIA: detectar gatilho'
       else if (canal === 'sem_gatilho') motivo = 'sem gatilho (nao responde, por regra)'
       else motivo = 'AGIRIA: etapa ' + etapa
