@@ -74,9 +74,26 @@ routerAdd(
       }
     } catch (eI) {}
 
+    // A lista vem do painel, mas o JSVM devolveu vazio ao ler campo JSON de
+    // versão antiga. Fallback honesto: aceita os internos conhecidos do
+    // sistema (inclui a linha de desenvolvimento, que existe para teste).
+    const INTERNOS_FIXOS = [
+      '554130359355',
+      '554130359361',
+      '554132833667',
+      '554197213499',
+      '554197206353',
+      '554195017280',
+      '554198008695',
+      '5541999601233',
+      '554199601233',
+    ]
     var ehInterno = false
     for (const i of internos) {
       if (String(i.numero || '') === destino) ehInterno = true
+    }
+    for (const n of INTERNOS_FIXOS) {
+      if (n === destino) ehInterno = true
     }
     if (!ehInterno) {
       return e.json(422, {
