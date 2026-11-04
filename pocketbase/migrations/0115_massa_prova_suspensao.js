@@ -96,7 +96,7 @@ migrate(
         l.set('owner_id', pessoa.id)
         l.set('vendedor_nome', NOME)
         l.set('fixture', true)
-        l.set('origem', 'teste_suspensao')
+        l.set('origem', 'manual')
         app.save(l)
         criados++
       } catch (e5) {
