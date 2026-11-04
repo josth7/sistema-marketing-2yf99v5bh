@@ -20,6 +20,17 @@
  */
 
 cronAdd('wa_roteiro', '* * * * *', () => {
+  // SONDA (04/11): prova que este cron roda. A sonda_cron roda; o motor não
+  // registrava nada. Sem esta batida eu não sabia se o problema era o
+  // agendador ou a lógica.
+  try {
+    const colS = $app.findCollectionByNameOrId('diag_cron_sonda')
+    const rS = new Record(colS)
+    rS.set('job', 'wa_roteiro')
+    rS.set('quando', new Date().toISOString())
+    $app.save(rS)
+  } catch (eS0) {}
+
   // liga/desliga o ENVIO real. Enquanto a Meta bloquear (130497), fica false:
   // o motor decide, grava a etapa e MARCA no log, mas não enfileira.
   // MODO_ENSAIO deixa de ser constante: passa a seguir o painel.
