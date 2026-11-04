@@ -140,13 +140,7 @@ routerAdd(
       try {
         chave = String($secrets.get(secao) || '')
       } catch (errS) {}
-      if (chave === '' && secao !== 'DAPI_USER_KEY') {
-        // a chave por SESSÃO só abre a sessão dela (401 provado 30/10);
-        // a USER API KEY abre todas as sessões da conta
-        try {
-          chave = String($secrets.get('DAPI_USER_KEY') || '')
-        } catch (errS2) {}
-      }
+      // só a chave do próprio número (decisão do consultor, 04/11)
       if (telefone.length < 10) continue
       if (sessionId === '') continue
       if (chave === '') continue

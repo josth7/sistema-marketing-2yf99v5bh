@@ -97,6 +97,7 @@ routerAdd(
       { para: '/relatorios', rotulo: 'Relatórios', aceita: ['read_reports'] },
       { para: '/caixa', rotulo: 'Caixa', aceita: ['read_reports'] },
       { para: '/numeros', rotulo: 'Números', aceita: ['manage_whatsapp'] },
+      { para: '/atendimento', rotulo: 'Atendimento', aceita: ['manage_atendimento'] },
       { para: '/concorrentes', rotulo: 'Concorrentes', aceita: ['read_analyses'] },
       { para: '/analises', rotulo: 'Análises', aceita: ['read_analyses'] },
       { para: '/saude-canal', rotulo: 'Saúde do canal', aceita: ['read_metrics'] },

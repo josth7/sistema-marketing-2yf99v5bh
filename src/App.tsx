@@ -15,6 +15,7 @@ import Leads from './pages/Leads'
 import Concorrentes from './pages/Concorrentes'
 import Numeros from './pages/Numeros'
 import Conversas from './pages/Conversas'
+import Atendimento from './pages/Atendimento'
 import MinhaSenha from './pages/MinhaSenha'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
@@ -121,6 +122,7 @@ const App = () => {
     { para: '/concorrentes', elemento: <Concorrentes /> },
     { para: '/conversas', elemento: <Conversas /> },
     { para: '/numeros', elemento: <Numeros /> },
+    { para: '/atendimento', elemento: <Atendimento /> },
   ]
 
   return (

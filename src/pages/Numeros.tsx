@@ -37,7 +37,6 @@ type Conexao = {
   ativo: boolean
   nome_segredo_chave: string
   segredo_configurado: boolean
-  usa_chave_geral?: boolean
   ultimo_evento_em: string
   ultimo_status_conexao: string
   ultimo_status_em: string
@@ -178,7 +177,7 @@ export default function Numeros() {
                     <span className="font-mono">{c.nome_segredo_chave || '—'}</span>{' '}
                     {c.segredo_configurado ? (
                       <Badge variant="outline" className="ml-1 px-1 py-0 text-[10px]">
-                        {c.usa_chave_geral ? 'usa a chave geral' : 'configurado'}
+                        configurado
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="ml-1 px-1 py-0 text-[10px]">
@@ -195,6 +194,12 @@ export default function Numeros() {
                   </div>
                 )}
 
+                {!c.segredo_configurado && (
+                  <p className="text-xs text-muted-foreground">
+                    Falta cadastrar o segredo {c.nome_segredo_chave || 'da chave'} no Skip. Até lá
+                    este número só recebe; o envio pelo sistema por ele fica parado.
+                  </p>
+                )}
                 {!c.ativo && (
                   <p className="text-xs text-destructive">Conexão desativada — o webhook ignora.</p>
                 )}

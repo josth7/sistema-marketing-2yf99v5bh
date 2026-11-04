@@ -100,13 +100,10 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       try {
         chave = String($secrets.get(secao) || '')
       } catch (eSec) {}
-      if (chave === '' && secao !== 'DAPI_USER_KEY') {
-        // a chave por SESSÃO só abre a sessão dela (401 provado 30/10);
-        // a USER API KEY da D-API abre todas as sessões da conta
-        try {
-          chave = String($secrets.get('DAPI_USER_KEY') || '')
-        } catch (eSec2) {}
-      }
+      // Cada número usa a PRÓPRIA chave (coexistência em todos os números;
+      // decisão do consultor, 04/11). Sem a chave do número, o envio por ele
+      // fica parado com `chave_nao_configurada` até a Haisan cadastrar o
+      // segredo (DAPI_KEY_<NOME>) no Skip — a chave mestra da conta não é usada.
       if (chave === '') {
         env.set('ultimo_erro', 'chave_nao_configurada')
         try {

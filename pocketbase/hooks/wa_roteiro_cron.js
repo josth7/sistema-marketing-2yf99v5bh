@@ -26,7 +26,74 @@ cronAdd('wa_roteiro', '* * * * *', () => {
   const MODO_ENSAIO = false
   // só atende conversa com mensagem recente. Ao ligar, o robô não manda o menu
   // para quem escreveu horas ou dias atrás (essas ficam com a equipe).
-  const JANELA_MIN = 30
+  var JANELA_MIN = 30
+
+  // ---------- governança: tela Atendimento (04/11) ----------
+  // A gestão (manage_atendimento) liga e desliga o robô, define o horário em
+  // que ele funciona e edita textos, FAQ e palavras na tela Atendimento. Cada
+  // mudança é uma versão nova em `atendimento_config`; vale a de maior número.
+  // Sem configuração, ou se der erro ao ler, valem os textos padrão abaixo.
+  var CFG = null
+  try {
+    const colCfg = $app.findCollectionByNameOrId('atendimento_config')
+    const cfgs = $app.findRecordsByFilter(colCfg, '', '', 500, 0)
+    for (const c of cfgs) {
+      if (!CFG || Number(c.get('versao') || 0) > Number(CFG.get('versao') || 0)) CFG = c
+    }
+  } catch (eCfg) {
+    CFG = null
+  }
+  const lerCfg = function (campo, padrao) {
+    if (!CFG) return padrao
+    try {
+      const s = String(CFG.get(campo) || '')
+      if (s === '') return padrao
+      const v = JSON.parse(s)
+      return v === null || v === undefined ? padrao : v
+    } catch (eJ) {
+      return padrao
+    }
+  }
+  // desligado no painel (ou no botão da tela Conversas): não responde ninguém
+  if (CFG && CFG.get('ligado') !== true) return
+  // horário de funcionamento (Brasília, UTC-3)
+  if (CFG && CFG.get('usar_horario') === true) {
+    const agoraBR = new Date(Date.now() - 3 * 60 * 60 * 1000)
+    const hhmm =
+      ('0' + agoraBR.getUTCHours()).slice(-2) + ':' + ('0' + agoraBR.getUTCMinutes()).slice(-2)
+    const diasCfg = lerCfg('dias', [1, 2, 3, 4, 5])
+    var hojeOk = false
+    if (Array.isArray(diasCfg)) {
+      for (const d of diasCfg) if (Number(d) === agoraBR.getUTCDay()) hojeOk = true
+    }
+    const ini = String(CFG.get('hora_inicio') || '00:00')
+    const fim = String(CFG.get('hora_fim') || '23:59')
+    const naHora = ini <= fim ? hhmm >= ini && hhmm < fim : hhmm >= ini || hhmm < fim
+    if (!hojeOk || !naHora) return
+  }
+  if (CFG) {
+    const jm = Number(CFG.get('janela_min') || 0)
+    if (jm >= 5 && jm <= 1440) JANELA_MIN = jm
+  }
+  const TXT = lerCfg('textos', {}) || {}
+  const PAL = lerCfg('palavras', {}) || {}
+  const FAQ_CFG = lerCfg('faq', null)
+  // texto do painel; vazio ou ausente = texto padrão
+  const tx = function (chave, padrao) {
+    const v = TXT[chave]
+    return typeof v === 'string' && v.trim() !== '' ? v : padrao
+  }
+  // lista de palavras do painel; vazia ou ausente = lista padrão
+  const lst = function (chave, padrao) {
+    const v = PAL[chave]
+    if (!Array.isArray(v)) return padrao
+    const out = []
+    for (const x of v) {
+      const s = String(x || '').trim()
+      if (s !== '') out.push(s)
+    }
+    return out.length > 0 ? out : padrao
+  }
 
   try {
     // ---------- conexão central ----------
@@ -118,6 +185,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
       consultor.nome = vendedores[0].nome
       for (const c of cxsVend) {
         if (String(c.get('vendedor_user') || '') !== consultor.id) continue
+        const pubC = String(c.get('vendedor_nome_publico') || '')
+        if (pubC !== '') consultor.nome = pubC
         const nd = String(c.get('numero') || '').replace(/[^0-9]/g, '')
         if (nd.length === 13)
           consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 9) + '-' + nd.slice(9)
@@ -150,20 +219,26 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
 
-    const HORARIO =
-      'Nosso horário de atendimento é de segunda a sexta, das 8:00h às 17:30h. Se você mandou essa mensagem fora desse horário, um vendedor vai te responder assim que abrir o expediente. Obrigado pela paciência! ✨'
-    const MENU_META =
+    const HORARIO = tx(
+      'horario',
+      'Nosso horário de atendimento é de segunda a sexta, das 8:00h às 17:30h. Se você mandou essa mensagem fora desse horário, um vendedor vai te responder assim que abrir o expediente. Obrigado pela paciência! ✨',
+    )
+    const MENU_META = tx(
+      'menu_meta',
       'Bem-vindo(a) a *Haisan*! 💎\n' +
-      'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
-      'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
-      'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
-      '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*'
-    const MENU_ORGANICO =
+        'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
+        'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
+        'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
+        '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*',
+    )
+    const MENU_ORGANICO = tx(
+      'menu_organico',
       'Bem-vindo(a) a *Haisan*! 💎\n' +
-      'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
-      'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
-      'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
-      '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*\n🛠️ *Manutenção dos móveis Haisan*'
+        'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
+        'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
+        'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
+        '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*\n🛠️ *Manutenção dos móveis Haisan*',
+    )
 
     function normalizar(t) {
       var s = String(t || '').toLowerCase()
@@ -342,7 +417,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         var motivo = ''
         var origemDetectada = ''
 
-        const SINAIS_HUMANO = [
+        const SINAIS_HUMANO = lst('humano', [
           'atendente',
           'humano',
           'pessoa de verdade',
@@ -357,8 +432,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           'robo',
           'bot',
           'atendimento real',
-        ]
-        const SINAIS_ESTRESSE = [
+        ])
+        const SINAIS_ESTRESSE = lst('estresse', [
           'pessimo',
           'horrivel',
           'absurdo',
@@ -370,8 +445,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           'procon',
           'processo',
           'reclamacao',
-        ]
-        const FORA_ESCOPO = [
+        ])
+        const FORA_ESCOPO = lst('fora_escopo', [
           'preco',
           'valor',
           'quanto custa',
@@ -384,8 +459,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           'disponivel',
           'tem pronto',
           'estoque',
-        ]
-        const FAQ = [
+        ])
+        const FAQ_PADRAO = [
           {
             chaves: ['prazo', 'quanto tempo', 'demora', 'producao', 'entrega'],
             resposta:
@@ -397,6 +472,22 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               'Estamos na Rua Kival Fernando Pereira, 125, Centro, São José dos Pinhais – PR. Temos fábrica e showroom no mesmo endereço.',
           },
         ]
+        var FAQ = FAQ_PADRAO
+        if (Array.isArray(FAQ_CFG) && FAQ_CFG.length > 0) {
+          FAQ = []
+          for (const fq of FAQ_CFG) {
+            if (!fq) continue
+            const chs = []
+            const brutas = Array.isArray(fq.chaves) ? fq.chaves : String(fq.chaves || '').split(',')
+            for (const c0 of brutas) {
+              const c1 = String(c0 || '').trim()
+              if (c1 !== '') chs.push(c1)
+            }
+            const resp = String(fq.resposta || '').trim()
+            if (chs.length > 0 && resp !== '') FAQ.push({ chaves: chs, resposta: resp })
+          }
+          if (FAQ.length === 0) FAQ = FAQ_PADRAO
+        }
         const LINHAS = [
           { chave: 'barbearia', termos: ['barbearia', 'barbeiro', 'barber'] },
           { chave: 'salao', termos: ['salao', 'cabeleireiro', 'cabelo'] },
@@ -407,23 +498,34 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             termos: ['manutencao', 'consertar', 'conserto', 'quebrou', 'reparo'],
           },
         ]
-        const TXT_CONSULTOR =
-          'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *' +
-          (cons.nome || 'nosso time') +
-          '*' +
-          (cons.numero
-            ? ' — nos próximos minutos você recebe uma mensagem dele pelo número *' +
-              cons.numero +
-              '*'
-            : '') +
-          '. Pode salvar como *Haisan Vendas*! 😊'
+        for (const ln of LINHAS) ln.termos = lst('linha_' + ln.chave, ln.termos)
+        // modelo editável no painel: {nome} e {numero} são trocados pelo
+        // consultor desta conversa (dono do lead ou o próximo do rodízio)
+        const TXT_CONSULTOR = (
+          cons.numero
+            ? tx(
+                'transferencia_consultor',
+                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *{nome}* — nos próximos minutos você recebe uma mensagem dele pelo número *{numero}*. Pode salvar como *Haisan Vendas*! 😊',
+              )
+            : tx(
+                'transferencia_consultor_sem_numero',
+                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *{nome}*. Pode salvar como *Haisan Vendas*! 😊',
+              )
+        )
+          .split('{nome}')
+          .join(cons.nome || 'nosso time')
+          .split('{numero}')
+          .join(cons.numero || '')
 
         if (contem(texto, SINAIS_HUMANO)) {
           novoEtapa = 'humano'
           motivo = 'cliente_pediu_humano'
           transfere = true
           respostas = [
-            'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            tx(
+              'encaminhar_humano',
+              'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            ),
             HORARIO,
           ]
         } else if (contem(texto, SINAIS_ESTRESSE)) {
@@ -431,7 +533,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           motivo = 'cliente_impaciente'
           transfere = true
           respostas = [
-            'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            tx(
+              'encaminhar_humano',
+              'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            ),
             HORARIO,
           ]
         } else {
@@ -449,12 +554,15 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             novoEtapa = 'humano'
             motivo = 'pergunta_fora_do_escopo'
             transfere = true
-            respostas = ['Vou te encaminhar para um de nossos vendedores, só um momento!', HORARIO]
+            respostas = [
+              tx('fora_escopo', 'Vou te encaminhar para um de nossos vendedores, só um momento!'),
+              HORARIO,
+            ]
           } else if (etapaAtual === '') {
             novoEtapa = 'menu'
             motivo = 'boas_vindas'
             respostas = [MENU]
-          } else if (etapaAtual === 'menu') {
+          } else if (etapaAtual === 'menu' || etapaAtual === 'menu_r') {
             var linhaA = null
             for (var l2 = 0; l2 < LINHAS.length; l2++) {
               if (contem(texto, LINHAS[l2].termos)) {
@@ -462,26 +570,50 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 break
               }
             }
-            if (!linhaA) {
+            if (!linhaA && etapaAtual === 'menu_r') {
+              // 2ª resposta que o robô não entende: passa para o vendedor, como o
+              // agente antigo fazia com o que fugia do roteiro (antes repetia o
+              // menu sem fim, 04/11)
+              novoEtapa = 'humano'
+              motivo = 'menu_nao_entendido_2x'
+              transfere = true
+              respostas = [
+                tx('fora_escopo', 'Vou te encaminhar para um de nossos vendedores, só um momento!'),
+                HORARIO,
+              ]
+            } else if (!linhaA) {
+              novoEtapa = 'menu_r'
               motivo = 'menu_opcao_invalida'
-              respostas = ['Desculpe, não entendi. 😊 Pode escolher uma das opções?', MENU]
+              respostas = [
+                tx('nao_entendi', 'Desculpe, não entendi. 😊 Pode escolher uma das opções?'),
+                MENU,
+              ]
             } else if (linhaA.chave === 'manutencao') {
               novoEtapa = 'manut1'
               motivo = 'manutencao_pede_documento'
               respostas = [
-                'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor responsável.',
+                tx(
+                  'pede_documento_manutencao',
+                  'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor responsável.',
+                ),
               ]
             } else if (canal === 'organico') {
               novoEtapa = 'origem'
               motivo = 'respondeu_linha_pergunta_origem'
               respostas = [
-                'Me conte, de onde você nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                tx(
+                  'pergunta_origem',
+                  'Me conte, de onde você nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                ),
               ]
             } else {
               novoEtapa = 'e2'
               motivo = 'respondeu_linha'
               respostas = [
-                'Legal!😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                tx(
+                  'abrindo_ampliando',
+                  'Legal!😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                ),
               ]
             }
           } else if (etapaAtual === 'origem') {
@@ -498,29 +630,49 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             if (origemDetectada === '') {
               motivo = 'origem_invalida'
               respostas = [
-                'Pode me dizer por onde nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                tx(
+                  'origem_invalida',
+                  'Pode me dizer por onde nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                ),
               ]
             } else {
               novoEtapa = 'e3'
               motivo = 'origem_' + origemDetectada
               respostas = [
                 origemDetectada === 'google'
-                  ? 'Legal que você veio pelo Google! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?'
-                  : 'Legal que você veio pelo Instagram/Facebook! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                  ? tx(
+                      'origem_google',
+                      'Legal que você veio pelo Google! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                    )
+                  : tx(
+                      'origem_meta',
+                      'Legal que você veio pelo Instagram/Facebook! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                    ),
               ]
             }
           } else if (etapaAtual === 'e2' || etapaAtual === 'e3') {
             novoEtapa = 'e3b'
             motivo = 'abrindo_ou_ampliando'
             respostas = [
-              'Perfeito! 😊 Você já é cliente Haisan ou é seu primeiro contato com a gente?',
+              tx(
+                'cliente_ou_primeiro',
+                'Perfeito! 😊 Você já é cliente Haisan ou é seu primeiro contato com a gente?',
+              ),
             ]
           } else if (etapaAtual === 'e3b') {
-            if (contem(texto, ['ja sou', 'sou cliente', 'cliente haisan', 'ja comprei', 'sim'])) {
+            if (
+              contem(
+                texto,
+                lst('ja_cliente', ['ja sou', 'sou cliente', 'cliente haisan', 'ja comprei', 'sim']),
+              )
+            ) {
               novoEtapa = 'e5'
               motivo = 'ja_e_cliente'
               respostas = [
-                'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor de vendas.',
+                tx(
+                  'pede_documento_vendas',
+                  'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor de vendas.',
+                ),
               ]
             } else {
               novoEtapa = 'e4'
@@ -533,14 +685,20 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             if (digs.length < 11) {
               motivo = 'documento_invalido'
               respostas = [
-                'Por favor, me informe o CPF ou CNPJ (só os números) para eu te encaminhar corretamente. 😊',
+                tx(
+                  'documento_invalido',
+                  'Por favor, me informe o CPF ou CNPJ (só os números) para eu te encaminhar corretamente. 😊',
+                ),
               ]
             } else if (etapaAtual === 'manut1') {
               novoEtapa = 'manut2'
               motivo = 'manutencao_transferida'
               transfere = true
               respostas = [
-                'Aguarde alguns minutos, que irei lhe encaminhar para o setor responsável. ☺️',
+                tx(
+                  'manutencao_ok',
+                  'Aguarde alguns minutos, que irei lhe encaminhar para o setor responsável. ☺️',
+                ),
                 HORARIO,
               ]
             } else {
@@ -548,7 +706,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               motivo = 'cliente_transferido'
               transfere = true
               respostas = [
-                'Obrigado pela informação... Aguarde alguns minutos, que irei lhe encaminhar para um vendedor Haisan. ☺️',
+                tx(
+                  'cliente_ok',
+                  'Obrigado pela informação... Aguarde alguns minutos, que irei lhe encaminhar para um vendedor Haisan. ☺️',
+                ),
                 HORARIO,
               ]
             }

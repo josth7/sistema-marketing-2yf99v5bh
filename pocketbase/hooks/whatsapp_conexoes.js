@@ -74,7 +74,6 @@ routerAdd(
         'DAPI_KEY_DOUGLAS',
         'DAPI_KEY_ADRIANA',
         'DAPI_KEY_ELISANGELA',
-        'DAPI_USER_KEY',
       ]
       for (const nome of usados) {
         if ($secrets.get(nome) !== '') segredos.push(nome)
@@ -103,15 +102,10 @@ routerAdd(
         tem_session: sid !== '',
         ativo: String(c.get('ativo')) === 'true',
         nome_segredo_chave: c.get('nome_segredo_chave'),
-        // o envio usa a chave do número e, se ela faltar, a chave geral da conta
-        // D-API (DAPI_USER_KEY), como em whatsapp_envios_fila.js. Antes a tela
-        // dizia "ausente" mesmo com a chave geral configurada (04/11).
-        segredo_configurado:
-          segredos.indexOf(String(c.get('nome_segredo_chave') || '')) >= 0 ||
-          segredos.indexOf('DAPI_USER_KEY') >= 0,
-        usa_chave_geral:
-          segredos.indexOf(String(c.get('nome_segredo_chave') || '')) < 0 &&
-          segredos.indexOf('DAPI_USER_KEY') >= 0,
+        // cada número usa a PRÓPRIA chave (decisão do consultor, 04/11). Sem
+        // ela o número continua recebendo (o webhook não usa chave); só o envio
+        // pelo sistema por este número fica parado.
+        segredo_configurado: segredos.indexOf(String(c.get('nome_segredo_chave') || '')) >= 0,
         ultimo_evento_em: String(c.get('ultimo_evento_em') || ''),
         ultimo_status_conexao: c.get('ultimo_status_conexao'),
         ultimo_status_em: String(c.get('ultimo_status_em') || ''),

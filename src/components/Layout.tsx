@@ -15,6 +15,7 @@ import {
   Smartphone,
   KeyRound,
   LogOut,
+  Bot,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { VERSAO_SISTEMA } from '@/lib/versao'
@@ -39,6 +40,7 @@ const ICONES: Record<string, typeof BarChart3> = {
   '/leads': Users,
   '/conversas': MessageCircle,
   '/numeros': Smartphone,
+  '/atendimento': Bot,
   '/concorrentes': Eye,
   '/analises': BrainCircuit,
   '/saude-canal': Activity,
