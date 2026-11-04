@@ -439,7 +439,7 @@ routerAdd(
 // erro nenhum. Rota explícita: grava e devolve o que aconteceu, sem adivinhar.
 routerAdd(
   'POST',
-  '/backend/v1/acessos/auditoria/teste',
+  '/backend/v1/acessos/teste-auditoria',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     var colA = null
