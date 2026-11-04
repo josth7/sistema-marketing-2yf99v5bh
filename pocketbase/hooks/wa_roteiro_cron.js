@@ -206,7 +206,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         const kb = String(b.get('ultima_mensagem_em') || b.get('created') || '')
         return kb.localeCompare(ka)
       })
-      conversas = conversas.slice(0, 60)
+      // SEM corte: 71 conversas em triagem e o corte de 60 deixava cliente
+      // novo de fora (o cron rodava e não o enxergava). Teto alto só como
+      // proteção; processar todas em triagem é o certo.
+      if (conversas.length > 200) conversas = conversas.slice(0, 200)
     } catch (e3) {
       return
     }
