@@ -214,6 +214,15 @@ cronAdd('wa_roteiro', '* * * * *', () => {
       return
     }
 
+    // SONDA: quantas conversas o cron viu nesta rodada
+    try {
+      const colS1 = $app.findCollectionByNameOrId('diag_cron_sonda')
+      const r1 = new Record(colS1)
+      r1.set('job', 'viu=' + conversas.length)
+      r1.set('quando', new Date().toISOString())
+      $app.save(r1)
+    } catch (eS1) {}
+
     const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
 
@@ -737,9 +746,26 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         } else {
           console.log('wa_roteiro: NADA enfileirado para ' + cv.id + ' — nao marco como respondida')
         }
-      } catch (eCv) {}
+      } catch (eCv) {
+        // SONDA: erro real por conversa (antes era engolido em silêncio)
+        try {
+          const colS2 = $app.findCollectionByNameOrId('diag_cron_sonda')
+          const r2 = new Record(colS2)
+          r2.set('job', 'ERRO|' + String(eCv).slice(0, 130))
+          r2.set('quando', new Date().toISOString())
+          $app.save(r2)
+        } catch (eS2) {}
+      }
     }
-  } catch (eTop) {}
+  } catch (eTop) {
+    try {
+      const colS3 = $app.findCollectionByNameOrId('diag_cron_sonda')
+      const r3 = new Record(colS3)
+      r3.set('job', 'ERRO_TOP|' + String(eTop).slice(0, 130))
+      r3.set('quando', new Date().toISOString())
+      $app.save(r3)
+    } catch (eS3) {}
+  }
 })
 
 // ==================== DIAGNOSTICO DO MOTOR ====================
