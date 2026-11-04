@@ -177,14 +177,25 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     const colCv = $app.findCollectionByNameOrId('whatsapp_conversas')
     var conversas = []
     try {
+      // CORREÇÃO 04/11: o limite era 40 e há 71 conversas em triagem — cliente
+      // novo podia cair FORA da amostra e nunca ser atendido (o cron "rodava" e
+      // simplesmente não olhava para ele). Sem `sort` (o JSVM lança), então o
+      // PocketBase devolvia 40 registros arbitrários. Agora lê todas e escolhe
+      // as 60 mais recentes em JS.
       conversas = $app.findRecordsByFilter(
         colCv,
         // fixture=false: conversa de teste NUNCA recebe resposta automatica
         "conexao='" + central.id + "' && estado='triagem' && fixture=false",
         '',
-        40,
+        2000,
         0,
       )
+      conversas.sort(function (a, b) {
+        const ka = String(a.get('ultima_mensagem_em') || a.get('created') || '')
+        const kb = String(b.get('ultima_mensagem_em') || b.get('created') || '')
+        return kb.localeCompare(ka)
+      })
+      conversas = conversas.slice(0, 60)
     } catch (e3) {
       return
     }
@@ -633,12 +644,15 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           continue
         }
 
-        // ---------- grava etapa / canal / origem do lead ----------
+        // ---------- grava etapa / canal ----------
+        // CORREÇÃO 04/11 (bug que deixou cliente sem resposta): aqui eu marcava
+        // `ultima_resposta_ia_em` ANTES de enfileirar. Se o enfileiramento
+        // falhasse (ou a fila não pegasse), a conversa ficava marcada como
+        // "já respondida" para sempre e o cliente NUNCA recebia. O marcador de
+        // idempotência só pode ser gravado DEPOIS que a resposta entrou na fila.
         try {
           if (novoEtapa !== etapaAtual) cv.set('etapa_atual', novoEtapa)
           if (transfere) cv.set('estado', 'transferida')
-          // marca o processamento desta mensagem (idempotencia do cron)
-          cv.set('ultima_resposta_ia_em', new Date().toISOString())
           $app.save(cv)
         } catch (eSave) {}
 
@@ -675,6 +689,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         }
 
         // ---------- enfileira (so quando o envio estiver ligado) ----------
+        var enfileirados = 0
         for (var k = 0; k < respostas.length; k++) {
           const txt = String(respostas[k] || '')
           if (txt === '') continue
@@ -694,7 +709,19 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             env.set('fixture', false)
             env.set('dedupe_key', 'iarot-' + cv.id + '-' + new Date().getTime() + '-' + k)
             $app.save(env)
+            enfileirados++
           } catch (eEnv) {}
+        }
+
+        // só marca como respondida se realmente entrou na fila. Sem isso, uma
+        // falha de enfileiramento silenciava o cliente para sempre (04/11).
+        if (enfileirados > 0) {
+          try {
+            cv.set('ultima_resposta_ia_em', new Date().toISOString())
+            $app.save(cv)
+          } catch (eMarc) {}
+        } else {
+          console.log('wa_roteiro: NADA enfileirado para ' + cv.id + ' — nao marco como respondida')
         }
       } catch (eCv) {}
     }
