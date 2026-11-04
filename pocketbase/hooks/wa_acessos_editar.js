@@ -244,10 +244,10 @@ routerAdd(
     try {
       const colA = app.findCollectionByNameOrId('access_audit')
       const a = new Record(colA)
-      a.set('actor_id', e.auth.id)
+      a.set('at', new Date().toISOString())
+      a.set('actor', e.auth.id)
       a.set('acao', 'acesso_alterado')
-      a.set('alvo_grant_id', grantId)
-      a.set('alvo_user_id', alvoId)
+      a.set('alvo', alvoId)
       a.set(
         'detalhe',
         JSON.stringify({
@@ -257,7 +257,6 @@ routerAdd(
           papel: papelAtual,
         }),
       )
-      a.set('created_at', new Date().toISOString())
       app.save(a)
     } catch (eA) {
       // nunca engolir: foi catch vazio que escondeu o CRM sem criar lead
@@ -339,12 +338,11 @@ routerAdd(
     try {
       const colA = app.findCollectionByNameOrId('access_audit')
       const a = new Record(colA)
-      a.set('actor_id', e.auth.id)
+      a.set('at', new Date().toISOString())
+      a.set('actor', e.auth.id)
       a.set('acao', 'senha_redefinida')
-      a.set('alvo_grant_id', '')
-      a.set('alvo_user_id', alvoId)
+      a.set('alvo', alvoId)
       a.set('detalhe', 'senha provisória definida pela gestão')
-      a.set('created_at', new Date().toISOString())
       app.save(a)
     } catch (eA) {}
 
@@ -394,7 +392,7 @@ routerAdd(
       regs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('access_audit'),
         '',
-        '-created_at',
+        '-created',
         100,
         0,
       )
@@ -421,11 +419,11 @@ routerAdd(
       const acao = String(r.get('acao') || '')
       itens.push({
         id: r.id,
-        quando: String(r.get('created_at') || r.get('created') || '').slice(0, 19),
-        quem: nomes[String(r.get('actor_id') || '')] || '(sistema)',
+        quando: String(r.get('at') || r.get('created') || '').slice(0, 19),
+        quem: nomes[String(r.get('actor') || '')] || '(sistema)',
         acao: acao,
         acao_texto: ROTULO[acao] || acao,
-        alvo: nomes[String(r.get('alvo_user_id') || '')] || '',
+        alvo: nomes[String(r.get('alvo') || '')] || '',
         detalhe: String(r.get('detalhe') || '').slice(0, 300),
       })
     }
@@ -463,12 +461,11 @@ routerAdd(
     }
     try {
       const a = new Record(colA)
-      a.set('actor_id', e.auth.id)
+      a.set('at', new Date().toISOString())
+      a.set('actor', e.auth.id)
       a.set('acao', 'teste_escrita')
-      a.set('alvo_grant_id', '')
-      a.set('alvo_user_id', e.auth.id)
+      a.set('alvo', e.auth.id)
       a.set('detalhe', 'teste da rota de auditoria')
-      a.set('created_at', new Date().toISOString())
       $app.save(a)
       return e.json(200, { ok: true, gravou: a.id, campos: campos })
     } catch (eS) {
