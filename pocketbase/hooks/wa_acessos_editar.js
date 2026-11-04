@@ -31,26 +31,6 @@
 
 // ==================== lista de ações que existem ====================
 // (mantida em UM lugar; a tela busca daqui para montar as caixas de seleção)
-const ACOES_SISTEMA = [
-  { id: 'read_metrics', rotulo: 'Ver painel e métricas', grupo: 'Base' },
-  { id: 'read_leads', rotulo: 'Ver leads (CRM)', grupo: 'CRM' },
-  { id: 'manage_leads', rotulo: 'Criar e editar leads', grupo: 'CRM' },
-  { id: 'read_conversas', rotulo: 'Ver conversas do WhatsApp', grupo: 'WhatsApp' },
-  { id: 'manage_whatsapp', rotulo: 'Gerir números do WhatsApp', grupo: 'WhatsApp' },
-  { id: 'manage_atendimento', rotulo: 'Configurar o atendimento automático', grupo: 'WhatsApp' },
-  { id: 'manage_criteria', rotulo: 'Editar critérios', grupo: 'Marketing' },
-  { id: 'approve_criteria', rotulo: 'Aprovar critérios', grupo: 'Marketing' },
-  { id: 'read_alerts', rotulo: 'Ver alertas', grupo: 'Marketing' },
-  { id: 'manage_alerts', rotulo: 'Gerir alertas', grupo: 'Marketing' },
-  { id: 'read_decisions', rotulo: 'Ver decisões', grupo: 'Marketing' },
-  { id: 'manage_decisions', rotulo: 'Gerir decisões', grupo: 'Marketing' },
-  { id: 'read_reports', rotulo: 'Ver relatórios', grupo: 'Marketing' },
-  { id: 'approve_reports', rotulo: 'Aprovar relatórios', grupo: 'Marketing' },
-  { id: 'read_analyses', rotulo: 'Ver análises e concorrentes', grupo: 'Marketing' },
-  { id: 'request_analysis', rotulo: 'Pedir análise de IA', grupo: 'Marketing' },
-  { id: 'review_ai_summary', rotulo: 'Revisar resumo da IA', grupo: 'Marketing' },
-  { id: 'manage_access', rotulo: 'Gerir acessos da equipe', grupo: 'Administração' },
-]
 
 // ==================== catálogo de ações (para a tela) ====================
 routerAdd(
@@ -58,6 +38,32 @@ routerAdd(
   '/backend/v1/acessos/acoes',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    // catalogo INLINE: `const` no topo do arquivo quebra o hook inteiro no
+    // JSVM (todas as rotas viram 404 — lição de 03/11, reincidente aqui)
+    const ACOES_SISTEMA = [
+      { id: 'read_metrics', rotulo: 'Ver painel e métricas', grupo: 'Base' },
+      { id: 'read_leads', rotulo: 'Ver leads (CRM)', grupo: 'CRM' },
+      { id: 'manage_leads', rotulo: 'Criar e editar leads', grupo: 'CRM' },
+      { id: 'read_conversas', rotulo: 'Ver conversas do WhatsApp', grupo: 'WhatsApp' },
+      { id: 'manage_whatsapp', rotulo: 'Gerir números do WhatsApp', grupo: 'WhatsApp' },
+      {
+        id: 'manage_atendimento',
+        rotulo: 'Configurar o atendimento automático',
+        grupo: 'WhatsApp',
+      },
+      { id: 'manage_criteria', rotulo: 'Editar critérios', grupo: 'Marketing' },
+      { id: 'approve_criteria', rotulo: 'Aprovar critérios', grupo: 'Marketing' },
+      { id: 'read_alerts', rotulo: 'Ver alertas', grupo: 'Marketing' },
+      { id: 'manage_alerts', rotulo: 'Gerir alertas', grupo: 'Marketing' },
+      { id: 'read_decisions', rotulo: 'Ver decisões', grupo: 'Marketing' },
+      { id: 'manage_decisions', rotulo: 'Gerir decisões', grupo: 'Marketing' },
+      { id: 'read_reports', rotulo: 'Ver relatórios', grupo: 'Marketing' },
+      { id: 'approve_reports', rotulo: 'Aprovar relatórios', grupo: 'Marketing' },
+      { id: 'read_analyses', rotulo: 'Ver análises e concorrentes', grupo: 'Marketing' },
+      { id: 'request_analysis', rotulo: 'Pedir análise de IA', grupo: 'Marketing' },
+      { id: 'review_ai_summary', rotulo: 'Revisar resumo da IA', grupo: 'Marketing' },
+      { id: 'manage_access', rotulo: 'Gerir acessos da equipe', grupo: 'Administração' },
+    ]
     return e.json(200, { ok: true, acoes: ACOES_SISTEMA })
   },
   $apis.requireAuth(),
@@ -124,8 +130,27 @@ routerAdd(
     }
 
     // ---------- TRAVA T3: ação desconhecida é recusada ----------
-    const validas = []
-    for (const a of ACOES_SISTEMA) validas.push(a.id)
+    // lista inline (mesma razão: nada de const no topo)
+    const validas = [
+      'read_metrics',
+      'read_leads',
+      'manage_leads',
+      'read_conversas',
+      'manage_whatsapp',
+      'manage_atendimento',
+      'manage_criteria',
+      'approve_criteria',
+      'read_alerts',
+      'manage_alerts',
+      'read_decisions',
+      'manage_decisions',
+      'read_reports',
+      'approve_reports',
+      'read_analyses',
+      'request_analysis',
+      'review_ai_summary',
+      'manage_access',
+    ]
     var acoes = body.acoes
     if (typeof acoes === 'string') {
       try {
