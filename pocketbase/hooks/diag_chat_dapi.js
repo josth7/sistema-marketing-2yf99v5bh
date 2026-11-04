@@ -36,9 +36,13 @@ routerAdd(
       e.request.url.query().get('sessao') || 'cloud-d4d6e623-517c-4d45-b06f-b3fdbab392c7',
     )
 
+    const chatId = String(e.request.url.query().get('chatid') || '520840828')
     const tentativas = [
-      'https://api.d-api.cloud/api/v1/chats?sessionId=' + sessao + '&limit=200',
-      'https://api.d-api.cloud/api/v1/chats?sessionId=' + sessao + '&search=' + destino,
+      'https://api.d-api.cloud/api/v1/chats/' +
+        chatId +
+        '/messages?sessionId=' +
+        sessao +
+        '&limit=10',
     ]
 
     for (const url of tentativas) {
