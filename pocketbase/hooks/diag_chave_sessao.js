@@ -86,14 +86,11 @@ routerAdd(
     // sessão é copiada para o cofre do projeto com esse nome. É o que falta
     // para o vendedor responder pelo sistema (RN-106 exige segredo próprio).
     // NUNCA devolve o valor da chave na resposta: só confirma que gravou.
-    const gravar = String(e.request.url.query().get('gravar') || '')
-    if (gravar !== '' && apiKeySessao !== '') {
-      // $secrets.set NÃO existe no JSVM (04/11). O valor sai só quando o
-      // pedido é explícito com ?revelar=1, para o operador gravar no cofre
-      // pelo painel e a rota ser removida em seguida.
-      if (String(e.request.url.query().get('revelar') || '') === '1') {
-        out.valor_temporario = apiKeySessao
-      }
+    // $secrets.set NÃO existe no JSVM (04/11): o operador grava no cofre pelo
+    // painel. O valor só sai com ?revelar=1 explícito, e a rota é removida
+    // logo depois — ela existe para fechar esta configuração, não para ficar.
+    if (String(e.request.url.query().get('revelar') || '') === '1') {
+      out.valor_temporario = apiKeySessao
     }
     out.tamanho_chave = apiKeySessao.length
     if (apiKeySessao === '') {
