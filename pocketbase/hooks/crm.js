@@ -400,6 +400,7 @@ routerAdd(
         })
       }
       lead.set('valor', vv)
+      mudancas.push({ tipo: 'nota', texto: 'valor da venda: R$ ' + vv.toFixed(2) })
     }
     if (body.motivo_perda !== undefined) {
       lead.set(
