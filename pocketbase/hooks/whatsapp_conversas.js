@@ -344,6 +344,8 @@ routerAdd(
         total_mensagens: c.get('total_mensagens'),
         estado: c.get('estado'),
         canal: c.get('canal'),
+        // CA-3-25: conversa da EQUIPE (número interno) x conversa com CLIENTE
+        interna: String(c.get('interna')) === 'true',
       })
     }
     itens.sort(function (a, b) {
