@@ -201,15 +201,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         2000,
         0,
       )
-      conversas.sort(function (a, b) {
-        const ka = String(a.get('ultima_mensagem_em') || a.get('created') || '')
-        const kb = String(b.get('ultima_mensagem_em') || b.get('created') || '')
-        return kb.localeCompare(ka)
-      })
-      // SEM corte: 71 conversas em triagem e o corte de 60 deixava cliente
-      // novo de fora (o cron rodava e não o enxergava). Teto alto só como
-      // proteção; processar todas em triagem é o certo.
-      if (conversas.length > 200) conversas = conversas.slice(0, 200)
+      // sem sort em JS: ordenar Records aqui derruba o hook (04/11). O limite
+      // alto já garante que todas em triagem entram.
     } catch (e3) {
       return
     }
