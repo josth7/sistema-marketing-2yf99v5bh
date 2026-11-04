@@ -218,6 +218,33 @@ export default function Acessos() {
     }
   }
 
+  const suspender = async (p: Pessoa) => {
+    const certeza = window.confirm(
+      'Suspender ' +
+        (p.nome || p.email) +
+        '?\n\nIsso bloqueia o login na hora, revoga os acessos, fecha os números de WhatsApp dela e devolve os ' +
+        p.leads_ativos +
+        ' lead(s) da carteira para o rodízio.\n\nNada é apagado e dá para reativar depois.',
+    )
+    if (!certeza) return
+    try {
+      const r = (await pb.send('/backend/v1/acessos/pessoa/' + p.id + '/suspender', {
+        method: 'POST',
+        body: JSON.stringify({ motivo: 'suspenso pela tela de acessos' }),
+        headers: { 'Content-Type': 'application/json' },
+      })) as { leads_redistribuidos?: number; grants_revogados?: number }
+      window.alert(
+        'Suspenso.\n\nAcessos revogados: ' +
+          (r.grants_revogados ?? 0) +
+          '\nLeads devolvidos ao rodízio: ' +
+          (r.leads_redistribuidos ?? 0),
+      )
+      await carregar()
+    } catch (e) {
+      window.alert('Não suspendi: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
   const lista = soAtivas ? equipe.filter((p) => p.ativa) : equipe
 
   if (carregando) return <EstadoCarregando />
@@ -327,14 +354,26 @@ export default function Acessos() {
                       </Badge>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 w-full"
-                    onClick={() => abrirEdicao(p)}
-                  >
-                    Editar acesso
-                  </Button>
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => abrirEdicao(p)}
+                    >
+                      Editar
+                    </Button>
+                    {p.ativa && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive"
+                        onClick={() => void suspender(p)}
+                      >
+                        Suspender
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
