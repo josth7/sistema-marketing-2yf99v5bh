@@ -22,6 +22,7 @@ import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import pb from '@/lib/pocketbase/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import Acessos from '@/pages/Acessos'
 
 /**
  * Portão de sessão (30/10).
@@ -123,6 +124,7 @@ const App = () => {
     { para: '/conversas', elemento: <Conversas /> },
     { para: '/numeros', elemento: <Numeros /> },
     { para: '/atendimento', elemento: <Atendimento /> },
+    { para: '/acessos', elemento: <Acessos /> },
   ]
 
   return (
