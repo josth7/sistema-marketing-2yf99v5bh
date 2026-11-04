@@ -22,7 +22,10 @@
 cronAdd('wa_roteiro', '* * * * *', () => {
   // liga/desliga o ENVIO real. Enquanto a Meta bloquear (130497), fica false:
   // o motor decide, grava a etapa e MARCA no log, mas não enfileira.
-  const MODO_ENSAIO = true
+  // MODO_ENSAIO deixa de ser constante: passa a seguir o painel.
+  // Painel LIGADO = o robo responde de verdade (enfileira). DESLIGADO = nao.
+  // Antes era `true` fixo e o botao Ligar nao teria efeito nenhum (item 4).
+  var MODO_ENSAIO = true
 
   try {
     // ---------- conexão central ----------
@@ -59,6 +62,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
 
     if (cfg) {
       if (cfg.get('ligado') !== true) return // desligado pelo painel
+      MODO_ENSAIO = false // ligado no painel => o robo responde
       // horario (Brasilia): usa_horario + dias + faixa
       if (cfg.get('usar_horario') === true) {
         var agoraBR = new Date(new Date().getTime() - 3 * 3600 * 1000)
