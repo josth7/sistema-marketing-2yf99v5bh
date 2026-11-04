@@ -391,13 +391,25 @@ onRecordAfterCreateSuccess((e) => {
         ' · Canal: ' +
         String(lead.get('origem') || 'whatsapp') +
         '. Responda o cliente pelo seu WhatsApp.'
+      // ---------- MODELO APROVADO (03/11) ----------
+      // O aviso ao vendedor cai fora da janela de 24h na maioria dos casos
+      // (erro 131047 "Re-engagement message"). Texto livre só passa dentro da
+      // janela; fora dela, só template aprovado pela Meta.
+      // O nome do modelo vem da conexão (`modelo_aviso_vendedor`); quando o dono
+      // aprovar, o campo já aponta para ele e o envio passa a usar template.
+      const modeloNome = String(central ? central.get('modelo_aviso_vendedor') || '' : '')
       const id = enfileirar(
         central || conexaoVendedor,
         numeroVendedor,
         'aviso_vendedor',
         textoVendedor,
-        String(central ? central.get('modelo_aviso_vendedor') || '' : ''),
-        { nome: String(lead.get('nome') || ''), telefone: telefoneCliente },
+        modeloNome,
+        // variáveis do modelo, na ordem: {{1}} nome, {{2}} telefone, {{3}} canal
+        {
+          nome: String(lead.get('nome') || ''),
+          telefone: telefoneCliente,
+          canal: String(lead.get('origem') || 'whatsapp'),
+        },
         'transf_vendedor_' + leadId + '_' + vendedorId,
       )
       if (id) envios.push(id)

@@ -74,6 +74,12 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
     const ehFixture =
       String(env.get('fixture')) === 'true' || String(conexao.get('fixture')) === 'true'
     const texto = String(env.get('texto') || '')
+    // TEMPLATE (modelo aprovado): é o único jeito de mandar mensagem FORA da
+    // janela de 24h. Usado no aviso de lead novo ao vendedor, quando ele não
+    // falou com a central nas últimas 24h (erro 131047).
+    const modo = String(env.get('modo') || 'texto')
+    const ehModelo = modo === 'modelo'
+    const nomeModelo = String(env.get('modelo_nome') || '')
     const sessionId = String(conexao.get('session_id') || '')
     const secao = String(conexao.get('nome_segredo_chave') || 'DAPI_API_KEY')
 
@@ -100,10 +106,13 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       try {
         chave = String($secrets.get(secao) || '')
       } catch (eSec) {}
-      // Cada número usa a PRÓPRIA chave (coexistência em todos os números;
-      // decisão do consultor, 04/11). Sem a chave do número, o envio por ele
-      // fica parado com `chave_nao_configurada` até a Haisan cadastrar o
-      // segredo (DAPI_KEY_<NOME>) no Skip — a chave mestra da conta não é usada.
+      if (chave === '' && secao !== 'DAPI_USER_KEY') {
+        // a chave por SESSÃO só abre a sessão dela (401 provado 30/10);
+        // a USER API KEY da D-API abre todas as sessões da conta
+        try {
+          chave = String($secrets.get('DAPI_USER_KEY') || '')
+        } catch (eSec2) {}
+      }
       if (chave === '') {
         env.set('ultimo_erro', 'chave_nao_configurada')
         try {
@@ -117,6 +126,8 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
         else if (tipoMidia === 'audio') url = 'https://api.d-api.cloud/api/v1/messages/send/audio'
         else if (tipoMidia === 'video') url = 'https://api.d-api.cloud/api/v1/messages/send/video'
         else url = 'https://api.d-api.cloud/api/v1/messages/send/document'
+      } else if (ehModelo && nomeModelo !== '') {
+        url = 'https://api.d-api.cloud/api/v1/messages/send/template'
       } else {
         url = 'https://api.d-api.cloud/api/v1/messages/send/text'
       }
@@ -151,6 +162,30 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       }
       if (tipoMidia === 'document') {
         corpo.filename = String(midia.get('nome_arquivo') || 'arquivo')
+      }
+    } else if (ehModelo && nomeModelo !== '') {
+      // corpo do modelo aprovado: nome + idioma + variáveis na ordem.
+      // As variáveis vêm em `legenda` separadas por | (ex.: "Fabio|(41) 9721-3499")
+      corpo = {
+        sessionId: sessionId,
+        to: destino,
+        template: {
+          name: nomeModelo,
+          language: { code: String(env.get('modelo_idioma') || 'pt_BR') },
+          components: [],
+        },
+      }
+      var vars = String(env.get('legenda') || '')
+      if (vars !== '') {
+        var partes = vars.split('|')
+        var params = []
+        for (var iv = 0; iv < partes.length; iv++) {
+          if (String(partes[iv]) !== '')
+            params.push({ type: 'text', text: String(partes[iv]).slice(0, 200) })
+        }
+        if (params.length > 0) {
+          corpo.template.components = [{ type: 'body', parameters: params }]
+        }
       }
     } else {
       corpo = { sessionId: sessionId, to: destino, text: texto }
@@ -188,15 +223,6 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       continue
     }
 
-    // registro sem telefone nem texto (04/11): mostra no log do Skip se a D-API
-    // aceitou. A recusa da Meta chega depois pelo webhook (message.failed).
-    console.log(
-      'whatsapp_envios_fila: ' +
-        String(env.get('motivo') || '') +
-        ' -> HTTP ' +
-        status +
-        (ehFixture ? ' (teste)' : ''),
-    )
     if (status >= 200 && status < 300) {
       var idEnviado = ''
       try {
