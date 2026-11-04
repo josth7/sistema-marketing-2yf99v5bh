@@ -227,6 +227,8 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
         data.message ||
         'falha_nao_informada',
     ).slice(0, 200)
+    // sem telefone (04/11): deixa a recusa da Meta visível no log do Skip
+    console.log('whatsapp_dapi: Meta recusou um envio | ' + motivoFalha)
     if (achouF) {
       achouF.set('status', 'falhou')
       achouF.set('status_em', new Date().toISOString())

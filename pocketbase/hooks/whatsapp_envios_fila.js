@@ -191,6 +191,15 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       continue
     }
 
+    // registro sem telefone nem texto (04/11): mostra no log do Skip se a D-API
+    // aceitou. A recusa da Meta chega depois pelo webhook (message.failed).
+    console.log(
+      'whatsapp_envios_fila: ' +
+        String(env.get('motivo') || '') +
+        ' -> HTTP ' +
+        status +
+        (ehFixture ? ' (teste)' : ''),
+    )
     if (status >= 200 && status < 300) {
       var idEnviado = ''
       try {

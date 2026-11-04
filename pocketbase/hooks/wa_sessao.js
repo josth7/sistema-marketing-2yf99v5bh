@@ -27,16 +27,33 @@ routerAdd(
     const hoje = new Date().toISOString().slice(0, 10)
 
     // parser tolerante: json pode voltar como array de char-codes no JSVM
+    // Sempre devolve uma LISTA. Antes, um grant gravado em outro formato
+    // voltava como objeto e o `for...of` abaixo derrubava a rota com
+    // "object is not iterable": a pessoa entrava e ficava sem menu (04/11).
     function lista(raw) {
+      var v = raw
       try {
         if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
-          return JSON.parse(String.fromCharCode.apply(null, raw))
+          v = JSON.parse(String.fromCharCode.apply(null, raw))
+        } else if (typeof raw === 'string') {
+          v = JSON.parse(raw)
         }
-        if (typeof raw === 'string') return JSON.parse(raw)
-        return raw || []
       } catch (err) {
         return []
       }
+      if (Array.isArray(v)) return v
+      if (v === null || v === undefined || typeof v === 'string') return []
+      // objeto iterável (lista do Go) ou JSON em texto dentro do objeto
+      try {
+        const arr = []
+        for (const x of v) arr.push(x)
+        return arr
+      } catch (errIt) {}
+      try {
+        const p = JSON.parse(String(v))
+        if (Array.isArray(p)) return p
+      } catch (errStr) {}
+      return []
     }
 
     const colG = $app.findCollectionByNameOrId('access_grants')

@@ -37,6 +37,7 @@ type Conexao = {
   ativo: boolean
   nome_segredo_chave: string
   segredo_configurado: boolean
+  usa_chave_geral?: boolean
   ultimo_evento_em: string
   ultimo_status_conexao: string
   ultimo_status_em: string
@@ -177,7 +178,7 @@ export default function Numeros() {
                     <span className="font-mono">{c.nome_segredo_chave || '—'}</span>{' '}
                     {c.segredo_configurado ? (
                       <Badge variant="outline" className="ml-1 px-1 py-0 text-[10px]">
-                        configurado
+                        {c.usa_chave_geral ? 'usa a chave geral' : 'configurado'}
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="ml-1 px-1 py-0 text-[10px]">

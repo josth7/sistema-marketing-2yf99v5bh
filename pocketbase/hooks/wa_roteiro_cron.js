@@ -20,9 +20,13 @@
  */
 
 cronAdd('wa_roteiro', '* * * * *', () => {
-  // liga/desliga o ENVIO real. Enquanto a Meta bloquear (130497), fica false:
-  // o motor decide, grava a etapa e MARCA no log, mas não enfileira.
-  const MODO_ENSAIO = true
+  // liga/desliga o ENVIO real. A trava da Meta (130497) caiu em 03/11: o teste
+  // voltou 131047 (janela de 24 h). Ligado em 04/11 a pedido do consultor.
+  // Para voltar ao ensaio (só decide e registra, sem enviar), trocar para true.
+  const MODO_ENSAIO = false
+  // só atende conversa com mensagem recente. Ao ligar, o robô não manda o menu
+  // para quem escreveu horas ou dias atrás (essas ficam com a equipe).
+  const JANELA_MIN = 30
 
   try {
     // ---------- conexão central ----------
@@ -90,6 +94,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                     ? JSON.parse(rS)
                     : rS || []
             } catch (eS) {}
+            // grant em formato inesperado não pode tirar o vendedor do rodízio
+            if (!Array.isArray(a)) a = []
             if (Array.isArray(sc) && sc.indexOf('*') >= 0) gt = true
             if (a.indexOf('read_conversas') >= 0 || a.indexOf('read_leads') >= 0) vd = true
           }
@@ -127,7 +133,12 @@ cronAdd('wa_roteiro', '* * * * *', () => {
       conversas = $app.findRecordsByFilter(
         colCv,
         // fixture=false: conversa de teste NUNCA recebe resposta automatica
-        "conexao='" + central.id + "' && estado='triagem' && fixture=false",
+        // ultima_mensagem_em: só conversa com mensagem nos últimos JANELA_MIN
+        "conexao='" +
+          central.id +
+          "' && estado='triagem' && fixture=false && ultima_mensagem_em >= '" +
+          new Date(Date.now() - JANELA_MIN * 60 * 1000).toISOString().replace('T', ' ') +
+          "'",
         '',
         40,
         0,
@@ -224,6 +235,33 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           try {
             lead = $app.findRecordById(colL, String(cv.get('lead')))
           } catch (eLead) {}
+        }
+
+        // consultor DESTA conversa (04/11): o rodízio do wa_aviso_lead_novo dá
+        // dono ao lead em até 5 min. Se o lead já tem dono, é o nome e o número
+        // dele que o cliente tem de receber na transferência — e não o vendedor
+        // de menor carga neste minuto (antes o cliente ouvia um nome e o lead
+        // ficava com outro vendedor).
+        var cons = { id: consultor.id, nome: consultor.nome, numero: consultor.numero }
+        if (lead && String(lead.get('owner_id') || '') !== '') {
+          const donoId = String(lead.get('owner_id'))
+          var donoNome = ''
+          var donoNumero = ''
+          try {
+            const ud = $app.findRecordById(colU, donoId)
+            donoNome = String(ud.get('name') || ud.get('email') || '')
+          } catch (eUd) {}
+          for (const cxd of cxsVend) {
+            if (String(cxd.get('vendedor_user') || '') !== donoId) continue
+            const pub = String(cxd.get('vendedor_nome_publico') || '')
+            if (pub !== '') donoNome = pub
+            const ndd = String(cxd.get('numero') || '').replace(/[^0-9]/g, '')
+            if (ndd.length === 13)
+              donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 9) + '-' + ndd.slice(9)
+            else if (ndd.length === 12)
+              donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 8) + '-' + ndd.slice(8)
+          }
+          if (donoNome !== '') cons = { id: donoId, nome: donoNome, numero: donoNumero }
         }
 
         // ---------- SPAM: nunca responde ----------
@@ -371,11 +409,11 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         ]
         const TXT_CONSULTOR =
           'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *' +
-          (consultor.nome || 'nosso time') +
+          (cons.nome || 'nosso time') +
           '*' +
-          (consultor.numero
+          (cons.numero
             ? ' — nos próximos minutos você recebe uma mensagem dele pelo número *' +
-              consultor.numero +
+              cons.numero +
               '*'
             : '') +
           '. Pode salvar como *Haisan Vendas*! 😊'
@@ -591,12 +629,12 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         }
 
         // ---------- transfere: dá dono ao lead (ninguém fica sem dono) ----------
-        if (transfere && consultor.id !== '' && String(cv.get('lead') || '') !== '') {
+        if (transfere && cons.id !== '' && String(cv.get('lead') || '') !== '') {
           try {
             const ld2 = $app.findRecordById(colL, String(cv.get('lead')))
             if (String(ld2.get('owner_id') || '') === '') {
-              ld2.set('owner_id', consultor.id)
-              ld2.set('vendedor_nome', consultor.nome)
+              ld2.set('owner_id', cons.id)
+              ld2.set('vendedor_nome', cons.nome)
               $app.save(ld2)
               try {
                 const colEvL = $app.findCollectionByNameOrId('crm_lead_events')
@@ -605,7 +643,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 evL.set('tipo', 'status')
                 evL.set(
                   'texto',
-                  'Transferido pela IA para ' + consultor.nome + ' (roteiro: ' + motivo + ')',
+                  'Transferido pela IA para ' + cons.nome + ' (roteiro: ' + motivo + ')',
                 )
                 $app.save(evL)
               } catch (eEvL) {}
@@ -613,6 +651,21 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           } catch (eOwn) {}
         }
 
+        // registro sem telefone nem texto do cliente (04/11): dá para acompanhar
+        // pelo log do Skip o que o robô fez de verdade
+        console.log(
+          'wa_roteiro[ATIVO] ' +
+            cv.id +
+            ' | ' +
+            motivo +
+            ' | ' +
+            etapaAtual +
+            ' -> ' +
+            novoEtapa +
+            ' | respostas=' +
+            respostas.length +
+            (transfere ? ' | transferida para ' + cons.nome : ''),
+        )
         // ---------- enfileira (so quando o envio estiver ligado) ----------
         for (var k = 0; k < respostas.length; k++) {
           const txt = String(respostas[k] || '')
