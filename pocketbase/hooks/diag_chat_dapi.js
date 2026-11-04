@@ -29,10 +29,13 @@ routerAdd(
     out.tem_chave = chave !== ''
     if (chave === '') return e.json(200, out)
 
+    const jid = destino + '@s.whatsapp.net'
     const tentativas = [
-      'https://api.d-api.cloud/api/v1/chat/messages?phone=' + destino + '&limit=10',
-      'https://api.d-api.cloud/api/v1/messages?to=' + destino + '&limit=10',
-      'https://api.d-api.cloud/api/v1/chat/' + destino + '/messages?limit=10',
+      'https://api.d-api.cloud/api/v1/chats/' + jid + '/messages?limit=10',
+      'https://api.d-api.cloud/api/v1/chats/' + destino + '/messages?limit=10',
+      'https://api.d-api.cloud/api/v1/chats/' +
+        encodeURIComponent(jid) +
+        '/messages?limit=10&sessionId=cloud-d4d6e623-517c-4d45-b06f-b3fdbab392c7',
     ]
 
     for (const url of tentativas) {
