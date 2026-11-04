@@ -259,7 +259,10 @@ routerAdd(
       )
       a.set('created_at', new Date().toISOString())
       app.save(a)
-    } catch (eA) {}
+    } catch (eA) {
+      // nunca engolir: foi catch vazio que escondeu o CRM sem criar lead
+      console.log('WA_ACESSOS: falha na auditoria: ' + String(eA).slice(0, 200))
+    }
 
     return e.json(200, {
       ok: true,
@@ -427,6 +430,55 @@ routerAdd(
       })
     }
     return e.json(200, { ok: true, total: itens.length, itens: itens })
+  },
+  $apis.requireAuth(),
+)
+
+// ==================== teste: a auditoria aceita escrita? ====================
+// Criada porque a edição passou mas a auditoria não gravou, e o log não mostrou
+// erro nenhum. Rota explícita: grava e devolve o que aconteceu, sem adivinhar.
+routerAdd(
+  'POST',
+  '/backend/v1/acessos/auditoria/teste',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+    var colA = null
+    try {
+      colA = $app.findCollectionByNameOrId('access_audit')
+    } catch (e0) {
+      return e.json(200, { ok: false, passo: 'achar_colecao', erro: String(e0).slice(0, 200) })
+    }
+    // quais campos a colecao tem de verdade?
+    var campos = []
+    try {
+      const map = colA.fields
+      for (let i = 0; i < map.length; i++) {
+        const f = map[i]
+        campos.push(String(f.name))
+      }
+    } catch (eC) {
+      try {
+        campos = Object.keys(colA.fields.columnMap || {})
+      } catch (eC2) {}
+    }
+    try {
+      const a = new Record(colA)
+      a.set('actor_id', e.auth.id)
+      a.set('acao', 'teste_escrita')
+      a.set('alvo_grant_id', '')
+      a.set('alvo_user_id', e.auth.id)
+      a.set('detalhe', 'teste da rota de auditoria')
+      a.set('created_at', new Date().toISOString())
+      $app.save(a)
+      return e.json(200, { ok: true, gravou: a.id, campos: campos })
+    } catch (eS) {
+      return e.json(200, {
+        ok: false,
+        passo: 'save',
+        erro: String(eS).slice(0, 300),
+        campos: campos,
+      })
+    }
   },
   $apis.requireAuth(),
 )
