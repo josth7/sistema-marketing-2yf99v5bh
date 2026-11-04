@@ -675,7 +675,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             env.set('lead', String(cv.get('lead') || ''))
             env.set('conexao', central.id)
             env.set('destino_telefone', String(cv.get('contato_telefone') || ''))
-            env.set('motivo', 'ia_roteiro')
+            // 'ia_roteiro' não existe no select `motivo` de whatsapp_envios: o
+            // save era recusado e o catch vazio escondia (04/11). 'ia_resposta'
+            // é o valor da coleção para "a IA respondeu".
+            env.set('motivo', 'ia_resposta')
             env.set('modo', 'texto')
             env.set('texto', txt)
             env.set('legenda', '')
@@ -686,7 +689,9 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             env.set('fixture', false)
             env.set('dedupe_key', 'iarot-' + cv.id + '-' + new Date().getTime() + '-' + k)
             $app.save(env)
-          } catch (eEnv) {}
+          } catch (eEnv) {
+            console.log('wa_roteiro: envio NAO entrou na fila | ' + cv.id + ' | ' + String(eEnv))
+          }
         }
       } catch (eCv) {}
     }
