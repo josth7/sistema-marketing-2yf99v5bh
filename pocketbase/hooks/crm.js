@@ -390,6 +390,17 @@ routerAdd(
       lead.set('owner_id', String(body.owner_id || '').slice(0, 40))
       mudancas.push({ tipo: 'nota', texto: 'responsável atualizado' })
     }
+    if (body.valor !== undefined) {
+      const vv = Number(body.valor)
+      if (!Number.isFinite(vv) || vv < 0) {
+        return e.json(422, {
+          ok: false,
+          erro: 'entrada inválida',
+          campos: { valor: 'valor inválido' },
+        })
+      }
+      lead.set('valor', vv)
+    }
     if (body.motivo_perda !== undefined) {
       lead.set(
         'motivo_perda',
@@ -567,6 +578,12 @@ routerAdd(
     const CANAIS = ['whatsapp', 'site', 'telefone', 'presencial']
     const canalOk = CANAIS.indexOf(canal) >= 0 ? canal : 'whatsapp'
     const ehFixture = String(lead.get('fixture')) === 'true'
+    // VALOR NO LEAD (correção 04/11). Antes esta rota gravava o valor só na
+    // conversão (fila do Meta/Google) e NUNCA no lead: o lead ficava em
+    // "venda realizada" com valor ZERO. Foi assim que 18 vendas importadas
+    // da planilha da agência nasceram sem valor e a taxa de conversão virou
+    // ficção. O valor é a fonte de verdade do faturamento no CRM.
+    lead.set('valor', valor)
     // grava a conversão na trilha
     const colEv = $app.findCollectionByNameOrId('crm_lead_events')
     const ev = new Record(colEv)
@@ -592,6 +609,12 @@ routerAdd(
       ev2.set('fixture', ehFixture)
       $app.save(ev2)
     }
+    // se o status já era venda_realizada, o bloco acima não salvou o lead:
+    // salva agora para o VALOR não ficar em memória
+    try {
+      $app.save(lead)
+    } catch (eSv) {}
+
     // entra na FILA de conversões p/ Meta/Google (o Maestro envia e confirma)
     try {
       const colConv = $app.findCollectionByNameOrId('conversion_events')
