@@ -16,6 +16,12 @@ import VendasSemValor from './pages/VendasSemValor'
 import Concorrentes from './pages/Concorrentes'
 import Numeros from './pages/Numeros'
 import Conversas from './pages/Conversas'
+// Atendimento (painel do robô) e Acessos: as rotas TÊM de existir aqui. O menu
+// vem do servidor (wa_sessao.js) e já mostra os dois; sem a rota a aba abre a
+// tela de "não encontrado" (aconteceu em 04/11). Ao reescrever este arquivo,
+// conferir que toda entrada do catálogo de wa_sessao.js tem a sua <Route>.
+import Atendimento from './pages/Atendimento'
+import Acessos from './pages/Acessos'
 import MinhaSenha from './pages/MinhaSenha'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
@@ -110,6 +116,8 @@ const App = () => {
             <Route path="/concorrentes" element={<Concorrentes />} />
             <Route path="/conversas" element={<Conversas />} />
             <Route path="/numeros" element={<Numeros />} />
+            <Route path="/atendimento" element={<Atendimento />} />
+            <Route path="/acessos" element={<Acessos />} />
             <Route path="/minha-senha" element={<MinhaSenha />} />
             {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
             <Route path="*" element={<NotFound />} />

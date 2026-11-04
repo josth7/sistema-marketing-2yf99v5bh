@@ -100,6 +100,47 @@ cronAdd('wa_roteiro', '* * * * *', () => {
       }
     }
 
+    // ---------- textos, perguntas e palavras do painel (tela Atendimento) ----------
+    // A gestão edita na tela Atendimento; cada salvamento é uma versão nova em
+    // `atendimento_config` (a de maior número vale). Campo vazio ou ausente =
+    // texto/lista padrão escrito abaixo. NÃO trocar por texto fixo: a tela
+    // Atendimento deixaria de ter efeito (regra da SPEC do atendimento).
+    const lerCfg = function (campo, padrao) {
+      if (!cfg) return padrao
+      try {
+        const raw = cfg.get(campo)
+        var s = ''
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number')
+          s = String.fromCharCode.apply(null, raw)
+        else if (typeof raw === 'string') s = raw
+        else if (raw !== null && raw !== undefined) return raw
+        if (s === '') return padrao
+        const v = JSON.parse(s)
+        return v === null || v === undefined ? padrao : v
+      } catch (eJ) {
+        return padrao
+      }
+    }
+    const TXT = lerCfg('textos', {}) || {}
+    const PAL = lerCfg('palavras', {}) || {}
+    const FAQ_CFG = lerCfg('faq', null)
+    // texto do painel; vazio ou ausente = texto padrão
+    const tx = function (chave, padrao) {
+      const v = TXT[chave]
+      return typeof v === 'string' && v.trim() !== '' ? v : padrao
+    }
+    // lista de palavras do painel; vazia ou ausente = lista padrão
+    const lst = function (chave, padrao) {
+      const v = PAL[chave]
+      if (!Array.isArray(v)) return padrao
+      const out = []
+      for (const x of v) {
+        const s2 = String(x || '').trim()
+        if (s2 !== '') out.push(s2)
+      }
+      return out.length > 0 ? out : padrao
+    }
+
     // ---------- consultor do rodízio (nome + número reais) ----------
     const colU = $app.findCollectionByNameOrId('users')
     const colGe = $app.findCollectionByNameOrId('access_grants')
@@ -210,20 +251,26 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
 
-    const HORARIO =
-      'Nosso horário de atendimento é de segunda a sexta, das 8:00h às 17:30h. Se você mandou essa mensagem fora desse horário, um vendedor vai te responder assim que abrir o expediente. Obrigado pela paciência! ✨'
-    const MENU_META =
+    const HORARIO = tx(
+      'horario',
+      'Nosso horário de atendimento é de segunda a sexta, das 8:00h às 17:30h. Se você mandou essa mensagem fora desse horário, um vendedor vai te responder assim que abrir o expediente. Obrigado pela paciência! ✨',
+    )
+    const MENU_META = tx(
+      'menu_meta',
       'Bem-vindo(a) a *Haisan*! 💎\n' +
-      'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
-      'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
-      'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
-      '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*'
-    const MENU_ORGANICO =
+        'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
+        'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
+        'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
+        '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*',
+    )
+    const MENU_ORGANICO = tx(
+      'menu_organico',
       'Bem-vindo(a) a *Haisan*! 💎\n' +
-      'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
-      'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
-      'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
-      '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*\n🛠️ *Manutenção dos móveis Haisan*'
+        'Somos uma *fábrica brasileira de móveis* para salão de beleza, barbearia e clínica de estética, com *mais de 30 anos* de história.\n' +
+        'Você está falando com o *assistente virtual da Haisan*. 😃\n' +
+        'Para agilizar seu atendimento, pode nos dizer qual linha é do seu interesse?\n' +
+        '💈 *Barbearia*\n🪞 *Salão de Beleza*\n🧴 *Podologia ou Estética*\n💅 *Manicure e Pedicure*\n🛠️ *Manutenção dos móveis Haisan*',
+    )
 
     function normalizar(t) {
       var s = String(t || '').toLowerCase()
@@ -305,6 +352,33 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           } catch (eLead) {}
         }
 
+        // consultor DESTA conversa (04/11): o rodízio do wa_aviso_lead_novo dá
+        // dono ao lead em até 5 min. Se o lead já tem dono, é o nome e o número
+        // dele que o cliente tem de receber na transferência — e não o vendedor
+        // de menor carga neste minuto (antes o cliente ouvia um nome e o lead
+        // ficava com outro vendedor).
+        var cons = { id: consultor.id, nome: consultor.nome, numero: consultor.numero }
+        if (lead && String(lead.get('owner_id') || '') !== '') {
+          const donoId = String(lead.get('owner_id'))
+          var donoNome = ''
+          var donoNumero = ''
+          try {
+            const ud = $app.findRecordById(colU, donoId)
+            donoNome = String(ud.get('name') || ud.get('email') || '')
+          } catch (eUd) {}
+          for (const cxd of cxsVend) {
+            if (String(cxd.get('vendedor_user') || '') !== donoId) continue
+            const pub = String(cxd.get('vendedor_nome_publico') || '')
+            if (pub !== '') donoNome = pub
+            const ndd = String(cxd.get('numero') || '').replace(/[^0-9]/g, '')
+            if (ndd.length === 13)
+              donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 9) + '-' + ndd.slice(9)
+            else if (ndd.length === 12)
+              donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 8) + '-' + ndd.slice(8)
+          }
+          if (donoNome !== '') cons = { id: donoId, nome: donoNome, numero: donoNumero }
+        }
+
         // ---------- SPAM: nunca responde ----------
         // mensagem com cara de golpe/corrente. Se responder, o numero leva
         // denuncia e a reputacao cai (justo o que nao podemos agora).
@@ -383,7 +457,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         var motivo = ''
         var origemDetectada = ''
 
-        const SINAIS_HUMANO = [
+        const SINAIS_HUMANO = lst('humano', [
           'atendente',
           'humano',
           'pessoa de verdade',
@@ -398,8 +472,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           'robo',
           'bot',
           'atendimento real',
-        ]
-        const SINAIS_ESTRESSE = [
+        ])
+        const SINAIS_ESTRESSE = lst('estresse', [
           'pessimo',
           'horrivel',
           'absurdo',
@@ -411,8 +485,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           'procon',
           'processo',
           'reclamacao',
-        ]
-        const FORA_ESCOPO = [
+        ])
+        const FORA_ESCOPO = lst('fora_escopo', [
           'preco',
           'valor',
           'quanto custa',
@@ -425,8 +499,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           'disponivel',
           'tem pronto',
           'estoque',
-        ]
-        const FAQ = [
+        ])
+        const FAQ_PADRAO = [
           {
             chaves: ['prazo', 'quanto tempo', 'demora', 'producao', 'entrega'],
             resposta:
@@ -438,6 +512,22 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               'Estamos na Rua Kival Fernando Pereira, 125, Centro, São José dos Pinhais – PR. Temos fábrica e showroom no mesmo endereço.',
           },
         ]
+        var FAQ = FAQ_PADRAO
+        if (Array.isArray(FAQ_CFG) && FAQ_CFG.length > 0) {
+          FAQ = []
+          for (const fq of FAQ_CFG) {
+            if (!fq) continue
+            const chs = []
+            const brutas = Array.isArray(fq.chaves) ? fq.chaves : String(fq.chaves || '').split(',')
+            for (const c0 of brutas) {
+              const c1 = String(c0 || '').trim()
+              if (c1 !== '') chs.push(c1)
+            }
+            const resp = String(fq.resposta || '').trim()
+            if (chs.length > 0 && resp !== '') FAQ.push({ chaves: chs, resposta: resp })
+          }
+          if (FAQ.length === 0) FAQ = FAQ_PADRAO
+        }
         const LINHAS = [
           { chave: 'barbearia', termos: ['barbearia', 'barbeiro', 'barber'] },
           { chave: 'salao', termos: ['salao', 'cabeleireiro', 'cabelo'] },
@@ -448,23 +538,34 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             termos: ['manutencao', 'consertar', 'conserto', 'quebrou', 'reparo'],
           },
         ]
-        const TXT_CONSULTOR =
-          'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *' +
-          (consultor.nome || 'nosso time') +
-          '*' +
-          (consultor.numero
-            ? ' — nos próximos minutos você recebe uma mensagem dele pelo número *' +
-              consultor.numero +
-              '*'
-            : '') +
-          '. Pode salvar como *Haisan Vendas*! 😊'
+        for (const ln of LINHAS) ln.termos = lst('linha_' + ln.chave, ln.termos)
+        // modelo editável no painel: {nome} e {numero} são trocados pelo
+        // consultor desta conversa (dono do lead ou o próximo do rodízio)
+        const TXT_CONSULTOR = (
+          cons.numero
+            ? tx(
+                'transferencia_consultor',
+                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *{nome}* — nos próximos minutos você recebe uma mensagem dele pelo número *{numero}*. Pode salvar como *Haisan Vendas*! 😊',
+              )
+            : tx(
+                'transferencia_consultor_sem_numero',
+                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *{nome}*. Pode salvar como *Haisan Vendas*! 😊',
+              )
+        )
+          .split('{nome}')
+          .join(cons.nome || 'nosso time')
+          .split('{numero}')
+          .join(cons.numero || '')
 
         if (contem(texto, SINAIS_HUMANO)) {
           novoEtapa = 'humano'
           motivo = 'cliente_pediu_humano'
           transfere = true
           respostas = [
-            'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            tx(
+              'encaminhar_humano',
+              'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            ),
             HORARIO,
           ]
         } else if (contem(texto, SINAIS_ESTRESSE)) {
@@ -472,7 +573,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           motivo = 'cliente_impaciente'
           transfere = true
           respostas = [
-            'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            tx(
+              'encaminhar_humano',
+              'Entendo! Vou te encaminhar AGORA para um dos nossos vendedores, só um momento! ☺️',
+            ),
             HORARIO,
           ]
         } else {
@@ -490,12 +594,15 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             novoEtapa = 'humano'
             motivo = 'pergunta_fora_do_escopo'
             transfere = true
-            respostas = ['Vou te encaminhar para um de nossos vendedores, só um momento!', HORARIO]
+            respostas = [
+              tx('fora_escopo', 'Vou te encaminhar para um de nossos vendedores, só um momento!'),
+              HORARIO,
+            ]
           } else if (etapaAtual === '') {
             novoEtapa = 'menu'
             motivo = 'boas_vindas'
             respostas = [MENU]
-          } else if (etapaAtual === 'menu') {
+          } else if (etapaAtual === 'menu' || etapaAtual === 'menu_r') {
             var linhaA = null
             for (var l2 = 0; l2 < LINHAS.length; l2++) {
               if (contem(texto, LINHAS[l2].termos)) {
@@ -503,26 +610,50 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 break
               }
             }
-            if (!linhaA) {
+            if (!linhaA && etapaAtual === 'menu_r') {
+              // 2ª resposta que o robô não entende: passa para o vendedor, como o
+              // agente antigo fazia com o que fugia do roteiro (antes repetia o
+              // menu sem fim, 04/11)
+              novoEtapa = 'humano'
+              motivo = 'menu_nao_entendido_2x'
+              transfere = true
+              respostas = [
+                tx('fora_escopo', 'Vou te encaminhar para um de nossos vendedores, só um momento!'),
+                HORARIO,
+              ]
+            } else if (!linhaA) {
+              novoEtapa = 'menu_r'
               motivo = 'menu_opcao_invalida'
-              respostas = ['Desculpe, não entendi. 😊 Pode escolher uma das opções?', MENU]
+              respostas = [
+                tx('nao_entendi', 'Desculpe, não entendi. 😊 Pode escolher uma das opções?'),
+                MENU,
+              ]
             } else if (linhaA.chave === 'manutencao') {
               novoEtapa = 'manut1'
               motivo = 'manutencao_pede_documento'
               respostas = [
-                'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor responsável.',
+                tx(
+                  'pede_documento_manutencao',
+                  'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor responsável.',
+                ),
               ]
             } else if (canal === 'organico') {
               novoEtapa = 'origem'
               motivo = 'respondeu_linha_pergunta_origem'
               respostas = [
-                'Me conte, de onde você nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                tx(
+                  'pergunta_origem',
+                  'Me conte, de onde você nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                ),
               ]
             } else {
               novoEtapa = 'e2'
               motivo = 'respondeu_linha'
               respostas = [
-                'Legal!😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                tx(
+                  'abrindo_ampliando',
+                  'Legal!😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                ),
               ]
             }
           } else if (etapaAtual === 'origem') {
@@ -539,29 +670,49 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             if (origemDetectada === '') {
               motivo = 'origem_invalida'
               respostas = [
-                'Pode me dizer por onde nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                tx(
+                  'origem_invalida',
+                  'Pode me dizer por onde nos conheceu?\n🔹 *Pesquisei no Google*\n🔹 *Vi anúncio no Instagram/Facebook*',
+                ),
               ]
             } else {
               novoEtapa = 'e3'
               motivo = 'origem_' + origemDetectada
               respostas = [
                 origemDetectada === 'google'
-                  ? 'Legal que você veio pelo Google! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?'
-                  : 'Legal que você veio pelo Instagram/Facebook! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                  ? tx(
+                      'origem_google',
+                      'Legal que você veio pelo Google! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                    )
+                  : tx(
+                      'origem_meta',
+                      'Legal que você veio pelo Instagram/Facebook! 😃 Você está abrindo um novo espaço ou ampliando um que já existe?',
+                    ),
               ]
             }
           } else if (etapaAtual === 'e2' || etapaAtual === 'e3') {
             novoEtapa = 'e3b'
             motivo = 'abrindo_ou_ampliando'
             respostas = [
-              'Perfeito! 😊 Você já é cliente Haisan ou é seu primeiro contato com a gente?',
+              tx(
+                'cliente_ou_primeiro',
+                'Perfeito! 😊 Você já é cliente Haisan ou é seu primeiro contato com a gente?',
+              ),
             ]
           } else if (etapaAtual === 'e3b') {
-            if (contem(texto, ['ja sou', 'sou cliente', 'cliente haisan', 'ja comprei', 'sim'])) {
+            if (
+              contem(
+                texto,
+                lst('ja_cliente', ['ja sou', 'sou cliente', 'cliente haisan', 'ja comprei', 'sim']),
+              )
+            ) {
               novoEtapa = 'e5'
               motivo = 'ja_e_cliente'
               respostas = [
-                'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor de vendas.',
+                tx(
+                  'pede_documento_vendas',
+                  'Por gentileza, poderia me informar o seu CPF ou CNPJ? Assim já te encaminho pro setor de vendas.',
+                ),
               ]
             } else {
               novoEtapa = 'e4'
@@ -574,14 +725,20 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             if (digs.length < 11) {
               motivo = 'documento_invalido'
               respostas = [
-                'Por favor, me informe o CPF ou CNPJ (só os números) para eu te encaminhar corretamente. 😊',
+                tx(
+                  'documento_invalido',
+                  'Por favor, me informe o CPF ou CNPJ (só os números) para eu te encaminhar corretamente. 😊',
+                ),
               ]
             } else if (etapaAtual === 'manut1') {
               novoEtapa = 'manut2'
               motivo = 'manutencao_transferida'
               transfere = true
               respostas = [
-                'Aguarde alguns minutos, que irei lhe encaminhar para o setor responsável. ☺️',
+                tx(
+                  'manutencao_ok',
+                  'Aguarde alguns minutos, que irei lhe encaminhar para o setor responsável. ☺️',
+                ),
                 HORARIO,
               ]
             } else {
@@ -589,7 +746,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               motivo = 'cliente_transferido'
               transfere = true
               respostas = [
-                'Obrigado pela informação... Aguarde alguns minutos, que irei lhe encaminhar para um vendedor Haisan. ☺️',
+                tx(
+                  'cliente_ok',
+                  'Obrigado pela informação... Aguarde alguns minutos, que irei lhe encaminhar para um vendedor Haisan. ☺️',
+                ),
                 HORARIO,
               ]
             }
@@ -673,12 +833,12 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         }
 
         // ---------- transfere: dá dono ao lead (ninguém fica sem dono) ----------
-        if (transfere && consultor.id !== '' && String(cv.get('lead') || '') !== '') {
+        if (transfere && cons.id !== '' && String(cv.get('lead') || '') !== '') {
           try {
             const ld2 = $app.findRecordById(colL, String(cv.get('lead')))
             if (String(ld2.get('owner_id') || '') === '') {
-              ld2.set('owner_id', consultor.id)
-              ld2.set('vendedor_nome', consultor.nome)
+              ld2.set('owner_id', cons.id)
+              ld2.set('vendedor_nome', cons.nome)
               $app.save(ld2)
               try {
                 const colEvL = $app.findCollectionByNameOrId('crm_lead_events')
@@ -687,7 +847,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 evL.set('tipo', 'status')
                 evL.set(
                   'texto',
-                  'Transferido pela IA para ' + consultor.nome + ' (roteiro: ' + motivo + ')',
+                  'Transferido pela IA para ' + cons.nome + ' (roteiro: ' + motivo + ')',
                 )
                 $app.save(evL)
               } catch (eEvL) {}
@@ -705,7 +865,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             env.set('lead', String(cv.get('lead') || ''))
             env.set('conexao', central.id)
             env.set('destino_telefone', String(cv.get('contato_telefone') || ''))
-            env.set('motivo', 'ia_roteiro')
+            // 'ia_roteiro' NÃO existe no select `motivo` de whatsapp_envios: o
+            // save é recusado, nada sai e o cliente fica parado (04/11, duas
+            // vezes). 'ia_resposta' é o valor da coleção para "a IA respondeu".
+            env.set('motivo', 'ia_resposta')
             env.set('modo', 'texto')
             env.set('texto', txt)
             env.set('legenda', '')

@@ -199,6 +199,44 @@ export default function Conversas() {
   const [salvandoNota, setSalvandoNota] = useState(false)
   const [possoEscrever, setPossoEscrever] = useState(false)
 
+  // ---------- botão do robô (04/11; NÃO remover — SPEC do atendimento) ----------
+  // Liga e desliga o atendimento automático da central com um clique. Só
+  // quem tem manage_atendimento vê o botão; os outros veem só a situação.
+  const [robo, setRobo] = useState<{ ligado: boolean; pode: boolean; dentro: boolean } | null>(null)
+  const [mudandoRobo, setMudandoRobo] = useState(false)
+  const carregarRobo = useCallback(async () => {
+    try {
+      const r = (await pb.send('/backend/v1/atendimento/config', { method: 'GET' })) as {
+        ligado: boolean
+        pode_alterar: boolean
+        dentro_do_horario: boolean
+      }
+      setRobo({ ligado: r.ligado, pode: r.pode_alterar, dentro: r.dentro_do_horario })
+    } catch {
+      setRobo(null)
+    }
+  }, [])
+  useEffect(() => {
+    void carregarRobo()
+    const t = setInterval(() => void carregarRobo(), 60000)
+    return () => clearInterval(t)
+  }, [carregarRobo])
+  const alternarRobo = async () => {
+    if (!robo) return
+    setMudandoRobo(true)
+    try {
+      await pb.send('/backend/v1/atendimento/ligar', {
+        method: 'POST',
+        body: JSON.stringify({ ligado: !robo.ligado, origem: 'conversas' }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+    } catch {
+      // a situação real vem do servidor logo abaixo
+    }
+    await carregarRobo()
+    setMudandoRobo(false)
+  }
+
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) {
       setCarregando(false)
@@ -449,6 +487,31 @@ export default function Conversas() {
       <CabecalhoPagina
         titulo="Conversas"
         descricao="WhatsApp dos números da Haisan — responde por aqui e deixa recado interno para o vendedor."
+        acoes={
+          robo ? (
+            robo.pode ? (
+              <Button
+                size="sm"
+                variant={robo.ligado ? 'default' : 'destructive'}
+                disabled={mudandoRobo}
+                onClick={() => void alternarRobo()}
+                title={robo.ligado ? 'Clique para desligar o robô' : 'Clique para ligar o robô'}
+              >
+                {mudandoRobo
+                  ? 'Mudando…'
+                  : robo.ligado
+                    ? robo.dentro
+                      ? 'Robô ligado · clique para desligar'
+                      : 'Robô ligado (fora do horário) · clique para desligar'
+                    : 'Robô desligado · clique para ligar'}
+              </Button>
+            ) : (
+              <Badge variant={robo.ligado ? 'default' : 'outline'}>
+                {robo.ligado ? 'Robô ligado' : 'Robô desligado'}
+              </Badge>
+            )
+          ) : undefined
+        }
       />
 
       {/* CA-3-25: cliente x equipe. A conversa da equipe é operação interna —
