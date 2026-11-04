@@ -46,7 +46,7 @@ routerAdd(
     if (!gestao) return e.json(403, { ok: false, erro: 'só a gestão' })
 
     // ---------- destino: número INTERNO somente ----------
-    const destino = String(e.request.queryParam('destino') || '').replace(/\D/g, '')
+    const destino = String(e.request.url.query().get('destino') || '').replace(/\D/g, '')
     if (destino === '') return e.json(422, { ok: false, erro: 'informe ?destino=' })
 
     var internos = []
