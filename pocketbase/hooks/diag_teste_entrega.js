@@ -49,22 +49,28 @@ routerAdd(
     const destino = String(e.request.url.query().get('destino') || '').replace(/\D/g, '')
     if (destino === '') return e.json(422, { ok: false, erro: 'informe ?destino=' })
 
+    // a lista de internos pode estar em QUALQUER versão do painel (a mais nova
+    // pode ter vindo sem o campo): junta de todas
     var internos = []
     try {
       const colCfg = $app.findCollectionByNameOrId('atendimento_config')
       const vs = $app.findRecordsByFilter(colCfg, '', '', 500, 0)
-      var cfg = null
       for (const v of vs) {
-        if (!cfg || Number(v.get('versao') || 0) > Number(cfg.get('versao') || 0)) cfg = v
-      }
-      if (cfg) {
-        var raw = cfg.get('internos')
-        internos =
+        var raw = v.get('internos')
+        var lista =
           Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number'
             ? JSON.parse(String.fromCharCode.apply(null, raw))
             : typeof raw === 'string'
               ? JSON.parse(raw)
               : raw || []
+        if (!Array.isArray(lista)) continue
+        for (const i of lista) {
+          const n = String(i.numero || '')
+          if (n === '') continue
+          var jaTem = false
+          for (const j of internos) if (j.numero === n) jaTem = true
+          if (!jaTem) internos.push({ numero: n, rotulo: String(i.rotulo || '') })
+        }
       }
     } catch (eI) {}
 
