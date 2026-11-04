@@ -431,3 +431,86 @@ routerAdd(
   },
   $apis.requireAuth(),
 )
+
+// ==================== detalhe de uma pessoa (para a tela editar) ====================
+// A lista da equipe traz a CONTAGEM de ações; editar precisa da LISTA. Rota
+// própria para não inflar a lista (que carrega 16 pessoas de uma vez).
+routerAdd(
+  'GET',
+  '/backend/v1/acessos/pessoa/{id}/detalhe',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    function lerLista4(raw) {
+      try {
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          return JSON.parse(String.fromCharCode.apply(null, raw))
+        }
+        if (typeof raw === 'string') return JSON.parse(raw)
+        return raw || []
+      } catch (err) {
+        return []
+      }
+    }
+
+    var souAdmin = false
+    try {
+      const meus = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        50,
+        0,
+      )
+      for (const g of meus) {
+        const a = lerLista4(g.get('actions'))
+        if (a.indexOf('manage_access') >= 0) souAdmin = true
+      }
+    } catch (e0) {}
+    if (!souAdmin) return e.json(403, { ok: false, erro: 'só quem tem manage_access' })
+
+    const alvoId = String(e.request.pathValue('id') || '')
+    if (alvoId === '') return e.json(400, { ok: false, erro: 'pessoa não informada' })
+
+    const hoje = new Date().toISOString().slice(0, 10)
+    var grant = null
+    try {
+      const gs = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + alvoId + "' && revoked_at=''",
+        '',
+        20,
+        0,
+      )
+      for (const g of gs) {
+        const de = String(g.get('valid_from') || '')
+        const ate = String(g.get('valid_until') || '')
+        if (de !== '' && de.slice(0, 10) > hoje) continue
+        if (ate !== '' && ate.slice(0, 10) < hoje) continue
+        grant = g
+        break
+      }
+    } catch (e1) {}
+
+    if (!grant) {
+      return e.json(200, {
+        ok: true,
+        acoes: [],
+        escopo: 'proprio',
+        papel: '',
+        tem_grant: false,
+      })
+    }
+
+    const acts = lerLista4(grant.get('actions'))
+    const sa = lerLista4(grant.get('scope_accounts'))
+    return e.json(200, {
+      ok: true,
+      acoes: acts,
+      escopo: Array.isArray(sa) && sa.indexOf('*') >= 0 ? 'todos' : 'proprio',
+      papel: String(grant.get('role') || ''),
+      tem_grant: true,
+    })
+  },
+  $apis.requireAuth(),
+)

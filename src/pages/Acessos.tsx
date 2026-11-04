@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import pb from '@/lib/pocketbase/client'
 import {
   CabecalhoPagina,
@@ -42,6 +51,8 @@ type Pessoa = {
   conta_teste: boolean
 }
 
+type Acao = { id: string; rotulo: string; grupo: string }
+
 type Numero = {
   id: string
   numero: string
@@ -73,8 +84,22 @@ export default function Acessos() {
   const [erro, setErro] = useState('')
   const [equipe, setEquipe] = useState<Pessoa[]>([])
   const [numeros, setNumeros] = useState<Numero[]>([])
-  const [aba, setAba] = useState<'equipe' | 'numeros'>('equipe')
+  const [aba, setAba] = useState<'equipe' | 'numeros' | 'historico'>('equipe')
   const [soAtivas, setSoAtivas] = useState(false)
+
+  // ---- edição de acesso (CA-3-31) ----
+  const [acoes, setAcoes] = useState<Acao[]>([])
+  const [editando, setEditando] = useState<Pessoa | null>(null)
+  const [marcadas, setMarcadas] = useState<string[]>([])
+  const [escopoTodos, setEscopoTodos] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [avisoEdicao, setAvisoEdicao] = useState('')
+  const [novaSenha, setNovaSenha] = useState('')
+  const [senhaAviso, setSenhaAviso] = useState('')
+  // histórico (CA-3-35)
+  const [historico, setHistorico] = useState<
+    { id: string; quando: string; quem: string; acao_texto: string; alvo: string }[]
+  >([])
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -93,6 +118,22 @@ export default function Acessos() {
       } catch {
         // a aba por número é complementar: se falhar, a de equipe continua
       }
+      try {
+        const c = (await pb.send('/backend/v1/acessos/acoes', { method: 'GET' })) as {
+          acoes?: Acao[]
+        }
+        setAcoes(c.acoes || [])
+      } catch {
+        // sem o catálogo a edição não abre; a leitura continua funcionando
+      }
+      try {
+        const h = (await pb.send('/backend/v1/acessos/auditoria', { method: 'GET' })) as {
+          itens?: { id: string; quando: string; quem: string; acao_texto: string; alvo: string }[]
+        }
+        setHistorico(h.itens || [])
+      } catch {
+        //
+      }
     } catch (e) {
       setErro(
         e instanceof Error && e.message.indexOf('403') >= 0
@@ -107,6 +148,75 @@ export default function Acessos() {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  /** abre o diálogo com o estado atual da pessoa */
+  const abrirEdicao = (p: Pessoa) => {
+    // as ações reais vêm do detalhe: a lista da equipe só traz a contagem
+    setEditando(p)
+    setMarcadas([])
+    setEscopoTodos(p.modo_escopo === 'todos')
+    setAvisoEdicao('')
+    setNovaSenha('')
+    setSenhaAviso('')
+    void (async () => {
+      try {
+        const r = (await pb.send('/backend/v1/acessos/pessoa/' + p.id + '/detalhe', {
+          method: 'GET',
+        })) as { acoes?: string[] }
+        setMarcadas(r.acoes || [])
+      } catch {
+        setAvisoEdicao('Não consegui ler as ações desta pessoa.')
+      }
+    })()
+  }
+
+  const alternar = (id: string) => {
+    setMarcadas((atual) =>
+      atual.indexOf(id) >= 0 ? atual.filter((a) => a !== id) : [...atual, id],
+    )
+  }
+
+  const salvarAcesso = async () => {
+    if (!editando || salvando) return
+    setSalvando(true)
+    setAvisoEdicao('')
+    try {
+      await pb.send('/backend/v1/acessos/pessoa/' + editando.id, {
+        method: 'POST',
+        body: JSON.stringify({
+          acoes: marcadas,
+          escopo: escopoTodos ? 'todos' : 'proprio',
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      setAvisoEdicao('Acesso salvo. O menu da pessoa muda no próximo acesso.')
+      await carregar()
+    } catch (e) {
+      setAvisoEdicao('Não salvei: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const redefinirSenha = async () => {
+    if (!editando) return
+    if (novaSenha.length < 8) {
+      setSenhaAviso('A senha precisa ter pelo menos 8 caracteres.')
+      return
+    }
+    setSenhaAviso('')
+    try {
+      await pb.send('/backend/v1/acessos/pessoa/' + editando.id + '/senha', {
+        method: 'POST',
+        body: JSON.stringify({ senha: novaSenha }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      setSenhaAviso('Senha redefinida. A pessoa troca no primeiro acesso.')
+      setNovaSenha('')
+    } catch (e) {
+      setSenhaAviso('Não redefini: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
 
   const lista = soAtivas ? equipe.filter((p) => p.ativa) : equipe
 
@@ -134,6 +244,13 @@ export default function Acessos() {
           onClick={() => setAba('numeros')}
         >
           Por número
+        </Button>
+        <Button
+          size="sm"
+          variant={aba === 'historico' ? 'default' : 'outline'}
+          onClick={() => setAba('historico')}
+        >
+          Histórico
         </Button>
         {aba === 'equipe' && (
           <Button
@@ -210,8 +327,108 @@ export default function Acessos() {
                       </Badge>
                     )}
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 w-full"
+                    onClick={() => abrirEdicao(p)}
+                  >
+                    Editar acesso
+                  </Button>
                 </CardContent>
               </Card>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ---------- diálogo de edição (CA-3-31) ---------- */}
+      <Dialog open={editando !== null} onOpenChange={(v) => !v && setEditando(null)}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar acesso — {editando?.nome || editando?.email}</DialogTitle>
+            <DialogDescription>
+              O que marcar aqui é exatamente o que a pessoa vê no menu. As travas do servidor
+              impedem mudar o próprio acesso e deixar o sistema sem ninguém que gerencie acessos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={escopoTodos} onCheckedChange={(v) => setEscopoTodos(v === true)} />
+              Vê os dados de <strong>todos</strong> (sem marcar, vê só o que é dela)
+            </label>
+
+            {['Base', 'CRM', 'WhatsApp', 'Marketing', 'Administração'].map((grupo) => {
+              const doGrupo = acoes.filter((a) => a.grupo === grupo)
+              if (doGrupo.length === 0) return null
+              return (
+                <div key={grupo} className="rounded-md border p-2">
+                  <p className="mb-1 text-[11px] font-semibold uppercase text-muted-foreground">
+                    {grupo}
+                  </p>
+                  <div className="grid gap-1 sm:grid-cols-2">
+                    {doGrupo.map((a) => (
+                      <label key={a.id} className="flex items-start gap-2 text-xs">
+                        <Checkbox
+                          checked={marcadas.indexOf(a.id) >= 0}
+                          onCheckedChange={() => alternar(a.id)}
+                        />
+                        {a.rotulo}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {avisoEdicao !== '' && <p className="text-[11px] text-muted-foreground">{avisoEdicao}</p>}
+
+          <div className="rounded-md border border-dashed p-2">
+            <p className="mb-1 text-[11px] font-semibold">Redefinir senha</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={novaSenha}
+                onChange={(ev) => setNovaSenha(ev.target.value)}
+                placeholder="nova senha (mín. 8)"
+                className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs"
+              />
+              <Button size="sm" variant="outline" onClick={() => void redefinirSenha()}>
+                Redefinir
+              </Button>
+            </div>
+            {senhaAviso !== '' && (
+              <p className="mt-1 text-[11px] text-muted-foreground">{senhaAviso}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditando(null)}>
+              Fechar
+            </Button>
+            <Button onClick={() => void salvarAcesso()} disabled={salvando}>
+              {salvando ? 'Salvando…' : 'Salvar acesso'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {aba === 'historico' && (
+        <>
+          {historico.length === 0 && <EstadoVazio titulo="Nenhuma mudança registrada ainda" />}
+          <div className="space-y-1">
+            {historico.map((h) => (
+              <div
+                key={h.id}
+                className="flex flex-wrap items-baseline gap-2 rounded border px-2 py-1.5 text-xs"
+              >
+                <span className="tabular-nums text-muted-foreground">{h.quando}</span>
+                <strong>{h.quem}</strong>
+                <span>{h.acao_texto}</span>
+                {h.alvo !== '' && <span className="text-muted-foreground">→ {h.alvo}</span>}
+              </div>
             ))}
           </div>
         </>
