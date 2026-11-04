@@ -29,13 +29,16 @@ routerAdd(
     out.tem_chave = chave !== ''
     if (chave === '') return e.json(200, out)
 
+    // chatId é NUMÉRICO (erro da D-API: "out of range for type integer") — então
+    // primeiro descubro o id do chat pelo telefone, depois leio as mensagens.
     const jid = destino + '@s.whatsapp.net'
+    const sessao = String(
+      e.request.url.query().get('sessao') || 'cloud-d4d6e623-517c-4d45-b06f-b3fdbab392c7',
+    )
+
     const tentativas = [
-      'https://api.d-api.cloud/api/v1/chats/' + jid + '/messages?limit=10',
-      'https://api.d-api.cloud/api/v1/chats/' + destino + '/messages?limit=10',
-      'https://api.d-api.cloud/api/v1/chats/' +
-        encodeURIComponent(jid) +
-        '/messages?limit=10&sessionId=cloud-d4d6e623-517c-4d45-b06f-b3fdbab392c7',
+      'https://api.d-api.cloud/api/v1/chats?sessionId=' + sessao + '&limit=200',
+      'https://api.d-api.cloud/api/v1/chats?sessionId=' + sessao + '&search=' + destino,
     ]
 
     for (const url of tentativas) {
