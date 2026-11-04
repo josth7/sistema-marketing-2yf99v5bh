@@ -207,15 +207,6 @@ cronAdd('wa_roteiro', '* * * * *', () => {
       return
     }
 
-    // SONDA: quantas conversas o cron viu nesta rodada
-    try {
-      const colS1 = $app.findCollectionByNameOrId('diag_cron_sonda')
-      const r1 = new Record(colS1)
-      r1.set('job', 'viu=' + conversas.length)
-      r1.set('quando', new Date().toISOString())
-      $app.save(r1)
-    } catch (eS1) {}
-
     const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
 
