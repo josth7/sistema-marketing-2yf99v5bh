@@ -96,6 +96,11 @@ routerAdd(
       { para: '/decisoes', rotulo: 'Decisões', aceita: ['read_decisions'] },
       { para: '/relatorios', rotulo: 'Relatórios', aceita: ['read_reports'] },
       { para: '/caixa', rotulo: 'Caixa', aceita: ['read_reports'] },
+      {
+        para: '/vendas-sem-valor',
+        rotulo: 'Vendas sem valor',
+        aceita: ['manage_leads', 'read_leads'],
+      },
       { para: '/numeros', rotulo: 'Números', aceita: ['manage_whatsapp'] },
       { para: '/atendimento', rotulo: 'Atendimento', aceita: ['manage_atendimento'] },
       { para: '/concorrentes', rotulo: 'Concorrentes', aceita: ['read_analyses'] },
