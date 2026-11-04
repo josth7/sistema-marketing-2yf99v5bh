@@ -347,16 +347,98 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
         return e.json(200, { ok: true, ignorado: 'entre_numeros_da_empresa' })
       }
     } catch (eO) {}
-    // linha interna da empresa que NÃO é conexão da D-API (ex.: o 3035-9355 do
-    // atendimento). Sem esta checagem, quem manda de dentro da empresa vira
-    // lead de cliente — aconteceu em 28/10 com a primeira mensagem real.
+    // ---------- linha interna da equipe (CA-3-25) ----------
+    // Antes: mensagem de número da equipe era DESCARTADA. Isso fazia a conversa
+    // da equipe sumir — e o dono pediu justamente o contrário: separar.
+    // Agora: não vira lead, não aciona o robô, e a conversa é gravada com
+    // `interna=true` para aparecer na aba "Equipe" da tela Conversas.
+    var ehNumeroInterno = false
+    var rotuloInterno = ''
     try {
       const colInt = $app.findCollectionByNameOrId('whatsapp_numeros_internos')
       const ints = $app.findRecordsByFilter(colInt, "numero='" + telefone + "'", '', 1, 0)
       if (ints && ints.length > 0) {
-        return e.json(200, { ok: true, ignorado: 'numero_interno_da_empresa' })
+        ehNumeroInterno = true
+        rotuloInterno = String(ints[0].get('rotulo') || 'Equipe Haisan')
       }
     } catch (eInt) {}
+
+    if (ehNumeroInterno) {
+      // grava a conversa interna (uma por contato + conexao) e a mensagem.
+      // NÃO cria lead, NÃO entra na triagem, o robô nunca responde.
+      var msgIdInt = ''
+      try {
+        const colCvI = $app.findCollectionByNameOrId('whatsapp_conversas')
+        var cvI = null
+        try {
+          const achadas = $app.findRecordsByFilter(
+            colCvI,
+            "conexao='" + conexao.id + "' && contato_telefone='" + telefone + "'",
+            '',
+            1,
+            0,
+          )
+          if (achadas && achadas.length > 0) cvI = achadas[0]
+        } catch (eCvI) {}
+        if (!cvI) {
+          const nc = new Record(colCvI)
+          nc.set('conexao', conexao.id)
+          nc.set('contato_telefone', telefone)
+          nc.set('contato_nome', rotuloInterno || String(lado.name || 'Equipe'))
+          nc.set('estado', 'sem_ia')
+          nc.set('interna', true)
+          nc.set('total_mensagens', 0)
+          nc.set('fixture', ehFixture)
+          $app.save(nc)
+          cvI = nc
+        } else {
+          try {
+            cvI.set('interna', true)
+            $app.save(cvI)
+          } catch (eMarca) {}
+        }
+        // mensagem
+        try {
+          const colMens = $app.findCollectionByNameOrId('whatsapp_mensagens')
+          const msg = new Record(colMens)
+          msg.set('conexao', conexao.id)
+          msg.set('wa_message_id', String(data.id || '').toLowerCase())
+          msg.set('lead', '')
+          msg.set('vinculo', 'interno')
+          msg.set('contato_telefone', telefone)
+          msg.set('contato_nome', rotuloInterno || String(lado.name || 'Equipe'))
+          msg.set('direcao', data.fromMe === true ? 'saida' : 'entrada')
+          msg.set('autor', 'equipe_central')
+          msg.set('tipo', String(data.type || 'text'))
+          msg.set(
+            'texto',
+            String(data.message || (data.media_data || {}).caption || '').slice(0, 10000),
+          )
+          msg.set('status', 'recebida')
+          msg.set('recebida_em', new Date().toISOString())
+          msg.set('fixture', ehFixture)
+          $app.save(msg)
+          msgIdInt = msg.id
+        } catch (eMsgI) {}
+        // atualiza a previa da conversa
+        try {
+          cvI.set('ultima_mensagem_em', new Date().toISOString())
+          cvI.set(
+            'ultima_previa',
+            String(data.message || (data.media_data || {}).caption || 'Mensagem').slice(0, 160),
+          )
+          cvI.set('ultimo_autor', data.fromMe === true ? 'equipe_central' : 'equipe_central')
+          cvI.set('total_mensagens', Number(cvI.get('total_mensagens') || 0) + 1)
+          $app.save(cvI)
+        } catch (eUpI) {}
+      } catch (eInt2) {}
+      return e.json(200, {
+        ok: true,
+        interna: true,
+        mensagem: msgIdInt,
+        ignorado: 'conversa_interna_da_equipe',
+      })
+    }
   }
 
   // ---------- 8. busca do lead (RN-59) ----------
