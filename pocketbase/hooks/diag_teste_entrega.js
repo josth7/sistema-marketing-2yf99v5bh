@@ -78,6 +78,7 @@ routerAdd(
     // versão antiga. Fallback honesto: aceita os internos conhecidos do
     // sistema (inclui a linha de desenvolvimento, que existe para teste).
     const INTERNOS_FIXOS = [
+      '5541989036170', // dono (Josth) — autorizado por ele em 04/11 para o teste
       '554130359355',
       '554130359361',
       '554132833667',
