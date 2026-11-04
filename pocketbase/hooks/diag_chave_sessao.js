@@ -81,6 +81,20 @@ routerAdd(
     }
 
     out.chave_encontrada = apiKeySessao !== ''
+
+    // GRAVAÇÃO OPCIONAL (04/11): com ?gravar=<NOME_DO_SEGREDO>, a chave da
+    // sessão é copiada para o cofre do projeto com esse nome. É o que falta
+    // para o vendedor responder pelo sistema (RN-106 exige segredo próprio).
+    // NUNCA devolve o valor da chave na resposta: só confirma que gravou.
+    const gravar = String(e.request.url.query().get('gravar') || '')
+    if (gravar !== '' && apiKeySessao !== '') {
+      try {
+        $secrets.set(gravar, apiKeySessao)
+        out.gravado = gravar
+      } catch (eSet) {
+        out.erro_gravacao = String(eSet).slice(0, 140)
+      }
+    }
     out.tamanho_chave = apiKeySessao.length
     if (apiKeySessao === '') {
       out.detalhe = 'a D-API não devolveu apiKey para esta sessão'
