@@ -90,6 +90,17 @@ export default function Acessos() {
   // ---- edição de acesso (CA-3-31) ----
   const [acoes, setAcoes] = useState<Acao[]>([])
   const [editando, setEditando] = useState<Pessoa | null>(null)
+  const [criando, setCriando] = useState(false)
+  const [novoNome, setNovoNome] = useState('')
+  const [novoEmail, setNovoEmail] = useState('')
+  const [novoCargo, setNovoCargo] = useState('vendedor')
+  const [erroCriar, setErroCriar] = useState('')
+  const [resultadoCriar, setResultadoCriar] = useState<{
+    email: string
+    senha: string
+    cargo: string
+    expira: string
+  } | null>(null)
   const [marcadas, setMarcadas] = useState<string[]>([])
   const [escopoTodos, setEscopoTodos] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -245,6 +256,42 @@ export default function Acessos() {
     }
   }
 
+  const criarPessoa = async () => {
+    setErroCriar('')
+    if (novoNome.trim() === '') return setErroCriar('Informe o nome.')
+    if (!novoEmail.includes('@')) return setErroCriar('E-mail inválido.')
+    try {
+      const r = (await pb.send('/backend/v1/acessos/pessoa/nova', {
+        method: 'POST',
+        body: JSON.stringify({
+          nome: novoNome.trim(),
+          email: novoEmail.trim(),
+          cargo: novoCargo,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      })) as {
+        ok: boolean
+        email: string
+        senha_provisoria: string
+        cargo: string
+        expira_em: string
+      }
+      setResultadoCriar({
+        email: String(r.email),
+        senha: String(r.senha_provisoria),
+        cargo: String(r.cargo),
+        expira: String(r.expira_em).slice(0, 10),
+      })
+      setNovoNome('')
+      setNovoEmail('')
+      setNovoCargo('vendedor')
+      await carregar()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setErroCriar(msg.includes('já existe') ? 'Já existe alguém com este e-mail.' : msg)
+    }
+  }
+
   const lista = soAtivas ? equipe.filter((p) => p.ativa) : equipe
 
   if (carregando) return <EstadoCarregando />
@@ -288,7 +335,18 @@ export default function Acessos() {
             Só quem tem acesso
           </Button>
         )}
-        <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void carregar()}>
+        <Button
+          size="sm"
+          className="ml-auto"
+          onClick={() => {
+            setResultadoCriar(null)
+            setErroCriar('')
+            setCriando(true)
+          }}
+        >
+          + Nova pessoa
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => void carregar()}>
           Atualizar
         </Button>
       </div>
@@ -382,6 +440,94 @@ export default function Acessos() {
       )}
 
       {/* ---------- diálogo de edição (CA-3-31) ---------- */}
+      <Dialog open={criando} onOpenChange={(v) => !v && setCriando(false)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Cadastrar pessoa nova</DialogTitle>
+            <DialogDescription>
+              A pessoa nasce com senha provisória de 72 horas e é obrigada a trocar no primeiro
+              acesso. O cargo define o que ela vê no menu — e o escopo começa fechado: só o que for
+              dela.
+            </DialogDescription>
+          </DialogHeader>
+
+          {resultadoCriar ? (
+            <div className="space-y-3">
+              <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm">
+                <p className="font-medium">Pronto. Passe estes dados para a pessoa:</p>
+                <p className="mt-2">
+                  <span className="text-muted-foreground">E-mail: </span>
+                  <strong>{resultadoCriar.email}</strong>
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Senha provisória: </span>
+                  <strong>{resultadoCriar.senha}</strong>
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Cargo: </span>
+                  <strong>{resultadoCriar.cargo}</strong>
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Ela entra em app.adapta.one, troca a senha e passa a ver só o que é dela. A senha
+                  provisória expira em 72h ({resultadoCriar.expira}).
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setResultadoCriar(null)}>
+                  Cadastrar outra
+                </Button>
+                <Button onClick={() => setCriando(false)}>Fechar</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Nome</label>
+                <input
+                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                  value={novoNome}
+                  onChange={(ev) => setNovoNome(ev.target.value)}
+                  placeholder="Ex.: Fabio Teles"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">E-mail da empresa</label>
+                <input
+                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                  value={novoEmail}
+                  onChange={(ev) => setNovoEmail(ev.target.value)}
+                  placeholder="nome@haisan.com.br"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Cargo</label>
+                <select
+                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                  value={novoCargo}
+                  onChange={(ev) => setNovoCargo(ev.target.value)}
+                >
+                  <option value="vendedor">
+                    Vendedor — vê os leads e conversas da carteira dela
+                  </option>
+                  <option value="marketing">
+                    Marketing — painel, critérios, alertas, relatórios
+                  </option>
+                  <option value="financeiro">Financeiro — painel e relatórios</option>
+                  <option value="gestao">Gestão — tudo, inclusive acessos</option>
+                </select>
+              </div>
+              {erroCriar && <p className="text-sm text-destructive">{erroCriar}</p>}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCriando(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={() => void criarPessoa()}>Cadastrar</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={editando !== null} onOpenChange={(v) => !v && setEditando(null)}>
         <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
