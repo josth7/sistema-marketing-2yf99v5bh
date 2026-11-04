@@ -721,6 +721,21 @@ routerAdd(
     const colCv = $app.findCollectionByNameOrId('whatsapp_conversas')
     const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
 
+    // A JANELA DO PAINEL MANDA (correção 04/11): o diagnóstico dizia "AGIRIA"
+    // para conversas de dias atrás, e o cron — que aplica `janela_min` — não
+    // respondia nenhuma. Duas visões da mesma regra: a pessoa lia "11 vão ser
+    // atendidas" e nada acontecia. Agora usa a MESMA janela do cron.
+    var janelaMin = 30
+    try {
+      const colCfgD = $app.findCollectionByNameOrId('atendimento_config')
+      const vsD = $app.findRecordsByFilter(colCfgD, '', '', 500, 0)
+      var cfgD = null
+      for (const v of vsD) {
+        if (!cfgD || Number(v.get('versao') || 0) > Number(cfgD.get('versao') || 0)) cfgD = v
+      }
+      if (cfgD) janelaMin = Number(cfgD.get('janela_min') || 0)
+    } catch (eCfgD) {}
+
     var conversas = []
     try {
       conversas = $app.findRecordsByFilter(colCv, '', '', 60, 0)
@@ -781,6 +796,17 @@ routerAdd(
           .indexOf('auxílio') >= 0
       )
         motivo = 'spam (nao responde, por regra)'
+      else if (
+        janelaMin > 0 &&
+        (function () {
+          const q = new Date(String(ultima.get('created') || '')).getTime()
+          return q > 0 && new Date().getTime() - q > janelaMin * 60000
+        })()
+      )
+        motivo =
+          'fora da janela de ' +
+          janelaMin +
+          ' min (mensagem antiga: a equipe responde pelo celular)'
       else if (etapa === '' && canal === '') {
         motivo = 'AGIRIA: definir canal (anuncio/google/organico) e mandar o menu'
       } else if (canal === 'sem_gatilho') {
