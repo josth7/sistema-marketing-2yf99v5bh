@@ -9,11 +9,11 @@
  * Aqui eu simulo, campo por campo, as checagens do cron para a conversa de
  * teste e digo em qual delas ela para — em vez de adivinhar.
  *
- * GET /backend/v1/diag/por-que-nao
+ * GET /backend/v1/diag/porque_nao
  */
 routerAdd(
   'GET',
-  '/backend/v1/diag/por-que-nao',
+  '/backend/v1/diag/porque_nao',
   (e) => {
     if (!e.auth) return e.json(401, { ok: false })
 
