@@ -362,6 +362,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           const donoId = String(lead.get('owner_id'))
           var donoNome = ''
           var donoNumero = ''
+          var donoDigitos = ''
           try {
             const ud = $app.findRecordById(colU, donoId)
             donoNome = String(ud.get('name') || ud.get('email') || '')
@@ -371,12 +372,17 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             const pub = String(cxd.get('vendedor_nome_publico') || '')
             if (pub !== '') donoNome = pub
             const ndd = String(cxd.get('numero') || '').replace(/[^0-9]/g, '')
+            // CA-3-44 (05/11): guarda os DIGITOS da conexao do vendedor, que é
+            // o que o link wa.me precisa. `donoNumero` é a versão bonita para
+            // ler no texto.
+            if (ndd.length === 13 || ndd.length === 12) donoDigitos = ndd
             if (ndd.length === 13)
               donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 9) + '-' + ndd.slice(9)
             else if (ndd.length === 12)
               donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 8) + '-' + ndd.slice(8)
           }
-          if (donoNome !== '') cons = { id: donoId, nome: donoNome, numero: donoNumero }
+          if (donoNome !== '')
+            cons = { id: donoId, nome: donoNome, numero: donoNumero, digitos: donoDigitos }
         }
 
         // ---------- SPAM: nunca responde ----------
@@ -541,11 +547,29 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         for (const ln of LINHAS) ln.termos = lst('linha_' + ln.chave, ln.termos)
         // modelo editável no painel: {nome} e {numero} são trocados pelo
         // consultor desta conversa (dono do lead ou o próximo do rodízio)
+        // CA-3-44 (05/11) — LINK DIRETO DO VENDEDOR. Aprovado pelo dono em
+        // 05/11. O cliente toca e o WhatsApp dele abre a conversa com a
+        // vendedora JÁ com a primeira mensagem escrita. Texto livre dentro da
+        // janela de 24h que o próprio cliente abriu na central: sem custo.
+        //
+        // Sem número do vendedor não há link — a frase sem número continua
+        // valendo (`transferencia_consultor_sem_numero`).
+        const digitosVend = String(cons.digitos || String(cons.numero || '').replace(/[^0-9]/g, ''))
+        var linkVendedor = ''
+        if (digitosVend.length >= 12) {
+          linkVendedor =
+            'https://wa.me/' +
+            digitosVend +
+            '?text=' +
+            encodeURIComponent(
+              'Oi, ' + String(cons.nome || '').split(' ')[0] + '! Vim do atendimento da Haisan',
+            )
+        }
         const TXT_CONSULTOR = (
-          cons.numero
+          linkVendedor !== ''
             ? tx(
                 'transferencia_consultor',
-                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *{nome}* — nos próximos minutos você recebe uma mensagem dele pelo número *{numero}*. Pode salvar como *Haisan Vendas*! 😊',
+                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Quem vai te atender é a *{nome}*.\nFala direto com ela por aqui: {link}\nPode salvar como *Haisan Vendas*! 😊',
               )
             : tx(
                 'transferencia_consultor_sem_numero',
@@ -556,6 +580,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           .join(cons.nome || 'nosso time')
           .split('{numero}')
           .join(cons.numero || '')
+          .split('{link}')
+          .join(linkVendedor)
 
         if (contem(texto, SINAIS_HUMANO)) {
           novoEtapa = 'humano'
