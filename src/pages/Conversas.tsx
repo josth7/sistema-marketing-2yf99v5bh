@@ -65,6 +65,10 @@ type Conversa = {
   estado: string
   canal: string
   interna?: boolean
+  /** CA-3-70: última mensagem é do cliente — esperando gente */
+  nao_lida?: boolean
+  /** minutos de espera quando não lida (-1 quando não se aplica) */
+  espera_min?: number
 }
 
 type Mensagem = {
@@ -168,11 +172,22 @@ function duracao(s: number): string {
   return Math.floor(n / 60) + ':' + String(Math.floor(n % 60)).padStart(2, '0')
 }
 
+/** CA-3-70: minutos de espera em texto curto (cabe na linha da lista). */
+function tempoEspera(min: number): string {
+  if (min < 1) return 'agora'
+  if (min < 60) return min + ' min'
+  const h = Math.floor(min / 60)
+  if (h < 24) return h + 'h'
+  const d = Math.floor(h / 24)
+  return d + 'd'
+}
+
 export default function Conversas() {
   const [conversas, setConversas] = useState<Conversa[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [filtroNumero, setFiltroNumero] = useState('todos')
+  const [soNaoLidas, setSoNaoLidas] = useState(false)
   // CA-3-25: separa conversa com CLIENTE da conversa da EQUIPE (número interno).
   // A equipe usa o WhatsApp entre si; isso não é atendimento e não pode
   // aparecer na mesma fila do cliente (nem acionar o robô).
@@ -311,6 +326,8 @@ export default function Conversas() {
       aba === 'equipe' ? c.interna === true : c.interna !== true,
     )
     if (filtroNumero !== 'todos') lista = lista.filter((c) => c.conexao === filtroNumero)
+    // CA-3-70: filtro "Não respondidas"
+    if (soNaoLidas) lista = lista.filter((c) => c.nao_lida === true)
     const q = busca.trim().toLowerCase()
     if (q !== '') {
       lista = lista.filter(
@@ -321,7 +338,13 @@ export default function Conversas() {
       )
     }
     return lista
-  }, [conversas, filtroNumero, busca, aba])
+  }, [conversas, filtroNumero, busca, aba, soNaoLidas])
+
+  // quantas estão esperando (para o número do botão)
+  const contagemNaoLidas = useMemo(
+    () => conversas.filter((c) => c.nao_lida === true && c.interna !== true).length,
+    [conversas],
+  )
 
   const abrir = (c: Conversa) => {
     setAberta(c.id)
@@ -539,6 +562,19 @@ export default function Conversas() {
           <Badge variant="outline">{numeros[0]?.nome}</Badge>
         ) : (
           <div className="w-60">
+            {/* CA-3-70: mostrar só quem está esperando */}
+            <Button
+              size="sm"
+              variant={soNaoLidas ? 'default' : 'outline'}
+              onClick={() => setSoNaoLidas((v) => !v)}
+            >
+              {soNaoLidas ? 'Não respondidas' : 'Todas'}
+              {contagemNaoLidas > 0 && (
+                <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {contagemNaoLidas}
+                </span>
+              )}
+            </Button>
             <Select value={filtroNumero} onValueChange={setFiltroNumero}>
               <SelectTrigger>
                 <SelectValue />
@@ -585,7 +621,11 @@ export default function Conversas() {
                 onClick={() => abrir(c)}
                 className={
                   'flex w-full items-start gap-3 border-b px-3 py-3 text-left last:border-0 hover:bg-muted/50 ' +
-                  (aberta === c.id ? 'bg-emerald-50 dark:bg-emerald-950/20' : '')
+                  (aberta === c.id
+                    ? 'bg-emerald-50 dark:bg-emerald-950/20'
+                    : c.nao_lida
+                      ? 'bg-red-50/60 dark:bg-red-950/10'
+                      : '')
                 }
               >
                 <span
@@ -598,7 +638,9 @@ export default function Conversas() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold">
+                    <span
+                      className={'truncate text-sm ' + (c.nao_lida ? 'font-bold' : 'font-semibold')}
+                    >
                       {c.contato_nome || telefoneBonito(c.contato_telefone)}
                     </span>
                     <span className="shrink-0 text-[11px] text-muted-foreground">
@@ -609,6 +651,12 @@ export default function Conversas() {
                     <span className="truncate text-xs text-muted-foreground">
                       {c.ultima_previa || '(sem prévia)'}
                     </span>
+                    {/* CA-3-70: tempo de espera quando a última é do cliente */}
+                    {c.nao_lida && (c.espera_min ?? -1) >= 0 && (
+                      <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                        {tempoEspera(c.espera_min || 0)}
+                      </span>
+                    )}
                     {c.ultimo_autor && (
                       <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
                         {ROTULO_AUTOR[c.ultimo_autor] || c.ultimo_autor}

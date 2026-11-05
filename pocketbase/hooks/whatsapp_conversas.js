@@ -367,6 +367,19 @@ routerAdd(
         canal: c.get('canal'),
         // CA-3-25: conversa da EQUIPE (número interno) x conversa com CLIENTE
         interna: String(c.get('interna')) === 'true',
+        // CA-3-70 (05/11) — NÃO LIDA = a última mensagem é do CLIENTE.
+        // Decisão do dono: mesmo que o robô tenha falado no meio, se quem
+        // falou por último foi o cliente, ele está esperando GENTE — conta
+        // como não lida. Assim que a vendedora responde (pelo sistema ou pelo
+        // celular, que o webhook espelha), `ultimo_autor` vira `vendedor` ou
+        // `equipe_central` e a marcação some sozinha.
+        nao_lida: String(c.get('ultimo_autor') || '') === 'cliente',
+        espera_min: (function () {
+          if (String(c.get('ultimo_autor') || '') !== 'cliente') return -1
+          const q = new Date(String(c.get('ultima_mensagem_em') || '')).getTime()
+          if (!(q > 0)) return -1
+          return Math.round((new Date().getTime() - q) / 60000)
+        })(),
       })
     }
     // CA-3-70 (05/11) — MAIS RECENTE SEMPRE NO TOPO, em todas as visões.
