@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import pb from '@/lib/pocketbase/client'
+import { linkChamarWhatsapp } from '@/lib/marketing/crm'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   CabecalhoPagina,
@@ -659,6 +660,19 @@ export default function Conversas() {
                     {telefoneBonito(convAberta.contato_telefone)} · {convAberta.numero_nome}
                   </p>
                 </div>
+                {/* CA-3-45 (05/11): a vendedora puxa o cliente para o
+                    WhatsApp dela, com a mensagem pronta. Sem custo: sai pelo
+                    aplicativo, não pela API. */}
+                {linkChamarWhatsapp(convAberta.contato_telefone) && (
+                  <a
+                    href={linkChamarWhatsapp(convAberta.contato_telefone) as string}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                  >
+                    Chamar no WhatsApp
+                  </a>
+                )}
                 {convAberta.estado === 'pausada_humano' && (
                   <Badge variant="outline" className="text-[10px]">
                     IA pausada

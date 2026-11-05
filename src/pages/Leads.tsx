@@ -47,6 +47,7 @@ import {
   resumoConversoes,
   dashboardCrm,
   linkWhatsapp,
+  linkChamarWhatsapp,
   importarLeadsCsv,
   conversaDoLead,
   rotuloAutor,
@@ -1140,6 +1141,19 @@ export default function Leads() {
                     className="rounded-md border bg-white px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
                   >
                     Abrir no WhatsApp ↗
+                  </a>
+                )}
+                {/* CA-3-45 (05/11): abre o WhatsApp DA VENDEDORA na conversa com
+                    o cliente, já com a mensagem escrita. Sem custo: sai pelo
+                    aplicativo, não pela API. */}
+                {linkChamarWhatsapp(detalhe.telefone) && (
+                  <a
+                    href={linkChamarWhatsapp(detalhe.telefone) as string}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                  >
+                    Chamar no WhatsApp
                   </a>
                 )}
                 {detalhe.status !== 'fechado' && (

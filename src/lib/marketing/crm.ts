@@ -227,6 +227,29 @@ export function linkWhatsapp(telefone: string): string | null {
   return 'https://wa.me/' + comPais
 }
 
+/**
+ * Link "Chamar no WhatsApp" (CA-3-45, 05/11).
+ *
+ * Diferente de `linkWhatsapp`, este leva a MENSAGEM PRONTA: a vendedora toca,
+ * o aplicativo dela abre a conversa com o cliente já com o primeiro "oi"
+ * escrito. Ela só confere e envia.
+ *
+ * Sem custo: a mensagem sai do aplicativo dela (WhatsApp Business do número
+ * dela), não pela API — mensagem pelo aplicativo não é cobrada.
+ *
+ * `texto` opcional: quando vazio, usa o padrão de retomada da Haisan.
+ */
+export function linkChamarWhatsapp(telefone: string, texto?: string): string | null {
+  const digitos = telefone.replace(/\D/g, '')
+  if (digitos.length < 10) return null
+  const comPais = digitos.startsWith('55') ? digitos : '55' + digitos
+  const corpo =
+    (texto || '').trim() !== ''
+      ? (texto as string).trim()
+      : 'Oi! Aqui é da Haisan. Vi que você falou com a gente — como posso te ajudar?'
+  return 'https://wa.me/' + comPais + '?text=' + encodeURIComponent(corpo)
+}
+
 /** Importa leads colados em CSV (uma linha por lead; cabeçalho opcional). */
 export async function importarLeadsCsv(csv: string): Promise<ResultadoImportacao> {
   const linhas = csv
