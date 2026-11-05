@@ -18,10 +18,7 @@
 
 routerAdd(
   'GET',
-  // ROTA DESATIVADA 05/11: `sessao.js` já registra /wa/sessao e vence a carga.
-  // Ter duas rotas iguais fez o menu divergir do catálogo editado (o item
-  // 'Precisa de ação' existia nos dois arquivos e não aparecia na resposta).
-  '/backend/v1/wa/sessao-desativada-05-11',
+  '/backend/v1/wa/sessao',
   (e) => {
     if (!e.auth)
       return e.json(401, { ok: false, autenticado: false, erro: 'entre com seu e-mail e senha' })
