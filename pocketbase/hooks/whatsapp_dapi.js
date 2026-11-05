@@ -339,6 +339,29 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
   if (telefone.length === 10 || telefone.length === 11) telefone = '55' + telefone
   if (telefone.length < 12 || telefone.length > 15) telefone = ''
 
+  // ---------- CA-3-74 (05/11): MESMO CLIENTE, SEM DUPLICAR ----------
+  // O WhatsApp às vezes manda o celular SEM o 9 depois do DDD, e às vezes manda
+  // só um `@lid` (sem número). Sem tratar, o mesmo cliente virava dois leads e
+  // duas linhas (caso apontado pela Sabrina).
+  //
+  // Aqui se calculam todas as formas do MESMO telefone, e a busca usa todas.
+  //   - variantes: com 9 e sem 9, para 12 e 13 dígitos
+  //   - lid: quando o jid é @lid, o número vem vazio — então procura-se a
+  //     conversa pelo `contato_lid` gravado antes.
+  var telefonesBusca = []
+  if (telefone !== '') {
+    telefonesBusca.push(telefone)
+    const ddd = telefone.slice(2, 4)
+    const resto = telefone.slice(4)
+    if (telefone.length === 13 && resto.charAt(0) === '9') {
+      // com 9 -> também procura sem o 9
+      telefonesBusca.push('55' + ddd + resto.slice(1))
+    } else if (telefone.length === 12) {
+      // sem 9 -> também procura com o 9
+      telefonesBusca.push('55' + ddd + '9' + resto)
+    }
+  }
+
   // mensagem entre números da empresa (RN-58)
   if (telefone !== '') {
     try {
@@ -465,6 +488,36 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
   // ---------- 8. busca do lead (RN-59) ----------
   const colLeads = $app.findCollectionByNameOrId('crm_leads')
   var lead = null
+
+  // CA-3-74: quando o WhatsApp manda só `@lid` (sem número), o telefone fica
+  // vazio e a busca normal não acha nada — o cliente ganhava um lead NOVO.
+  // Aqui se acha o lead pela conversa que já tem esse `contato_lid`.
+  if (telefone === '' && lid !== '') {
+    try {
+      const cvLid = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('whatsapp_conversas'),
+        "contato_lid='" + lid.slice(0, 80) + "'",
+        '',
+        1,
+        0,
+      )
+      if (cvLid && cvLid.length > 0) {
+        const leadIdLid = String(cvLid[0].get('lead') || '')
+        if (leadIdLid !== '') {
+          try {
+            lead = $app.findRecordById(colLeads, leadIdLid)
+          } catch (eLid) {}
+        }
+        // herda o telefone da conversa existente (o cliente já era conhecido)
+        const telDaConversa = String(cvLid[0].get('contato_telefone') || '')
+        if (telDaConversa !== '') {
+          telefone = telDaConversa
+          telefonesBusca = [telDaConversa]
+        }
+      }
+    } catch (eLidBusca) {}
+  }
+
   if (telefone !== '') {
     try {
       const r = $app.findRecordsByFilter(
@@ -780,15 +833,28 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     const colSin = $app.findCollectionByNameOrId('whatsapp_sinais')
     var conversa = null
     if (telefone !== '') {
+      // CA-3-74: procura por TODAS as formas do telefone e pelo @lid
       try {
-        const achadas = $app.findRecordsByFilter(
-          colConv,
-          "conexao='" + conexao.id + "' && contato_telefone='" + telefone + "'",
-          '',
-          1,
-          0,
-        )
-        if (achadas && achadas.length > 0) conversa = achadas[0]
+        for (var iv = 0; iv < telefonesBusca.length && !conversa; iv++) {
+          const achadas = $app.findRecordsByFilter(
+            colConv,
+            "conexao='" + conexao.id + "' && contato_telefone='" + telefonesBusca[iv] + "'",
+            '',
+            1,
+            0,
+          )
+          if (achadas && achadas.length > 0) conversa = achadas[0]
+        }
+        if (!conversa && lid !== '') {
+          const porLid = $app.findRecordsByFilter(
+            colConv,
+            "conexao='" + conexao.id + "' && contato_lid='" + lid.slice(0, 80) + "'",
+            '',
+            1,
+            0,
+          )
+          if (porLid && porLid.length > 0) conversa = porLid[0]
+        }
       } catch (eCv) {}
       if (!conversa) {
         try {
