@@ -92,8 +92,11 @@ routerAdd(
 
 // ==================== cron do aviso ====================
 cronAdd('wa_aviso_email', '*/5 * * * *', () => {
-  // desligado por padrao: so liga quando alguem confirmar os destinatarios
-  const ATIVO = true
+  // DESLIGADO em 05/11/2026 a pedido da gestão (Rodrigo, call com a Haisan):
+  // os e-mails com a lista de clientes enchiam a caixa dos vendedores e da
+  // Anézia. O lead novo continua visível no CRM e em Conversas. NÃO religar
+  // sem pedido explícito do consultor/gestão (ver changelog de 05/11).
+  const ATIVO = false
 
   if (!ATIVO) return
   // heartbeat: sem isso eu nao sabia se o cron rodava ou nao (03/11)
