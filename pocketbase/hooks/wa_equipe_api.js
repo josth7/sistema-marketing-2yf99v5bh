@@ -113,6 +113,7 @@ routerAdd(
         aceita: ['manage_leads', 'read_leads'],
       },
       { para: '/recontato', rotulo: 'Recontato', aceita: ['read_leads'] },
+      { para: '/precisa-acao', rotulo: 'Precisa de ação', aceita: ['manage_access', 'read_leads'] },
       { para: '/numeros', rotulo: 'Números', aceita: ['manage_whatsapp'] },
       { para: '/atendimento', rotulo: 'Atendimento', aceita: ['manage_atendimento'] },
       { para: '/concorrentes', rotulo: 'Concorrentes', aceita: ['read_analyses'] },
