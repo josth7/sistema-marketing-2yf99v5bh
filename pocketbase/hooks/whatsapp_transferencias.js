@@ -78,8 +78,14 @@ onRecordAfterCreateSuccess((e) => {
         if (st === 'fechado' || st === 'perdido') continue
         carga[ow] = (carga[ow] || 0) + 1
       }
+      // BUG CORRIGIDO 05/11: o rodízio só excluía o `josth`. Como a gestão tem
+      // carga 0 (não recebe lead), ela era sempre a "menor carga" e o lead real
+      // caía na Anezia — que não tem conexão de WhatsApp e o pedido morria em
+      // `vendedor_sem_conexao`. Agora só entra quem é VENDEDOR de verdade:
+      // tem grant de ler leads/conversas e NÃO tem escopo '*' (gestão).
       const colU = $app.findCollectionByNameOrId('users')
-      const usuarios = $app.findRecordsByFilter(colU, '', '', 100, 0)
+      const colGr = $app.findCollectionByNameOrId('access_grants')
+      const usuarios = $app.findRecordsByFilter(colU, '', '', 200, 0)
       var melhor = ''
       var melhorCarga = -1
       for (const u of usuarios) {
@@ -90,6 +96,49 @@ onRecordAfterCreateSuccess((e) => {
         // transferência real NUNCA manda lead para usuário de QA
         if (ehFixture !== ehUserFixture) continue
         if (email.indexOf('josth') >= 0) continue // dono não recebe rodízio
+
+        var ehVendedor = false
+        var ehGestao = false
+        try {
+          const gs = $app.findRecordsByFilter(
+            colGr,
+            "user_id='" + u.id + "' && revoked_at=''",
+            '',
+            20,
+            0,
+          )
+          for (const g of gs) {
+            var atos = []
+            var escopo = []
+            try {
+              const rawA = g.get('actions')
+              atos =
+                Array.isArray(rawA) && rawA.length > 0 && typeof rawA[0] === 'number'
+                  ? JSON.parse(String.fromCharCode.apply(null, rawA))
+                  : typeof rawA === 'string'
+                    ? JSON.parse(rawA)
+                    : rawA || []
+            } catch (eA) {}
+            try {
+              const rawE = g.get('scope_accounts')
+              escopo =
+                Array.isArray(rawE) && rawE.length > 0 && typeof rawE[0] === 'number'
+                  ? JSON.parse(String.fromCharCode.apply(null, rawE))
+                  : typeof rawE === 'string'
+                    ? JSON.parse(rawE)
+                    : rawE || []
+            } catch (eE) {}
+            if (Array.isArray(escopo) && escopo.indexOf('*') >= 0) ehGestao = true
+            if (
+              Array.isArray(atos) &&
+              (atos.indexOf('read_leads') >= 0 || atos.indexOf('read_conversas') >= 0)
+            )
+              ehVendedor = true
+          }
+        } catch (eG) {}
+        // gestão fica fora do rodízio: não tem número de vendedor para atender
+        if (!ehVendedor || ehGestao) continue
+
         const c = carga[u.id] || 0
         if (melhor === '' || c < melhorCarga) {
           melhor = u.id
