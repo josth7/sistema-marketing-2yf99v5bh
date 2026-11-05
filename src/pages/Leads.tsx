@@ -171,6 +171,9 @@ export default function Leads() {
   const [transferindo, setTransferindo] = useState(false)
   const [eventos, setEventos] = useState<LeadEvento[]>([])
   const [novoStatus, setNovoStatus] = useState('')
+  // CA-3-72 (05/11): descartar EXIGE motivo. Antes o erro voltava 422 e não
+  // aparecia — o vendedor clicava e nada acontecia, sem saber por quê.
+  const [motivoPerda, setMotivoPerda] = useState('')
   const [salvando, setSalvando] = useState(false)
   // conversão (venda)
   const [convAberto, setConvAberto] = useState(false)
@@ -260,13 +263,36 @@ export default function Leads() {
     // decidir a ordem do dia — sem ele, 40 conversas parecem todas iguais.
     if (soQuentes) out = out.filter((l) => (l.ia_nota ?? -1) >= 60)
     if (busca.trim() !== '') {
-      const q = busca.trim().toLowerCase()
-      out = out.filter(
-        (l) =>
-          l.nome.toLowerCase().includes(q) ||
-          l.telefone.toLowerCase().includes(q) ||
-          l.email.toLowerCase().includes(q),
-      )
+      // CA-3-72 (05/11): a busca acha o telefone em QUALQUER formato e o nome
+      // sem acento. Antes só casava texto literal: "+55 41 99800-0099" não
+      // achava nada e "jose" não achava "José".
+      const semAcento = (t: string) =>
+        t
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+      const soDigitos = (t: string) => (t || '').replace(/\D/g, '')
+      const q = semAcento(busca.trim())
+      const qDig = soDigitos(busca)
+      // variantes do número: com 9 e sem 9 (celular brasileiro)
+      const variantes = (d: string): string[] => {
+        if (d === '') return []
+        const v = [d]
+        const ddd = d.slice(2, 4)
+        const resto = d.slice(4)
+        if (d.length === 13 && resto.charAt(0) === '9') v.push('55' + ddd + resto.slice(1))
+        else if (d.length === 12) v.push('55' + ddd + '9' + resto)
+        return v
+      }
+      const qVars = variantes(qDig)
+      out = out.filter((l) => {
+        if (semAcento(l.nome || '').includes(q)) return true
+        if (semAcento(l.email || '').includes(q)) return true
+        const tel = soDigitos(l.telefone)
+        if (tel.includes(qDig) && qDig !== '') return true
+        for (const v of qVars) if (tel.includes(v)) return true
+        return false
+      })
     }
     // maior nota primeiro: quem tem mais chance aparece no topo.
     // Lead sem nota (null) vai para o fim — não foi analisado ainda.
@@ -429,9 +455,16 @@ export default function Leads() {
 
   const salvarStatus = async () => {
     if (!detalhe) return
+    // trava do CA-3-72: descartar sem motivo não passa
+    if (novoStatus === 'descartado' && motivoPerda.trim() === '') {
+      setMsg('Informe o motivo do descarte para salvar.')
+      return
+    }
     setSalvando(true)
     try {
-      await editarLead(detalhe.id, { status: novoStatus })
+      const patch: Record<string, string> = { status: novoStatus }
+      if (novoStatus === 'descartado') patch.motivo_perda = motivoPerda.trim()
+      await editarLead(detalhe.id, patch)
       setMsg('Status atualizado.')
       await carregar()
       const atualizado = { ...detalhe, status: novoStatus as Lead['status'] }
@@ -1130,6 +1163,21 @@ export default function Leads() {
                   {salvando ? 'Salvando…' : 'Salvar status'}
                 </Button>
               </div>
+              {/* CA-3-72: motivo obrigatório ao descartar */}
+              {novoStatus === 'descartado' && (
+                <div className="space-y-1">
+                  <Label>Motivo do descarte</Label>
+                  <Input
+                    value={motivoPerda}
+                    onChange={(e) => setMotivoPerda(e.target.value)}
+                    placeholder="Ex.: sem perfil, número errado, pediu para não receber"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    O motivo fica gravado na trilha do lead.
+                  </p>
+                </div>
+              )}
+              {msg && <p className="text-sm text-amber-700">{msg}</p>}
               {/* WhatsApp como canal de venda (fase 4, card 2) */}
               <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
                 <span className="text-sm text-muted-foreground">Venda:</span>

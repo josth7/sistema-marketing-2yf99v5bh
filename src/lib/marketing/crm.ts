@@ -127,7 +127,7 @@ export async function criarLead(dados: {
 
 export async function editarLead(
   id: string,
-  dados: { status?: string; observacoes?: string },
+  dados: { status?: string; observacoes?: string; motivo_perda?: string; valor?: number },
 ): Promise<{ id: string; mudancas: number; sem_mudanca?: boolean }> {
   try {
     const r = await pb.send(`/backend/v1/crm/leads/${id}`, { method: 'PATCH', body: dados })
