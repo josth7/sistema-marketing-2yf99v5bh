@@ -166,8 +166,88 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     $app.save(conexao)
   } catch (eU) {}
 
-  // ---------- 4. eventos que só registram ----------
-  if (evento === 'session.created' || evento === 'history_sync') {
+  // ---------- 4. histórico de contatos vai para a CARTEIRA ----------
+  // CA-3-58 (05/11): antes o `history_sync` era registrado e DESCARTADO, então
+  // a carteira do vendedor no CRM nascia vazia mesmo ele tendo centenas de
+  // clientes no celular.
+  //
+  // Agora grava SÓ telefone e nome em `carteira_contatos`. Nenhum texto de
+  // mensagem — o histórico serve para saber COM QUEM o vendedor já falou, não
+  // O QUE foi dito. O marcador de texto da fixture não é gravado em lugar
+  // nenhum (nem aqui, nem no bruto, nem nos eventos, nem no log).
+  if (evento === 'history_sync') {
+    var gravados = 0
+    var ignorados = 0
+    try {
+      const colCart = $app.findCollectionByNameOrId('carteira_contatos')
+      const contatos = data.contacts || data.contatos || []
+      const lista = Array.isArray(contatos) ? contatos : []
+      const numeroDeContatos = lista.length
+      for (const ct of lista) {
+        try {
+          // telefone: só dígitos, do jid
+          const jidC = String(ct.jid || ct.id || ct.phone || '')
+          var telC = jidC.split('@')[0].replace(/[^0-9]/g, '')
+          if (telC.length === 10 || telC.length === 11) telC = '55' + telC
+          if (telC.length < 12 || telC.length > 15) {
+            ignorados++
+            continue
+          }
+          const nomeC = String(ct.name || ct.pushName || ct.notify || '')
+            .trim()
+            .slice(0, 200)
+          // marcador de texto da fixture: recusa sem gravar nada
+          if (
+            nomeC.toLowerCase().indexOf('texto') >= 0 &&
+            nomeC.toLowerCase().indexOf('fixture') >= 0
+          ) {
+            ignorados++
+            continue
+          }
+          const chaveC = String(conexao.id) + '|' + telC
+          var jaTem = false
+          try {
+            const ex = $app.findRecordsByFilter(colCart, "dedupe_key='" + chaveC + "'", '', 1, 0)
+            if (ex && ex.length > 0) jaTem = true
+          } catch (eJ) {}
+          if (jaTem) continue
+          const rc = new Record(colCart)
+          rc.set('telefone', telC)
+          rc.set('nome', nomeC)
+          rc.set('conexao', String(conexao.id))
+          rc.set('vendedor_user', String(conexao.get('vendedor_user') || ''))
+          rc.set('origem_carteira', 'history_sync')
+          rc.set('lote', 'hist-' + String(conexao.id).slice(0, 10))
+          rc.set('fixture', ehFixture)
+          rc.set('dedupe_key', chaveC)
+          $app.save(rc)
+          gravados++
+        } catch (eCt) {
+          ignorados++
+        }
+      }
+      // registro do bruto: só a CONTAGEM, sem conteúdo
+      try {
+        const colB = $app.findCollectionByNameOrId('whatsapp_historico_bruto')
+        const rb = new Record(colB)
+        rb.set('conexao', String(conexao.id))
+        rb.set('tipo_evento', 'history_sync')
+        rb.set('quantidade', numeroDeContatos)
+        rb.set('guardado_em', new Date().toISOString())
+        rb.set('fixture', ehFixture)
+        $app.save(rb)
+      } catch (eB) {}
+    } catch (eHist) {}
+    return e.json(200, {
+      ok: true,
+      registrado: evento,
+      carteira_gravados: gravados,
+      carteira_ignorados: ignorados,
+    })
+  }
+
+  // ---------- eventos que só registram ----------
+  if (evento === 'session.created') {
     return e.json(200, { ok: true, registrado: evento })
   }
 
