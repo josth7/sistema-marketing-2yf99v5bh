@@ -22,7 +22,10 @@ routerAdd(
 
     const app = $app
     const COM9 = '5541998000099'
-    const SEM9 = '554199800099'
+    // "sem o 9" NÃO é remover um zero qualquer: é 55 + DDD + os 8 dígitos.
+    // O valor antigo (554199800099) tinha dígitos diferentes e por isso não
+    // era o mesmo telefone — o erro era do TESTE, não do sistema.
+    const SEM9 = '554198000099'
     const out = { passos: [], ok: false, formatos: [] }
     const colL = app.findCollectionByNameOrId('crm_leads')
 
