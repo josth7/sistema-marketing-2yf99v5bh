@@ -341,10 +341,15 @@ export default function Conversas() {
   }, [conversas, filtroNumero, busca, aba, soNaoLidas])
 
   // quantas estão esperando (para o número do botão)
-  const contagemNaoLidas = useMemo(
-    () => conversas.filter((c) => c.nao_lida === true && c.interna !== true).length,
-    [conversas],
-  )
+  //
+  // CA-3-77 (05/11): a contagem respeita o filtro de número. Antes ela contava
+  // TODAS as conversas, então a vendedora que vê só o próprio número via um
+  // número na etiqueta e, ao filtrar, encontrava menos — a etiqueta mentia.
+  const contagemNaoLidas = useMemo(() => {
+    let base = conversas.filter((c) => c.nao_lida === true && c.interna !== true)
+    if (filtroNumero !== 'todos') base = base.filter((c) => c.conexao === filtroNumero)
+    return base.length
+  }, [conversas, filtroNumero])
 
   const abrir = (c: Conversa) => {
     setAberta(c.id)

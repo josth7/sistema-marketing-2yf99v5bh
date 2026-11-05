@@ -352,6 +352,27 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     // da equipe sumir — e o dono pediu justamente o contrário: separar.
     // Agora: não vira lead, não aciona o robô, e a conversa é gravada com
     // `interna=true` para aparecer na aba "Equipe" da tela Conversas.
+    // ---------- CA-3-73 (05/11): quem NÃO é cliente ----------
+    // Transportadora, fornecedor, outra empresa. Se o telefone já foi marcado
+    // como "não é cliente" (em qualquer conexão), a mensagem NÃO cria lead,
+    // NÃO entra no rodízio e o robô NÃO responde. Só grava o histórico.
+    var ehNaoCliente = false
+    var motivoNaoCliente = ''
+    try {
+      const colCvNC = $app.findCollectionByNameOrId('whatsapp_conversas')
+      const jaNC = $app.findRecordsByFilter(
+        colCvNC,
+        "contato_telefone='" + telefone + "' && nao_cliente=true",
+        '',
+        1,
+        0,
+      )
+      if (jaNC && jaNC.length > 0) {
+        ehNaoCliente = true
+        motivoNaoCliente = String(jaNC[0].get('nao_cliente_motivo') || '')
+      }
+    } catch (eNC) {}
+
     var ehNumeroInterno = false
     var rotuloInterno = ''
     try {
@@ -488,7 +509,10 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
   const vendedorDaConexao = String(conexao.get('vendedor_user') || '')
 
   // ---------- 9. lead não encontrado: cria (RN-61) ----------
-  if (!lead && telefone !== '' && !fromMe) {
+  // CA-3-73 (05/11): telefone marcado como "não é cliente" não cria lead.
+  // Sem isso, a transportadora que manda mensagem virava lead e entrava no
+  // rodízio — o vendedor recebia um "lead" que era o aviso de entrega.
+  if (!lead && telefone !== '' && !fromMe && !ehNaoCliente) {
     const nomeContato = String(lado.name || '').trim()
     const nomeLead =
       nomeContato !== ''

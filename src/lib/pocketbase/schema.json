@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T19:07:48.856Z",
+  "generatedAt": "2026-11-05T19:27:55.427Z",
   "collections": [
     {
       "name": "users",
@@ -3865,6 +3865,18 @@
         {
           "name": "interna",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nao_cliente",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nao_cliente_motivo",
+          "type": "text",
           "required": false,
           "system": false
         }
