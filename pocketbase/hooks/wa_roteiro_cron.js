@@ -569,7 +569,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           linkVendedor !== ''
             ? tx(
                 'transferencia_consultor',
-                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Quem vai te atender é a *{nome}*.\nFala direto com ela por aqui: {link}\nPode salvar como *Haisan Vendas*! 😊',
+                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Quem vai te atender: *{nome}*.\nFala direto por aqui: {link}\nPode salvar como *Haisan Vendas*! 😊',
               )
             : tx(
                 'transferencia_consultor_sem_numero',
