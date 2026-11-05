@@ -867,7 +867,13 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         // Agora: se o lead já tem dono, o robô apenas anuncia esse dono (feito
         // acima, em `cons`); se não tem, ele PEDE a atribuição ao ponto único e
         // lê o dono gravado, em vez de gravar por conta própria.
-        if (transfere && cons.id !== '' && String(cv.get('lead') || '') !== '') {
+        // BUG CORRIGIDO 05/11 (caso Fabíola): o guard exigia `cons.id !== ''`,
+        // mas `cons.id` vem do DONO do lead — e quando o lead NÃO tem dono o
+        // campo é vazio. Resultado: a conversa virava `transferida`, o robô
+        // anunciava um consultor, e o pedido ao ponto único nunca era criado.
+        // O lead ficava sem dono e ninguém cobrava. Agora o pedido sai sempre
+        // que a conversa transfere e o lead existe, com ou sem dono.
+        if (transfere && String(cv.get('lead') || '') !== '') {
           try {
             const ld2 = $app.findRecordById(colL, String(cv.get('lead')))
             if (String(ld2.get('owner_id') || '') === '') {
