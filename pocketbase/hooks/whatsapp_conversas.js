@@ -396,10 +396,16 @@ routerAdd(
     //
     // A visão de um número só não passa por aqui: lá cada conversa continua
     // sendo uma linha, porque a tela inteira é daquele número.
-    // Só agrupa na visão "Todos os números" (RN-140c). Na visão de um número
-    // a tela inteira é daquele número: juntar esconderia conversa dele.
-    const filtroConexao = String(e.request.url.query().get('conexao') || 'todos')
-    const agrupar = filtroConexao === '' || filtroConexao === 'todos'
+    // Agrupa SEMPRE — em "Todos os números" e na visão de um número só.
+    //
+    // Motivo (05/11): encontrei 45 clientes com DOIS registros de conversa na
+    // MESMA conexão (ex.: 554196778927 na central, um com 42 mensagens e outro
+    // com 11). Isso é dado duplicado, não duas conversas: a tela mostraria o
+    // mesmo cliente duas vezes na visão daquele número. Agrupar por telefone
+    // resolve nos dois casos, e a SPEC (RN-140c) só exige que a visão por
+    // número continue sendo por número — o que continua, porque todas as
+    // conversas ali são daquele número.
+    const agrupar = true
     var juntados = []
     var porTelefone = {}
     if (!agrupar) {
