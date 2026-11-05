@@ -98,10 +98,14 @@ routerAdd(
     try {
       conv.set('nao_cliente', marcar)
       conv.set('nao_cliente_motivo', marcar ? motivo : '')
-      // ao marcar, a conversa sai da triagem para não ser atendida pelo robô
+      // Ao marcar, a conversa SAI da triagem para o robô não atendê-la.
+      // O select `estado` só aceita: triagem, transferida, pausada_humano,
+      // sem_ia. Usar um valor fora da lista faz o save ser RECUSADO em
+      // silêncio (lição de 04/11) — por isso `sem_ia`, e a classificação real
+      // fica no campo booleano `nao_cliente`.
       if (marcar) {
-        conv.set('estado', 'nao_cliente')
-      } else if (String(conv.get('estado') || '') === 'nao_cliente') {
+        conv.set('estado', 'sem_ia')
+      } else if (String(conv.get('estado') || '') === 'sem_ia') {
         conv.set('estado', 'pausada_humano')
       }
       app.save(conv)

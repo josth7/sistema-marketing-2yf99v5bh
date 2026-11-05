@@ -182,10 +182,11 @@ routerAdd(
       cvRelido = app.findRecordById(colCv, conv.id)
     } catch (e9) {}
     const est = cvRelido ? String(cvRelido.get('estado') || '') : ''
+    const ncRelido = cvRelido ? cvRelido.get('nao_cliente') === true : false
     out.passos.push({
       passo: '5. fora do rodízio (estado ≠ triagem)',
-      ok: est === 'nao_cliente',
-      detalhe: 'estado=' + est,
+      ok: est !== 'triagem' && ncRelido,
+      detalhe: 'estado=' + est + ' nao_cliente=' + ncRelido,
     })
 
     // ---------- 6. "É cliente" desfaz ----------
