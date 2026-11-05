@@ -312,7 +312,7 @@ routerAdd(
       return kx < ky ? 1 : -1
     })
 
-    const itens = []
+    var itens = []
     for (const c of todas) {
       // pode ver?
       let pode = temTudoLeads
@@ -388,6 +388,68 @@ routerAdd(
     // O comparador antigo afundava conversa SEM `ultima_mensagem_em` (string
     // vazia) para o fim, mesmo sendo nova — agora cai no `created` e, se nem
     // isso houver, vai para o fim de propósito.
+    // CA-3-67 / RN-140c (05/11) — UM CLIENTE, UMA LINHA.
+    // O mesmo cliente aparece duas vezes quando falou com a central e com o
+    // número da vendedora (print "duplicado" da Sabrina). Aqui as conversas
+    // dele são juntadas numa linha só, guardando DE ONDE veio cada mensagem
+    // em `numeros` — a tela mostra o número em cada mensagem.
+    //
+    // A visão de um número só não passa por aqui: lá cada conversa continua
+    // sendo uma linha, porque a tela inteira é daquele número.
+    // Só agrupa na visão "Todos os números" (RN-140c). Na visão de um número
+    // a tela inteira é daquele número: juntar esconderia conversa dele.
+    const filtroConexao = String(e.request.url.query().get('conexao') || 'todos')
+    const agrupar = filtroConexao === '' || filtroConexao === 'todos'
+    var juntados = []
+    var porTelefone = {}
+    if (!agrupar) {
+      juntados = itens
+      for (const it of juntados) it.numeros = it.numero_nome ? [it.numero_nome] : []
+    }
+    for (const it of agrupar ? itens : []) {
+      const tel = String(it.contato_telefone || '').replace(/\D/g, '')
+      if (tel === '') {
+        juntados.push(it)
+        continue
+      }
+      const ja = porTelefone[tel]
+      if (!ja) {
+        // a primeira vira a linha do cliente; guarda os números por onde passou
+        it.numeros = it.numero_nome ? [it.numero_nome] : []
+        it.conversas = [it.id]
+        porTelefone[tel] = it
+        juntados.push(it)
+        continue
+      }
+      // soma na linha existente
+      if (it.numero_nome && ja.numeros.indexOf(it.numero_nome) < 0) {
+        ja.numeros.push(it.numero_nome)
+      }
+      ja.conversas.push(it.id)
+      ja.total_mensagens = Number(ja.total_mensagens || 0) + Number(it.total_mensagens || 0)
+      // a linha mostra a mensagem MAIS RECENTE entre as conversas do cliente
+      if (String(it.ultima_mensagem_em || '') > String(ja.ultima_mensagem_em || '')) {
+        ja.id = it.id
+        ja.conexao = it.conexao
+        ja.numero_nome = it.numero_nome
+        ja.ultima_previa = it.ultima_previa
+        ja.ultima_mensagem_em = it.ultima_mensagem_em
+        ja.ultimo_autor = it.ultimo_autor
+        ja.estado = it.estado
+        ja.nao_lida = it.nao_lida
+        ja.espera_min = it.espera_min
+        if (!ja.lead) ja.lead = it.lead
+      }
+      // se QUALQUER conversa do cliente está esperando, a linha está
+      if (it.nao_lida === true) {
+        ja.nao_lida = true
+        const e1 = Number(ja.espera_min)
+        const e2 = Number(it.espera_min)
+        if (!(e1 >= 0) || (e2 >= 0 && e2 > e1)) ja.espera_min = it.espera_min
+      }
+    }
+    if (agrupar) itens = juntados
+
     itens.sort(function (x, y) {
       const ka = String(x.ultima_mensagem_em || '')
       const kb = String(y.ultima_mensagem_em || '')
