@@ -244,6 +244,45 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       try {
         $app.save(env)
       } catch (e8) {}
+
+      // CA-3-70 (05/11) — AO ENVIAR, A CONVERSA PASSA A "RESPONDIDA".
+      // Antes disto só o webhook atualizava `ultimo_autor`, e quando o evento
+      // de volta não chegava a conversa continuava marcada como "não lida"
+      // mesmo depois de a vendedora responder. O bug apareceu na prova: a
+      // resposta saiu pelo sistema e a marcação não sumiu.
+      try {
+        const convId = String(env.get('conversa') || '')
+        var cvUp = null
+        if (convId !== '') {
+          try {
+            cvUp = $app.findRecordById('whatsapp_conversas', convId)
+          } catch (eCvId) {}
+        }
+        // a fila não guarda a conversa: acha por conexão + telefone
+        if (!cvUp) {
+          try {
+            const achadas = $app.findRecordsByFilter(
+              'whatsapp_conversas',
+              "conexao='" +
+                String(env.get('conexao') || '') +
+                "' && contato_telefone='" +
+                String(env.get('destino_telefone') || '') +
+                "'",
+              '',
+              1,
+              0,
+            )
+            if (achadas && achadas.length > 0) cvUp = achadas[0]
+          } catch (eCvBusca) {}
+        }
+        if (cvUp) {
+          const motivoUp = String(env.get('motivo') || '')
+          cvUp.set('ultimo_autor', motivoUp.indexOf('ia_') === 0 ? 'equipe_central' : 'vendedor')
+          cvUp.set('ultima_previa', String(env.get('texto') || '').slice(0, 160))
+          cvUp.set('ultima_mensagem_em', new Date().toISOString())
+          $app.save(cvUp)
+        }
+      } catch (eCvUp) {}
       continue
     }
 
