@@ -123,24 +123,21 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
         if (ja && ja.length > 0) continue
       } catch (e2) {}
 
-      // escolhe o de menor carga
-      var escolhido = null
-      var menor = -1
-      for (const v of vendedores) {
-        const c = carga[v.id] || 0
-        if (menor < 0 || c < menor) {
-          menor = c
-          escolhido = v
-        }
-      }
-      if (!escolhido) continue
-
-      // grava o dono
+      // CA-3-43 (05/11) — UM LEAD, UM DONO. Este cron NÃO escolhe mais dono:
+      // ele pede a atribuição ao ponto único (`whatsapp_transferencias`), que
+      // aplica carteira → menor carga e grava uma vez só. Antes ele escolhia
+      // aqui e o robô escolhia no `wa_roteiro_cron`, cada um com sua conta: em
+      // 04/11 o mesmo lead apareceu para duas vendedoras.
       try {
-        l.set('owner_id', escolhido.id)
-        l.set('vendedor_nome', escolhido.nome)
-        $app.save(l)
-        carga[escolhido.id] = (carga[escolhido.id] || 0) + 1
+        const colTr = $app.findCollectionByNameOrId('whatsapp_transferencias')
+        const tr = new Record(colTr)
+        tr.set('lead', l.id)
+        tr.set('origem_pedido', 'botao')
+        tr.set('motivo', 'primeiro_contato')
+        tr.set('simulacao', false)
+        tr.set('fixture', false)
+        tr.set('detalhe', 'distribuicao automatica do lead novo (24h)')
+        $app.save(tr)
         distribuidos++
       } catch (e3) {
         continue
@@ -152,9 +149,15 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
         const ev = new Record(colTr)
         ev.set('lead_id', l.id)
         ev.set('tipo', 'status')
+        // o nome do dono é lido DEPOIS, do que o ponto único gravou
+        var donoNome = ''
+        try {
+          const ldRel = $app.findRecordById('crm_leads', l.id)
+          donoNome = String(ldRel.get('vendedor_nome') || '')
+        } catch (eRel) {}
         ev.set(
           'texto',
-          'Distribuído automaticamente para ' + escolhido.nome + ' (menor carga: ' + menor + ')',
+          'Distribuído automaticamente pelo rodízio' + (donoNome !== '' ? ' para ' + donoNome : ''),
         )
         ev.set('user_id', '')
         $app.save(ev)
@@ -168,7 +171,7 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
         evA.set('session_id', '')
         evA.set('ref_id', l.id)
         evA.set('resultado', ENVIAR_WHATSAPP ? 'enviado_whatsapp' : 'registrado_sem_envio')
-        evA.set('codigo_erro', 'vendedor=' + escolhido.nome)
+        evA.set('codigo_erro', 'pedido ao ponto unico de atribuicao')
         evA.set('trace_id', '')
         evA.set('duracao_ms', 0)
         evA.set('recebido_em', new Date().toISOString())

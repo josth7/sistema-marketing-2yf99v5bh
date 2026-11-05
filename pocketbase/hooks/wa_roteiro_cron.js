@@ -833,28 +833,53 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         }
 
         // ---------- transfere: dá dono ao lead (ninguém fica sem dono) ----------
+        // CA-3-43 (05/11) — UM LEAD, UM DONO. O robô NÃO escolhe dono: quem
+        // decide é a carteira e, sem dono, o rodízio do ponto único
+        // (`whatsapp_transferencias`). Antes ele calculava o consultor de menor
+        // carga aqui e gravava; com o rodízio do `wa_aviso_lead_novo` rodando em
+        // paralelo, o mesmo lead aparecia para duas vendedoras (caso de 04/11).
+        // Agora: se o lead já tem dono, o robô apenas anuncia esse dono (feito
+        // acima, em `cons`); se não tem, ele PEDE a atribuição ao ponto único e
+        // lê o dono gravado, em vez de gravar por conta própria.
         if (transfere && cons.id !== '' && String(cv.get('lead') || '') !== '') {
           try {
             const ld2 = $app.findRecordById(colL, String(cv.get('lead')))
             if (String(ld2.get('owner_id') || '') === '') {
-              ld2.set('owner_id', cons.id)
-              ld2.set('vendedor_nome', cons.nome)
-              $app.save(ld2)
+              // pede ao ponto único (idempotente: se já houver pedido aberto
+              // para este lead, o hook de transferência não duplica o dono)
               try {
-                const colEvL = $app.findCollectionByNameOrId('crm_lead_events')
-                const evL = new Record(colEvL)
-                evL.set('lead_id', ld2.id)
-                evL.set('tipo', 'status')
-                evL.set(
-                  'texto',
-                  'Transferido pela IA para ' + cons.nome + ' (roteiro: ' + motivo + ')',
-                )
-                $app.save(evL)
-              } catch (eEvL) {}
+                const colTr = $app.findCollectionByNameOrId('whatsapp_transferencias')
+                const tr = new Record(colTr)
+                tr.set('lead', ld2.id)
+                // valores REAIS da coleção (conferidos 05/11): o motivo do
+                // roteiro vira 'fora_do_roteiro' e a origem é 'ia'.
+                tr.set('origem_pedido', 'ia')
+                tr.set('motivo', 'fora_do_roteiro')
+                tr.set('simulacao', false)
+                tr.set('fixture', false)
+                tr.set('detalhe', 'pedido pelo roteiro (' + motivo + ')')
+                $app.save(tr)
+              } catch (eTr) {}
+              // lê o dono que o ponto único gravou (pode não ter rodado ainda:
+              // nesse caso o lead segue sem dono e o rodízio resolve em minutos)
+              var donoAgora = ''
+              try {
+                const relido = $app.findRecordById(colL, ld2.id)
+                donoAgora = String(relido.get('owner_id') || '')
+              } catch (eRl) {}
+              if (donoAgora !== '') {
+                try {
+                  const colEvA = $app.findCollectionByNameOrId('crm_lead_events')
+                  const evA = new Record(colEvA)
+                  evA.set('lead_id', ld2.id)
+                  evA.set('tipo', 'status')
+                  evA.set('texto', 'Transferido pelo roteiro; dono definido pelo rodízio')
+                  $app.save(evA)
+                } catch (eEvA) {}
+              }
             }
           } catch (eOwn) {}
         }
-
         // ---------- enfileira (so quando o envio estiver ligado) ----------
         var enfileirados = 0
         for (var k = 0; k < respostas.length; k++) {
