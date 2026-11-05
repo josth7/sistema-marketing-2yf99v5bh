@@ -446,21 +446,52 @@ onRecordAfterCreateSuccess((e) => {
       // janela; fora dela, só template aprovado pela Meta.
       // O nome do modelo vem da conexão (`modelo_aviso_vendedor`); quando o dono
       // aprovar, o campo já aponta para ele e o envio passa a usar template.
-      const modeloNome = String(central ? central.get('modelo_aviso_vendedor') || '' : '')
-      const id = enfileirar(
-        central || conexaoVendedor,
-        numeroVendedor,
-        'aviso_vendedor',
-        textoVendedor,
-        modeloNome,
-        // variáveis do modelo, na ordem: {{1}} nome, {{2}} telefone, {{3}} canal
-        {
-          nome: String(lead.get('nome') || ''),
-          telefone: telefoneCliente,
-          canal: String(lead.get('origem') || 'whatsapp'),
-        },
-        'transf_vendedor_' + leadId + '_' + vendedorId,
-      )
+      // ---------- CA-3-68 / RN-137 (05/11) — CUSTO ZERO POR PADRÃO ----------
+      // Decisão do dono: a apresentação por modelo pago fica DESLIGADA até a
+      // gestão autorizar na Administração. Enquanto estiver desligada, NADA
+      // sai pelo número do vendedor — nem aviso por modelo, nem apresentação.
+      // O vendedor descobre o lead pelo CRM e por "Clientes para recontatar".
+      //
+      // Texto livre só é permitido se a janela com o VENDEDOR estiver aberta
+      // (RN-137). Fora dela, nenhum envio.
+      const apresentacaoLigada = conexaoVendedor
+        ? conexaoVendedor.get('apresentacao_ativa') === true
+        : false
+      const modeloApresentacao = conexaoVendedor
+        ? String(conexaoVendedor.get('modelo_apresentacao_vendedor') || '')
+        : ''
+      if (!apresentacaoLigada || modeloApresentacao === '') {
+        // registra que não saiu, para a gestão ver o motivo — sem criar envio
+        try {
+          const colEvS = $app.findCollectionByNameOrId('crm_lead_events')
+          const evS = new Record(colEvS)
+          evS.set('lead_id', lead.id)
+          evS.set('tipo', 'nota')
+          evS.set(
+            'texto',
+            'Aviso ao vendedor NÃO enviado: apresentação desligada (CA-3-68). O lead aparece no CRM e em Clientes para recontatar.',
+          )
+          evS.set('fixture', ehFixture)
+          $app.save(evS)
+        } catch (eSil) {}
+      }
+      var id = null
+      if (apresentacaoLigada && modeloApresentacao !== '') {
+        id = enfileirar(
+          conexaoVendedor,
+          numeroVendedor,
+          'apresentacao_vendedor',
+          textoVendedor,
+          modeloApresentacao,
+          // variáveis do modelo, na ordem: {{1}} nome, {{2}} telefone, {{3}} canal
+          {
+            nome: String(lead.get('nome') || ''),
+            telefone: telefoneCliente,
+            canal: String(lead.get('origem') || 'whatsapp'),
+          },
+          'apresentacao|' + leadId,
+        )
+      }
       if (id) envios.push(id)
     }
 
