@@ -118,12 +118,18 @@ routerAdd(
           .replace(/[\u0300-\u036f]/g, '')
           .toLowerCase()
           .trim()
-        mapaVend[chave] = {
+        const entrada = {
           user: String(c.get('vendedor_user') || ''),
           nome: nomeV,
           ddd: ddd,
           conexao: c.id,
         }
+        // A aba da planilha traz só o PRIMEIRO nome ("Fabio"), e a conexão
+        // traz o nome completo ("Fábio Teles"). Guarda as duas chaves, senão
+        // nenhuma aba casa e a importação grava zero (aconteceu na 1ª prova).
+        mapaVend[chave] = entrada
+        const primeiro = chave.split(' ')[0]
+        if (primeiro !== '' && !mapaVend[primeiro]) mapaVend[primeiro] = entrada
       }
     } catch (e1) {}
 
