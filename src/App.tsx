@@ -13,6 +13,7 @@ import Saude from './pages/Saude'
 import Analises from './pages/Analises'
 import Leads from './pages/Leads'
 import VendasSemValor from './pages/VendasSemValor'
+import Recontato from './pages/Recontato'
 import Concorrentes from './pages/Concorrentes'
 import Numeros from './pages/Numeros'
 import Conversas from './pages/Conversas'
@@ -113,6 +114,7 @@ const App = () => {
             <Route path="/analises" element={<Analises />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/vendas-sem-valor" element={<VendasSemValor />} />
+            <Route path="/recontato" element={<Recontato />} />
             <Route path="/concorrentes" element={<Concorrentes />} />
             <Route path="/conversas" element={<Conversas />} />
             <Route path="/numeros" element={<Numeros />} />

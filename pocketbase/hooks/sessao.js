@@ -84,6 +84,7 @@ routerAdd(
         rotulo: 'Vendas sem valor',
         aceita: ['manage_leads', 'read_leads'],
       },
+      { para: '/recontato', rotulo: 'Recontato', aceita: ['read_leads'] },
       { para: '/numeros', rotulo: 'Números', aceita: ['manage_whatsapp'] },
       { para: '/concorrentes', rotulo: 'Concorrentes', aceita: ['read_analyses'] },
       { para: '/analises', rotulo: 'Análises', aceita: ['read_analyses'] },
