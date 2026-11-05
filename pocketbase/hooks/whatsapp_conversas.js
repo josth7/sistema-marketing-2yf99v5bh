@@ -303,6 +303,15 @@ routerAdd(
       })
     } catch (e) {}
 
+    // ordena os REGISTROS antes de montar a lista: `created` existe no
+    // registro, não no objeto que vai para a tela.
+    todas.sort(function (x, y) {
+      const kx = String(x.get('ultima_mensagem_em') || '') || String(x.get('created') || '')
+      const ky = String(y.get('ultima_mensagem_em') || '') || String(y.get('created') || '')
+      if (kx === ky) return 0
+      return kx < ky ? 1 : -1
+    })
+
     const itens = []
     for (const c of todas) {
       // pode ver?
@@ -360,8 +369,17 @@ routerAdd(
         interna: String(c.get('interna')) === 'true',
       })
     }
-    itens.sort(function (a, b) {
-      return String(a.ultima_mensagem_em) < String(b.ultima_mensagem_em) ? 1 : -1
+    // CA-3-70 (05/11) — MAIS RECENTE SEMPRE NO TOPO, em todas as visões.
+    // A tela filtra por número/aba/busca mas nunca reordena, então esta ordem
+    // vale para "Todos os números" e para cada número isolado.
+    // O comparador antigo afundava conversa SEM `ultima_mensagem_em` (string
+    // vazia) para o fim, mesmo sendo nova — agora cai no `created` e, se nem
+    // isso houver, vai para o fim de propósito.
+    itens.sort(function (x, y) {
+      const ka = String(x.ultima_mensagem_em || '')
+      const kb = String(y.ultima_mensagem_em || '')
+      if (ka === kb) return 0
+      return ka < kb ? 1 : -1
     })
     return e.json(200, { ok: true, total: itens.length, itens: itens })
   },
