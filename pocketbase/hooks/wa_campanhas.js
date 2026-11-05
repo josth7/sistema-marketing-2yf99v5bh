@@ -362,6 +362,10 @@ routerAdd(
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
 
+    // `app` PRECISA ser declarado aqui: sem isto o `findRecordById` lança
+    // ReferenceError, o catch o transforma em "campanha não encontrada" e a
+    // pausa nunca funciona — foi o que a prova pegou (05/11).
+    const app = $app
     var body = {}
     try {
       body = e.requestInfo().body || {}
