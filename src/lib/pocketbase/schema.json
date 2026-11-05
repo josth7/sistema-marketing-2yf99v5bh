@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T17:36:39.368Z",
+  "generatedAt": "2026-11-05T18:11:34.987Z",
   "collections": [
     {
       "name": "users",
@@ -4656,6 +4656,82 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "precisa_acao",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dono_anterior",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dono_anterior_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolvido",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolvido_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolvido_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolvido_para",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fixture",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dedupe_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_precisa_acao_dedupe ON precisa_acao (dedupe_key)"
+      ]
     }
   ]
 }

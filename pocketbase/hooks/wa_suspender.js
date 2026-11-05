@@ -180,41 +180,66 @@ routerAdd(
       }
     } catch (e3) {}
 
+    // ---------- 3. carteira de quem sai vai para a GESTÃO decidir ----------
+    // CA-3-69 / RN-134 (mudança de 05/11): cliente do vendedor X fica com X.
+    // Se X saiu, os leads NÃO vão para o rodízio — vão para "precisa de ação",
+    // onde a gestão escolhe para quem passar. Trocar cliente de mãos sozinho
+    // foi o que a SPEC proibiu.
+    //
+    // O `vendedores` acima continua sendo calculado (a lista serve para a tela
+    // sugerir o destino), mas NINGUÉM é atribuído aqui.
     var movidos = 0
-    if (vendedores.length > 0) {
+    var paraGestao = 0
+    if (vendedores.length >= 0) {
       try {
         const meus = app.findRecordsByFilter(colL, "owner_id='" + alvoId + "'", '', 6000, 0)
         const colEv = app.findCollectionByNameOrId('crm_lead_events')
+        var colPA = null
+        try {
+          colPA = app.findCollectionByNameOrId('precisa_acao')
+        } catch (ePA) {}
         for (const l of meus) {
-          // escolhe o de menor carga AGORA
-          var escolhido = null
-          for (const v of vendedores) {
-            if (!escolhido || v.carga < escolhido.carga) escolhido = v
-          }
-          if (!escolhido) break
           try {
-            l.set('owner_id', escolhido.id)
-            l.set('vendedor_nome', escolhido.nome)
-            app.save(l)
-            escolhido.carga++
-            movidos++
+            // NÃO troca o dono: o lead continua com a pessoa suspensa até a
+            // gestão decidir. Assim ninguém herda carteira sem saber.
+            if (colPA) {
+              const chave = 'suspenso|' + l.id
+              var jaTem = false
+              try {
+                const ja = app.findRecordsByFilter(colPA, "dedupe_key='" + chave + "'", '', 1, 0)
+                if (ja && ja.length > 0) jaTem = true
+              } catch (eJ) {}
+              if (!jaTem) {
+                const item = new Record(colPA)
+                item.set('lead', l.id)
+                item.set('dono_anterior', alvoId)
+                item.set('dono_anterior_nome', nomeAlvo || alvoId)
+                item.set('motivo', 'vendedor_suspenso')
+                item.set('resolvido', false)
+                item.set('fixture', false)
+                item.set('dedupe_key', chave)
+                app.save(item)
+                paraGestao++
+              }
+            }
             try {
               const ev = new Record(colEv)
               ev.set('lead_id', l.id)
               ev.set('tipo', 'status')
               ev.set(
                 'texto',
-                'Redistribuído porque ' +
+                'Aguardando a gestão: ' +
                   (nomeAlvo || 'o responsável') +
-                  ' saiu da empresa (' +
+                  ' saiu da empresa em ' +
                   hoje +
-                  ')',
+                  '. O cliente NÃO foi para o rodízio.',
               )
               ev.set('fixture', false)
               app.save(ev)
             } catch (eEv) {}
           } catch (eL2) {}
         }
+        movidos = paraGestao
       } catch (e4) {}
     }
 
@@ -253,7 +278,10 @@ routerAdd(
       ok: true,
       pessoa: nomeAlvo,
       grants_revogados: revogados,
-      leads_redistribuidos: movidos,
+      // CA-3-69: a carteira NÃO é redistribuída. Ela fica com a pessoa
+      // suspensa até a gestão decidir, e cada lead vira um item da fila.
+      leads_para_gestao: movidos,
+      leads_redistribuidos: 0,
       conexoes_fechadas: conexoesFechadas,
     })
   },
