@@ -280,15 +280,27 @@ routerAdd(
     const colConv = $app.findCollectionByNameOrId('whatsapp_conversas')
     const colSin = $app.findCollectionByNameOrId('whatsapp_sinais')
     const colConexoes = $app.findCollectionByNameOrId('whatsapp_conexoes')
+    // LIMITE 200 SEM ORDENAÇÃO — corrigido em 05/11 (relato do dono: "no
+    // celular do vendedor não aparece e no sistema ele não consegue
+    // responder"). O PocketBase devolvia 200 conversas ARBITRÁRIAS de 207 e a
+    // conversa recém-atribuída pelo rodízio ficava fora do corte, invisível
+    // para o dono do lead. Sem `sort` (o JSVM lança), então leio todas e
+    // ordeno em JS pela última mensagem.
     var todas = []
     try {
       todas = $app.findRecordsByFilter(
         colConv,
         'fixture=' + (ehFixture ? 'true' : 'false'),
         '',
-        200,
+        5000,
         0,
       )
+      // ordena da mais recente para a mais antiga (a tela mostra nessa ordem)
+      todas.sort(function (a, b) {
+        const ka = String(a.get('ultima_mensagem_em') || a.get('created') || '')
+        const kb = String(b.get('ultima_mensagem_em') || b.get('created') || '')
+        return kb.localeCompare(ka)
+      })
     } catch (e) {}
 
     const itens = []
