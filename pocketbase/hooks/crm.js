@@ -775,14 +775,44 @@ routerAdd(
     // entra na FILA de conversões p/ Meta/Google (o Maestro envia e confirma)
     try {
       const colConv = $app.findCollectionByNameOrId('conversion_events')
-      const conv = new Record(colConv)
-      conv.set('lead_id', lead.id)
-      conv.set('valor', valor)
-      conv.set('canal', canalOk)
-      conv.set('descricao', descricao)
-      conv.set('estado', 'pending')
-      conv.set('fixture', ehFixture)
-      $app.save(conv)
+      // CA-3-59 (06/11): UMA conversão por lead e venda. Antes cada passagem
+      // por "venda_realizada" criava outra — entrar, sair e voltar gerava
+      // Purchase duplicado e a Meta contava a mesma venda duas vezes.
+      var conv = null
+      try {
+        const existentes = $app.findRecordsByFilter(colConv, "lead_id='" + lead.id + "'", '', 5, 0)
+        if (existentes && existentes.length > 0) conv = existentes[0]
+      } catch (eBuscaConv) {}
+
+      if (conv) {
+        // já existe: atualiza o valor e volta para a fila se tinha falhado
+        try {
+          conv.set('valor', valor)
+          if (String(conv.get('estado') || '') !== 'enviado') conv.set('estado', 'pendente')
+          if (String(conv.get('event_id') || '') === '') {
+            conv.set('event_id', 'purchase-' + lead.id + '-' + String(new Date().getTime()))
+          }
+          $app.save(conv)
+        } catch (eAtualiza) {}
+      } else {
+        const nova = new Record(colConv)
+        nova.set('lead_id', lead.id)
+        nova.set('valor', valor)
+        nova.set('canal', canalOk)
+        nova.set('descricao', descricao)
+        nova.set('estado', 'pendente')
+        nova.set('fixture', ehFixture)
+        nova.set('event_name', 'Purchase')
+        // event_id estável: a Meta deduplica por ele
+        nova.set('event_id', 'purchase-' + lead.id + '-' + String(new Date().getTime()))
+        nova.set('dedupe_key', 'conv-' + lead.id)
+        // clique do anúncio, quando o lead veio de Click-to-WhatsApp
+        try {
+          nova.set('ctwa_clid', String(lead.get('anuncio_ctwa') || '').slice(0, 200))
+          nova.set('waba_id', String(lead.get('anuncio_id') || '').slice(0, 100))
+        } catch (eCtx) {}
+        $app.save(nova)
+      }
     } catch (eConv) {}
     return e.json(200, {
       ok: true,
