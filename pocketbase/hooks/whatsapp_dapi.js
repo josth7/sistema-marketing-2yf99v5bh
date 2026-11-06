@@ -309,6 +309,57 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     ).slice(0, 200)
     // sem telefone (04/11): deixa a recusa da Meta visível no log do Skip
     console.log('whatsapp_dapi: Meta recusou um envio | ' + motivoFalha)
+
+    // CA-3-86: recusa 131050 = o cliente pediu para parar as mensagens de
+    // marketing. Vira opt-out na hora, igual ao "sair" digitado.
+    // (131026/131048/131049 são problema de qualidade/bloqueio do número e NÃO
+    // viram opt-out — esses contam para a pausa automática.)
+    try {
+      var codFalha = ''
+      try {
+        codFalha = String(
+          (data.error && (data.error.code || data.error.error_code || data.error.subcode)) ||
+            data.error_code ||
+            data.code ||
+            '',
+        )
+      } catch (eCod) {}
+      if (codFalha === '') {
+        const mCod = motivoFalha.match(/(\d{5,6})/)
+        if (mCod) codFalha = mCod[1]
+      }
+      if (codFalha === '131050' && telefone !== '') {
+        var jaOO = false
+        try {
+          const colOO2 = $app.findCollectionByNameOrId('opt_out')
+          const ex2 = $app.findRecordsByFilter(colOO2, "telefone='" + telefone + "'", '', 1, 0)
+          if (ex2 && ex2.length > 0) jaOO = true
+          if (!jaOO) {
+            const oo2 = new Record(colOO2)
+            oo2.set('telefone', telefone)
+            oo2.set('motivo', 'Meta 131050 (cliente parou marketing)')
+            oo2.set('origem', 'meta')
+            oo2.set('criado_em', new Date().toISOString())
+            oo2.set('fixture', ehFixture)
+            $app.save(oo2)
+          }
+        } catch (eOO2) {}
+        try {
+          const colD2 = $app.findCollectionByNameOrId('campanha_destinos')
+          const ds2 = $app.findRecordsByFilter(
+            colD2,
+            "telefone='" + telefone + "' && estado='na_fila'",
+            '',
+            500,
+            0,
+          )
+          for (const d2 of ds2) {
+            d2.set('estado', 'optout')
+            $app.save(d2)
+          }
+        } catch (eDO2) {}
+      }
+    } catch (eOptOutMeta) {}
     if (achouF) {
       achouF.set('status', 'falhou')
       achouF.set('status_em', new Date().toISOString())
@@ -839,6 +890,57 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
 
   const mediaData = data.media_data || {}
   const textoMsg = String(data.message || mediaData.caption || '').slice(0, 10000)
+
+  // ---------- CA-3-86 (06/11): PEDIDO DE SAÍDA ----------
+  // Cliente que responde "sair" não quer mais receber campanha. A regra é
+  // EXATA: só a palavra sozinha vale (sair, parar, pare, cancelar, remover,
+  // descadastrar), normalizada. "sair por favor" NÃO é pedido — é conversa,
+  // e a SPEC é explícita nisso.
+  //
+  // Vale para todas as campanhas (o opt-out é do telefone, não da campanha).
+  if (!fromMe && textoMsg !== '' && telefone !== '') {
+    try {
+      const norm = textoMsg
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[.,!?;:]/g, '')
+        .trim()
+      const PEDIDOS = ['sair', 'parar', 'pare', 'cancelar', 'remover', 'descadastrar']
+      if (PEDIDOS.indexOf(norm) >= 0) {
+        var jaTem = false
+        try {
+          const colOO = $app.findCollectionByNameOrId('opt_out')
+          const ex = $app.findRecordsByFilter(colOO, "telefone='" + telefone + "'", '', 1, 0)
+          if (ex && ex.length > 0) jaTem = true
+          if (!jaTem) {
+            const oo = new Record(colOO)
+            oo.set('telefone', telefone)
+            oo.set('motivo', 'respondeu "' + norm + '"')
+            oo.set('origem', 'whatsapp')
+            oo.set('criado_em', new Date().toISOString())
+            oo.set('fixture', ehFixture)
+            $app.save(oo)
+          }
+        } catch (eOO) {}
+        // tira da fila das campanhas na hora
+        try {
+          const colD = $app.findCollectionByNameOrId('campanha_destinos')
+          const ds = $app.findRecordsByFilter(
+            colD,
+            "telefone='" + telefone + "' && estado='na_fila'",
+            '',
+            500,
+            0,
+          )
+          for (const d of ds) {
+            d.set('estado', 'optout')
+            $app.save(d)
+          }
+        } catch (eDO) {}
+      }
+    } catch (eOptOut) {}
+  }
 
   // ---------- 11b. ATRIBUIÇÃO DE ANÚNCIO (Click-to-WhatsApp) ----------
   // A Meta não manda "vi o anúncio" em texto: manda o objeto `referral` junto
