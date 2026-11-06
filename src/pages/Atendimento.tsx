@@ -678,7 +678,9 @@ export default function Atendimento() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="automacoes">
+          {/* CA-m1 (06/11): cada aba é uma seção com fundo e borda próprios,
+              para o olho separar um bloco do outro. */}
+          <TabsContent value="automacoes" className="rounded-lg border bg-muted/30 p-3">
             <AbaAutomacoes />
           </TabsContent>
         </Tabs>

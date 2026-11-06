@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Dica, DicaNumero } from '@/components/base/dica'
 
 /**
  * Paginação da tela (28/10): a base da agência trouxe 1.529 leads e a tabela

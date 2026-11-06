@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select'
 import pb from '@/lib/pocketbase/client'
 import { linkChamarWhatsapp } from '@/lib/marketing/crm'
+import { Dica, DicaNumero } from '@/components/base/dica'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   CabecalhoPagina,
@@ -575,9 +576,11 @@ export default function Conversas() {
             >
               {soNaoLidas ? 'Não respondidas' : 'Todas'}
               {contagemNaoLidas > 0 && (
-                <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
-                  {contagemNaoLidas}
-                </span>
+                <DicaNumero texto="Clientes cuja última mensagem é deles e ninguém respondeu ainda">
+                  <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
+                    {contagemNaoLidas}
+                  </span>
+                </DicaNumero>
               )}
             </Button>
             <Select value={filtroNumero} onValueChange={setFiltroNumero}>
@@ -658,9 +661,11 @@ export default function Conversas() {
                     </span>
                     {/* CA-3-70: tempo de espera quando a última é do cliente */}
                     {c.nao_lida && (c.espera_min ?? -1) >= 0 && (
-                      <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
-                        {tempoEspera(c.espera_min || 0)}
-                      </span>
+                      <DicaNumero texto="Há quanto tempo o cliente espera resposta">
+                        <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                          {tempoEspera(c.espera_min || 0)}
+                        </span>
+                      </DicaNumero>
                     )}
                     {c.ultimo_autor && (
                       <span className="shrink-0 text-xs uppercase tracking-wide text-muted-foreground">
