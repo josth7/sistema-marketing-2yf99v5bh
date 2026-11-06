@@ -74,7 +74,10 @@ routerAdd(
     for (const u of users) {
       out.total_pessoas++
       const email = String(u.get('email') || '')
+      const nomeU = String(u.get('name') || '')
+      // conta de teste não é pessoa da equipe: sai da conta inteira
       if (email.toLowerCase().indexOf('fixture') >= 0) continue
+      if (nomeU.toLowerCase().indexOf('fixture') >= 0) continue
 
       // grants ativos
       var papeis = []
