@@ -78,8 +78,22 @@ onRecordAfterCreateSuccess((e) => {
       for (const l of todos) {
         const ow = String(l.get('owner_id') || '')
         if (ow === '') continue
-        const st = String(l.get('status') || 'novo')
-        if (st === 'fechado' || st === 'perdido') continue
+        // Lead encerrado não pesa na carga (06/11). Desde o funil de 10 etapas
+        // (0097, 30/10) os encerrados são venda_realizada, producao, finalizado
+        // e descartado; antes só os nomes antigos eram excluídos e venda e
+        // descarte contavam como "em aberto" — quem tinha carteira antiga com
+        // muita venda (Fábio, Adriana) nunca ficava com a menor carga.
+        // Os nomes antigos ficam por segurança.
+        const st = String(l.get('status') || 'entrada_lead')
+        if (
+          st === 'venda_realizada' ||
+          st === 'producao' ||
+          st === 'finalizado' ||
+          st === 'descartado' ||
+          st === 'fechado' ||
+          st === 'perdido'
+        )
+          continue
         carga[ow] = (carga[ow] || 0) + 1
       }
       // BUG CORRIGIDO 05/11: o rodízio só excluía o `josth`. Como a gestão tem

@@ -295,13 +295,15 @@ export default function Leads() {
         return false
       })
     }
-    // maior nota primeiro: quem tem mais chance aparece no topo.
-    // Lead sem nota (null) vai para o fim — não foi analisado ainda.
+    // mais recente primeiro (pedido da gestão, 06/11): a lista segue a ordem
+    // de chegada. Na mesma data/hora, a maior nota da IA vem antes; para ver só
+    // os de maior chance, use o filtro de quentes.
     out = [...out].sort((a, b) => {
+      const porData = String(b.criado_em || '').localeCompare(String(a.criado_em || ''))
+      if (porData !== 0) return porData
       const na = a.ia_nota ?? -1
       const nb = b.ia_nota ?? -1
-      if (nb !== na) return nb - na
-      return String(b.criado_em || '').localeCompare(String(a.criado_em || ''))
+      return nb - na
     })
     return out
   }, [itens, filtroStatus, busca, soQuentes])
