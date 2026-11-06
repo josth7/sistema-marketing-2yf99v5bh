@@ -227,12 +227,13 @@ routerAdd(
       nv.set('autor_nome', nomeAutor)
       // CA-3-83 (06/11): preço da mensagem em CENTAVOS, por categoria.
       // É o que permite a tela de campanha estimar o custo antes de aprovar.
-      if (body.preco_marketing !== undefined) {
-        nv.set('preco_marketing', Number(body.preco_marketing) || 0)
-      }
-      if (body.preco_utilidade !== undefined) {
-        nv.set('preco_utilidade', Number(body.preco_utilidade) || 0)
-      }
+      // O preço é gravado SEMPRE (0 quando não vem): antes o `!== undefined`
+      // deixava passar e a versão nova nascia com o campo vazio, então a tela
+      // nunca encontrava o preço e não calculava o custo.
+      const precoM = Number(body.preco_marketing || 0)
+      const precoU = Number(body.preco_utilidade || 0)
+      nv.set('preco_marketing', isNaN(precoM) ? 0 : precoM)
+      nv.set('preco_utilidade', isNaN(precoU) ? 0 : precoU)
       nv.set('observacao', String(body.observacao || '').slice(0, 300))
       app.save(nv)
       return e.json(200, {
