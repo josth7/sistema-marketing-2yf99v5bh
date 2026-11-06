@@ -43,6 +43,15 @@ interface Config {
   criado: string
 }
 
+interface VendedorApres {
+  conexao: string
+  nome: string
+  numero: string
+  ativa: boolean
+  modelo: string
+  segredo_ok: boolean
+}
+
 interface Pessoa {
   id: string
   nome: string
@@ -74,6 +83,10 @@ export default function Admin() {
   const [resumoHor, setResumoHor] = useState('08:00')
   const [resumoDias, setResumoDias] = useState<string[]>(['1', '2', '3', '4', '5'])
   const [responder, setResponder] = useState<string[]>([])
+  // CA-3-80 (06/11): apresentação por número — o vendedor se apresenta ao
+  // cliente 15 min depois da transferência, usando modelo aprovado.
+  const [apres, setApres] = useState<VendedorApres[]>([])
+  const [modeloPorCx, setModeloPorCx] = useState<Record<string, string>>({})
   const [salvando, setSalvando] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -93,6 +106,18 @@ export default function Admin() {
         setConfig(r.atual)
         setHistorico(r.historico || [])
         setPessoas(r.pessoas || [])
+        // apresentação por número
+        try {
+          const ap = (await pb.send('/backend/v1/atendimento/apresentacao', {
+            method: 'GET',
+          })) as { ok: boolean; itens: VendedorApres[] }
+          setApres(ap.itens || [])
+          const m: Record<string, string> = {}
+          for (const i of ap.itens || []) m[i.conexao] = i.modelo
+          setModeloPorCx(m)
+        } catch {
+          setApres([])
+        }
         if (r.atual) {
           setEmailAtivo(r.atual.email_ativo)
           setEmailDest(r.atual.email_destinatarios || [])
@@ -159,6 +184,21 @@ export default function Admin() {
         headers: { 'Content-Type': 'application/json' },
       })
       setAviso('Voltou para a versão ' + versao + ' (criada como versão nova, nada foi apagado).')
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const alternarApresentacao = async (cx: string, ativa: boolean, modelo: string) => {
+    setErro('')
+    try {
+      await pb.send('/backend/v1/atendimento/apresentacao', {
+        method: 'POST',
+        body: JSON.stringify({ conexao: cx, ativa: ativa, modelo: modelo }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      setAviso(ativa ? 'Apresentação ligada para este número.' : 'Apresentação desligada.')
       await carregar()
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e))
@@ -316,6 +356,53 @@ export default function Admin() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* ---------- apresentação por número (CA-3-80) ---------- */}
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+            <div>
+              <p className="text-sm font-semibold">Apresentação automática do vendedor</p>
+              <p className="text-xs text-muted-foreground">
+                15 minutos depois da transferência, o vendedor se apresenta ao cliente pelo WhatsApp
+                dele. Exige modelo aprovado na Meta. Padrão: desligado.
+              </p>
+            </div>
+            {apres.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Nenhum número de vendedor ativo para configurar.
+              </p>
+            )}
+            {apres.map((v) => (
+              <div
+                key={v.conexao}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{v.nome}</p>
+                  <p className="text-xs text-muted-foreground">{v.numero}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    className="h-8 w-40 text-xs"
+                    placeholder="modelo aprovado"
+                    value={modeloPorCx[v.conexao] || ''}
+                    onChange={(e) => setModeloPorCx((m) => ({ ...m, [v.conexao]: e.target.value }))}
+                  />
+                  <Dica texto="Liga a apresentação automática por este número (precisa de modelo aprovado)">
+                    <Switch
+                      checked={v.ativa}
+                      onCheckedChange={(novo) =>
+                        void alternarApresentacao(
+                          v.conexao,
+                          novo,
+                          modeloPorCx[v.conexao] || v.modelo,
+                        )
+                      }
+                    />
+                  </Dica>
+                </div>
+              </div>
+            ))}
           </div>
 
           <Button onClick={() => void salvar()} disabled={salvando}>
