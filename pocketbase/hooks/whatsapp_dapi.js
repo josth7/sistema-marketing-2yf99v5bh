@@ -641,6 +641,70 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
   const papelConexao = String(conexao.get('papel') || '')
   const vendedorDaConexao = String(conexao.get('vendedor_user') || '')
 
+  // ---------- 8b. CA-3-57 (05/11): CLIENTE DA CARTEIRA VAI AO DONO DELA ----------
+  // A base das 4 carteiras (59.070 contatos) está em `carteira_contatos`. Se o
+  // telefone que escreve está na carteira de um vendedor, o lead NASCE com esse
+  // dono — sem passar pelo rodízio. É a diferença entre "cliente do Fábio" e
+  // "lead novo distribuído por sorte".
+  //
+  // Conflito (mesmo telefone em 2+ carteiras) NÃO escolhe sozinho: fica sem
+  // dono e vira item em "precisa de ação", como manda a RN-157.
+  var donoDaCarteira = ''
+  var carteiraConflito = false
+  if (!lead && telefone !== '') {
+    try {
+      const colCart = $app.findCollectionByNameOrId('carteira_contatos')
+      // procura as variantes (com e sem o 9), como o resto do sistema
+      var achadosCart = []
+      for (var ic = 0; ic < telefonesBusca.length; ic++) {
+        try {
+          const rC = $app.findRecordsByFilter(
+            colCart,
+            "telefone='" + telefonesBusca[ic] + "'",
+            '',
+            20,
+            0,
+          )
+          for (const rc of rC) achadosCart.push(rc)
+        } catch (eC1) {}
+      }
+      if (achadosCart.length > 0) {
+        const donos = {}
+        for (const rc of achadosCart) {
+          const u = String(rc.get('vendedor_user') || '')
+          if (u !== '') donos[u] = true
+        }
+        const listaDonos = Object.keys(donos)
+        if (listaDonos.length === 1) {
+          donoDaCarteira = listaDonos[0]
+        } else if (listaDonos.length > 1) {
+          // conflito: não escolhe; a gestão decide
+          carteiraConflito = true
+          try {
+            const colPA = $app.findCollectionByNameOrId('precisa_acao')
+            const chavePA = 'conflito_carteira|' + telefone
+            var jaPA = false
+            try {
+              const ex = $app.findRecordsByFilter(colPA, "dedupe_key='" + chavePA + "'", '', 1, 0)
+              if (ex && ex.length > 0) jaPA = true
+            } catch (ePA0) {}
+            if (!jaPA) {
+              const item = new Record(colPA)
+              item.set('lead', '')
+              item.set('dono_anterior', listaDonos.join(','))
+              item.set('dono_anterior_nome', 'Carteira em conflito (' + telefone + ')')
+              item.set('motivo', 'conflito_carteira')
+              item.set('resolvido', false)
+              item.set('fixture', ehFixture)
+              item.set('dedupe_key', chavePA)
+              $app.save(item)
+            }
+          } catch (ePA) {}
+        }
+      }
+    } catch (eCart) {}
+  }
+
   // ---------- 9. lead não encontrado: cria (RN-61) ----------
   // CA-3-73 (05/11): telefone marcado como "não é cliente" não cria lead.
   // Sem isso, a transportadora que manda mensagem virava lead e entrava no
@@ -655,7 +719,7 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       const novo = new Record(colLeads)
       novo.set('nome', nomeLead)
       novo.set('telefone', telefone)
-      novo.set('origem', 'whatsapp')
+      novo.set('origem', donoDaCarteira !== '' ? 'carteira' : 'whatsapp')
       // `novo` NAO EXISTE no funil de 10 etapas (mig 0097 renomeou para
       // `entrada_lead`). O set falhava no save e o catch vazio engolia: TODO
       // lead novo pelo WhatsApp ficava fora do CRM desde 30/10 — 12 clientes
@@ -665,7 +729,13 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       novo.set('fixture', ehFixture)
       novo.set('entrada_whatsapp', conexao.id)
       // número do vendedor → o lead nasce com ele; central → sem responsável
-      novo.set('owner_id', papelConexao === 'vendedor' ? vendedorDaConexao : '')
+      // CA-3-57: dono vem da CARTEIRA (sem rodízio). Se o telefone está na
+      // carteira de exatamente um vendedor, ele já nasce dono. Conflito fica
+      // sem dono e vira item em "precisa de ação" — nunca cai num terceiro.
+      // Conexão de vendedor continua mandando (quem falou com ele responde).
+      var donoInicial = papelConexao === 'vendedor' ? vendedorDaConexao : donoDaCarteira
+      if (carteiraConflito) donoInicial = ''
+      novo.set('owner_id', donoInicial)
       novo.set(
         'vendedor_nome',
         papelConexao === 'vendedor' ? String(conexao.get('vendedor_nome_publico') || '') : '',
