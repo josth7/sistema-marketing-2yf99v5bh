@@ -112,6 +112,12 @@ routerAdd(
         rotulo: 'Gestão de leads',
         aceita: ['read_metrics'],
       },
+      {
+        para: '/esperando',
+        categoria: 'Vendas',
+        rotulo: 'Conversas esperando',
+        aceita: ['read_metrics'],
+      },
       { para: '/conversas', categoria: 'Vendas', rotulo: 'Conversas', aceita: ['read_conversas'] },
       {
         para: '/criterios',

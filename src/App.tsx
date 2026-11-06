@@ -18,6 +18,7 @@ import PrecisaAcao from './pages/PrecisaAcao'
 import Admin from './pages/Admin'
 import GestaoLeads from './pages/GestaoLeads'
 import Conversoes from './pages/Conversoes'
+import Esperando from './pages/Esperando'
 import Concorrentes from './pages/Concorrentes'
 import Numeros from './pages/Numeros'
 import Conversas from './pages/Conversas'
@@ -123,6 +124,7 @@ const App = () => {
             <Route path="/admin" element={<Admin />} />
             <Route path="/gestao-leads" element={<GestaoLeads />} />
             <Route path="/conversoes" element={<Conversoes />} />
+            <Route path="/esperando" element={<Esperando />} />
             <Route path="/concorrentes" element={<Concorrentes />} />
             <Route path="/conversas" element={<Conversas />} />
             <Route path="/numeros" element={<Numeros />} />
