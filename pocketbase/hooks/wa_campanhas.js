@@ -128,6 +128,18 @@ routerAdd(
       if (String(body.inicio_em || '') !== '') {
         c.set('inicio_em', String(body.inicio_em))
       }
+      // CA-3-85: dias da semana e intervalo entre campanhas
+      const filtrosD = body.filtros && typeof body.filtros === 'object' ? body.filtros : {}
+      const diasD = Array.isArray(body.dias)
+        ? body.dias
+        : Array.isArray(filtrosD.dias)
+          ? filtrosD.dias
+          : ['1', '2', '3', '4', '5', '6']
+      c.set('dias', JSON.stringify(diasD))
+      const intervalo = Number(body.intervalo_dias || filtrosD.intervalo_dias || 7)
+      c.set('intervalo_dias', intervalo > 0 ? intervalo : 7)
+      if (String(body.hora_inicio || '') !== '') c.set('hora_inicio', String(body.hora_inicio))
+      if (String(body.hora_fim || '') !== '') c.set('hora_fim', String(body.hora_fim))
       app.save(c)
       return e.json(200, {
         ok: true,
