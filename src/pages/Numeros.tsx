@@ -176,11 +176,11 @@ export default function Numeros() {
                   <span className="text-xs">
                     <span className="font-mono">{c.nome_segredo_chave || '—'}</span>{' '}
                     {c.segredo_configurado ? (
-                      <Badge variant="outline" className="ml-1 px-1 py-0 text-[10px]">
+                      <Badge variant="outline" className="ml-1 px-1 py-0 text-xs">
                         configurado
                       </Badge>
                     ) : (
-                      <Badge variant="destructive" className="ml-1 px-1 py-0 text-[10px]">
+                      <Badge variant="destructive" className="ml-1 px-1 py-0 text-xs">
                         ausente
                       </Badge>
                     )}

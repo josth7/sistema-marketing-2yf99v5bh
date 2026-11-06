@@ -466,7 +466,7 @@ export default function Relatorios() {
             <Button onClick={() => void gerar()} disabled={gerando || !periodo}>
               {gerando ? 'Gerando…' : 'Gerar relatório'}
             </Button>
-            {aviso && <p className="text-sm text-[#374151]">{aviso}</p>}
+            {aviso && <p className="text-sm text-foreground">{aviso}</p>}
           </CardContent>
         </Card>
       )}
@@ -493,10 +493,10 @@ export default function Relatorios() {
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">rascunho</Badge>
-                      <span className="text-xs text-[#6B7280]">
+                      <span className="text-xs text-muted-foreground">
                         rev. {it.report_revision} · template {it.template_version}
                       </span>
-                      <span className="text-xs text-[#6B7280]">
+                      <span className="text-xs text-muted-foreground">
                         gerado em {String(it.generated_at ?? '').slice(0, 10)}
                       </span>
                     </div>
@@ -563,7 +563,7 @@ export default function Relatorios() {
                     </div>
                     {resumo.estado === 'aguardando_revisao' && podeRevisar && (
                       <div className="space-y-2">
-                        <p className="text-xs text-[#6B7280]">
+                        <p className="text-xs text-muted-foreground">
                           Checklist: cada frase é verificável no relatório? Sem recomendação de
                           ação? Sem dado externo? (prazo:{' '}
                           {String(resumo.prazo_revisao_em ?? '').slice(0, 16)})
@@ -616,7 +616,7 @@ export default function Relatorios() {
                       </p>
                     )}
                     {resumo.revisado_em && (
-                      <p className="text-xs text-[#6B7280]">
+                      <p className="text-xs text-muted-foreground">
                         revisado em {String(resumo.revisado_em).slice(0, 10)}
                         {resumo.revisao_nota ? ' — ' + resumo.revisao_nota : ''}
                       </p>
@@ -626,7 +626,7 @@ export default function Relatorios() {
                   </div>
                 )}
                 {!resumo && (
-                  <p className="mt-2 text-xs text-[#6B7280]">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Resumo de IA indisponível para este relatório.
                   </p>
                 )}
@@ -649,7 +649,7 @@ export default function Relatorios() {
             onClick={(ev) => ev.stopPropagation()}
           >
             <h2 className="text-lg font-semibold">Republicar relatório</h2>
-            <p className="mt-1 text-sm text-[#6B7280]">
+            <p className="mt-1 text-sm text-muted-foreground">
               Cria uma revisão nova com os dados atuais e entrega na caixa dos destinatários atuais.
               O snapshot anterior continua intacto. Repetir a MESMA abertura de diálogo devolve a
               MESMA revisão (nada duplicado).
@@ -710,18 +710,18 @@ function TemplateRelatorio(props: {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-lg font-semibold">{props.titulo}</h3>
-          <p className="text-xs text-[#6B7280]">gerado em {props.geradoEm}</p>
+          <p className="text-xs text-muted-foreground">gerado em {props.geradoEm}</p>
         </div>
         <Badge variant="outline">modelo padrão</Badge>
       </div>
 
-      <p className="text-sm text-[#374151]">
+      <p className="text-sm text-foreground">
         {resumoFactual(props.tituloPeriodo.inicio, props.tituloPeriodo.fim, cob, warnings)}
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-gray-200 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Cobertura por fonte
           </p>
           <div className="mt-2 space-y-1">
@@ -734,7 +734,7 @@ function TemplateRelatorio(props: {
           </div>
         </div>
         <div className="rounded-lg border border-gray-200 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Comparação com a quinzena anterior
           </p>
           {elig && elig.valida ? (
@@ -747,7 +747,7 @@ function TemplateRelatorio(props: {
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-sm text-[#374151]">
+            <p className="mt-2 text-sm text-foreground">
               Comparação suprimida — {elig?.motivo ?? 'janelas não comparáveis'}
             </p>
           )}
@@ -775,7 +775,7 @@ function TemplateRelatorio(props: {
       </div>
 
       <div className="rounded-lg border border-gray-200 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Decisões em aberto
         </p>
         <div className="mt-2 space-y-1">
@@ -787,7 +787,7 @@ function TemplateRelatorio(props: {
                   atrasada 2+ ciclos
                 </Badge>
               )}
-              <span className={d.atrasada ? 'text-sm' : 'text-sm text-[#6B7280]'}>
+              <span className={d.atrasada ? 'text-sm' : 'text-sm text-muted-foreground'}>
                 {d.title} — revisão em {d.review_date ?? '—'}
               </span>
             </div>
@@ -796,11 +796,13 @@ function TemplateRelatorio(props: {
       </div>
 
       <div className="rounded-lg border border-gray-200 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Alertas</p>
-        <p className="mt-1 text-sm text-[#6B7280]">{props.avisoAlertas}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Alertas
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{props.avisoAlertas}</p>
       </div>
 
-      <p className="text-xs text-[#9CA3AF]">
+      <p className="text-xs text-muted-foreground">
         Prévia com dados de demonstração — conteúdo de teste exibido como texto.
       </p>
     </div>
@@ -810,7 +812,7 @@ function TemplateRelatorio(props: {
 function MiniValor(props: { rotulo: string; valor: string }) {
   return (
     <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-xs text-[#6B7280]">{props.rotulo}</p>
+      <p className="text-xs text-muted-foreground">{props.rotulo}</p>
       <p className="text-lg font-semibold">{props.valor}</p>
     </div>
   )
@@ -820,11 +822,13 @@ function TabelaObjetivos(props: { titulo: string; linhas: Array<Record<string, u
   if (!props.linhas || props.linhas.length === 0) return null
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">{props.titulo}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {props.titulo}
+      </p>
       <div className="mt-1 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-[#6B7280]">
+            <tr className="text-left text-xs text-muted-foreground">
               <th className="py-1 pr-3">Objetivo</th>
               <th className="py-1 pr-3">Gasto</th>
               <th className="py-1 pr-3">Impressões</th>

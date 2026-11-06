@@ -288,7 +288,7 @@ export default function Decisoes() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Scale className="h-4 w-4 text-[#6C3EF5]" />
+            <Scale className="h-4 w-4 text-primary" />
             Nova decisão
           </CardTitle>
         </CardHeader>
@@ -364,7 +364,7 @@ export default function Decisoes() {
             <Button onClick={salvar} disabled={salvando}>
               {salvando ? 'Salvando…' : 'Registrar decisão'}
             </Button>
-            <span className="text-xs text-[#6B7280]">
+            <span className="text-xs text-muted-foreground">
               * obrigatórios — revisão a partir de amanhã.
             </span>
           </div>
@@ -394,7 +394,7 @@ export default function Decisoes() {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     {badgeEstado(it.state)}
-                    <span className="text-xs text-[#6B7280]">rev. {it.revision}</span>
+                    <span className="text-xs text-muted-foreground">rev. {it.revision}</span>
                     {it.source_analysis_id && (
                       <span className="flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">
                         <BrainCircuit className="h-3 w-3" aria-hidden="true" />
@@ -403,7 +403,9 @@ export default function Decisoes() {
                     )}
                     <span
                       className={
-                        vencida(it) ? 'text-xs font-medium text-red-700' : 'text-xs text-[#6B7280]'
+                        vencida(it)
+                          ? 'text-xs font-medium text-red-700'
+                          : 'text-xs text-muted-foreground'
                       }
                     >
                       revisão em {it.review_date}
@@ -411,7 +413,7 @@ export default function Decisoes() {
                     </span>
                   </div>
                   <p className="text-sm font-medium">{it.title}</p>
-                  <p className="text-xs text-[#6B7280]">Ação: {it.planned_action}</p>
+                  <p className="text-xs text-muted-foreground">Ação: {it.planned_action}</p>
                   {it.state !== 'closed' && (
                     <div className="space-y-2 pt-1">
                       <Input

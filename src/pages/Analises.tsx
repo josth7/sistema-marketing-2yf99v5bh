@@ -109,7 +109,7 @@ function Evidencias({ evs }: { evs: Evidencia[] }) {
                   href={trecho}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 break-all text-xs text-[#6C3EF5] hover:underline"
+                  className="inline-flex items-center gap-1 break-all text-xs text-primary hover:underline"
                 >
                   {trecho} <ExternalLink className="h-3 w-3" aria-hidden="true" />
                 </a>
@@ -238,7 +238,7 @@ export default function Analises() {
         />
         <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
-            <LogIn className="h-4 w-4 text-[#6C3EF5]" />
+            <LogIn className="h-4 w-4 text-primary" />
             <p className="font-medium">Entrar para ver as análises</p>
           </div>
           <p className="mb-4 text-sm text-muted-foreground">
@@ -250,7 +250,7 @@ export default function Analises() {
               value={email}
               onChange={(ev) => setEmail(ev.target.value)}
               placeholder="seu email @haisan.com.br"
-              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-[#6C3EF5]"
+              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <input
               type="password"
@@ -260,13 +260,13 @@ export default function Analises() {
               onKeyDown={(ev) => {
                 if (ev.key === 'Enter') void entrar()
               }}
-              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-[#6C3EF5]"
+              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary"
             />
             {erroAuth && <p className="text-xs text-red-600">{erroAuth}</p>}
             <button
               onClick={() => void entrar()}
               disabled={entrando || !email || !senha}
-              className="w-full rounded-md bg-[#6C3EF5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5b32d4] disabled:opacity-60"
+              className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary disabled:opacity-60"
             >
               {entrando ? 'Entrando…' : 'Entrar'}
             </button>
@@ -295,7 +295,7 @@ export default function Analises() {
             <button
               onClick={() => void solicitar()}
               disabled={pedindo}
-              className="flex items-center gap-1.5 rounded-md bg-[#6C3EF5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5b32d4] disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary disabled:opacity-60"
             >
               {pedindo ? 'Pedindo…' : 'Solicitar análise'}
             </button>
@@ -395,7 +395,7 @@ export default function Analises() {
                 <div className="mt-3">
                   <button
                     onClick={() => registrarDecisao(item)}
-                    className="rounded-md border border-[#6C3EF5] px-3 py-1.5 text-xs font-medium text-[#6C3EF5] hover:bg-violet-50"
+                    className="rounded-md border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-violet-50"
                   >
                     Registrar decisão a partir desta análise
                   </button>

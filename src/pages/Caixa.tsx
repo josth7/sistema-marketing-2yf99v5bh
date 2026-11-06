@@ -204,7 +204,7 @@ export default function Caixa() {
         />
         <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
-            <LogIn className="h-4 w-4 text-[#6C3EF5]" />
+            <LogIn className="h-4 w-4 text-primary" />
             <p className="font-medium">Entrar para ver sua caixa</p>
           </div>
           <p className="mb-4 text-sm text-muted-foreground">
@@ -216,7 +216,7 @@ export default function Caixa() {
               value={email}
               onChange={(ev) => setEmail(ev.target.value)}
               placeholder="seu email @haisan.com.br"
-              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-[#6C3EF5]"
+              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <input
               type="password"
@@ -226,13 +226,13 @@ export default function Caixa() {
               onKeyDown={(ev) => {
                 if (ev.key === 'Enter') void entrar()
               }}
-              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-[#6C3EF5]"
+              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary"
             />
             {erroAuth && <p className="text-xs text-red-600">{erroAuth}</p>}
             <button
               onClick={() => void entrar()}
               disabled={entrando || !email || !senha}
-              className="w-full rounded-md bg-[#6C3EF5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5b32d4] disabled:opacity-60"
+              className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary disabled:opacity-60"
             >
               {entrando ? 'Entrando…' : 'Entrar'}
             </button>
@@ -292,7 +292,7 @@ export default function Caixa() {
               key={item.id}
               className={
                 'rounded-lg border bg-white p-4 ' +
-                (item.read_at ? 'border-border' : 'border-[#6C3EF5]/40')
+                (item.read_at ? 'border-border' : 'border-primary/40')
               }
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -309,7 +309,7 @@ export default function Caixa() {
                       </span>
                     )}
                     {!item.read_at && (
-                      <span className="rounded-full bg-[#6C3EF5]/10 px-2 py-0.5 text-xs font-semibold text-[#6C3EF5]">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                         Não lido
                       </span>
                     )}
@@ -380,7 +380,7 @@ export default function Caixa() {
                     <button
                       onClick={() => void aoMarcarLida(item)}
                       disabled={marcando === item.id}
-                      className="flex items-center gap-1.5 rounded-md bg-[#6C3EF5] px-3 py-2 text-sm font-medium text-white hover:bg-[#5b32d4] disabled:opacity-60"
+                      className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary disabled:opacity-60"
                     >
                       <Check className="h-4 w-4" />
                       {marcando === item.id ? 'Marcando…' : 'Marcar como lida'}
@@ -447,7 +447,7 @@ export default function Caixa() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => void revisarNoModal('aprovar')}
-                        className="rounded-md bg-[#6C3EF5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#5b32d4]"
+                        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary"
                       >
                         Aprovar
                       </button>

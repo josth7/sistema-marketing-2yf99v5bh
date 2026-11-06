@@ -575,7 +575,7 @@ export default function Conversas() {
             >
               {soNaoLidas ? 'Não respondidas' : 'Todas'}
               {contagemNaoLidas > 0 && (
-                <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
                   {contagemNaoLidas}
                 </span>
               )}
@@ -648,7 +648,7 @@ export default function Conversas() {
                     >
                       {c.contato_nome || telefoneBonito(c.contato_telefone)}
                     </span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                    <span className="shrink-0 text-xs text-muted-foreground">
                       {horaCurta(c.ultima_mensagem_em)}
                     </span>
                   </span>
@@ -658,25 +658,25 @@ export default function Conversas() {
                     </span>
                     {/* CA-3-70: tempo de espera quando a última é do cliente */}
                     {c.nao_lida && (c.espera_min ?? -1) >= 0 && (
-                      <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                      <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
                         {tempoEspera(c.espera_min || 0)}
                       </span>
                     )}
                     {c.ultimo_autor && (
-                      <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <span className="shrink-0 text-xs uppercase tracking-wide text-muted-foreground">
                         {ROTULO_AUTOR[c.ultimo_autor] || c.ultimo_autor}
                       </span>
                     )}
                   </span>
                   <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground">{c.numero_nome}</span>
+                    <span className="text-xs text-muted-foreground">{c.numero_nome}</span>
                     {c.estado && c.estado !== 'triagem' && (
-                      <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                      <Badge variant="outline" className="px-1 py-0 text-xs">
                         {c.estado.replace('_', ' ')}
                       </Badge>
                     )}
                     {c.canal && c.canal !== 'sem_gatilho' && (
-                      <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                      <Badge variant="secondary" className="px-1 py-0 text-xs">
                         {c.canal}
                       </Badge>
                     )}
@@ -727,7 +727,7 @@ export default function Conversas() {
                   </a>
                 )}
                 {convAberta.estado === 'pausada_humano' && (
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-xs">
                     IA pausada
                   </Badge>
                 )}
@@ -735,7 +735,7 @@ export default function Conversas() {
 
               {(observacoes.length > 0 || possoEscrever) && (
                 <div className="border-b bg-amber-50 px-4 py-2 dark:bg-amber-950/20">
-                  <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
                     <span>🔒</span>
                     <span>Recado interno — o cliente NÃO vê, só o vendedor deste atendimento</span>
                   </div>
@@ -792,7 +792,7 @@ export default function Conversas() {
                       <div key={m.id}>
                         {novoDia && (
                           <div className="my-2 text-center">
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                               {rotuloDia(m.enviada_em)}
                             </span>
                           </div>
@@ -806,7 +806,7 @@ export default function Conversas() {
                                 : 'bg-muted text-foreground')
                             }
                           >
-                            <div className="mb-0.5 flex items-center gap-2 text-[10px] opacity-70">
+                            <div className="mb-0.5 flex items-center gap-2 text-xs opacity-70">
                               <span className="font-semibold">
                                 {ROTULO_AUTOR[m.autor] || m.autor}
                               </span>
@@ -847,7 +847,7 @@ export default function Conversas() {
                                       </a>
                                     )}
                                     {m.tipo === 'audio' && duracao(m.media_duracao_s) !== '' && (
-                                      <span className="ml-2 text-[10px] opacity-70">
+                                      <span className="ml-2 text-xs opacity-70">
                                         {duracao(m.media_duracao_s)}
                                       </span>
                                     )}
@@ -867,7 +867,7 @@ export default function Conversas() {
 
               <div className="border-t px-3 py-2">
                 {ENVIO_BLOQUEADO && (
-                  <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-900">
+                  <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900">
                     <strong>Responda pelo WhatsApp do celular.</strong> A Meta está bloqueando o
                     envio pela API (erro 130497) — o que você escrever aqui{' '}
                     <strong>não chega</strong> no cliente. Suas respostas pelo celular aparecem
@@ -891,18 +891,16 @@ export default function Conversas() {
                       <Button size="sm" onClick={() => void copiarSugestao(sugestao)}>
                         Copiar para o celular
                       </Button>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         Revise antes de enviar — a IA segue o roteiro, não decide preço.
                       </span>
                     </>
                   )}
                   {copiado !== '' && (
-                    <span className="text-[11px] font-medium text-emerald-700">{copiado}</span>
+                    <span className="text-xs font-medium text-emerald-700">{copiado}</span>
                   )}
                 </div>
-                {avisoEnvio && (
-                  <p className="mb-1 text-[11px] text-muted-foreground">{avisoEnvio}</p>
-                )}
+                {avisoEnvio && <p className="mb-1 text-xs text-muted-foreground">{avisoEnvio}</p>}
                 <div className="flex items-end gap-2">
                   <input
                     ref={fileRef}

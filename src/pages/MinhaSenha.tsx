@@ -171,7 +171,7 @@ export default function MinhaSenha() {
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               required
             />
-            <p className="text-[11px] text-muted-foreground">Mínimo 8 caracteres.</p>
+            <p className="text-xs text-muted-foreground">Mínimo 8 caracteres.</p>
           </div>
 
           <div className="space-y-1">

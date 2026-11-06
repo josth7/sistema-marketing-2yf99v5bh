@@ -284,7 +284,7 @@ export default function Criterios() {
             <Button onClick={entrar} disabled={entrando}>
               {entrando ? 'Entrando…' : 'Entrar'}
             </Button>
-            <p className="text-xs text-[#6B7280]">
+            <p className="text-xs text-muted-foreground">
               Contas de teste (migração 0013): <strong>criador</strong> cria rascunhos (não aprova a
               si mesmo) e <strong>aprovador</strong> aprova. Senha das duas: Fixture@2026.
             </p>
@@ -301,7 +301,7 @@ export default function Criterios() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ListPlus className="h-4 w-4 text-[#6C3EF5]" />
+            <ListPlus className="h-4 w-4 text-primary" />
             Novo critério (rascunho)
           </CardTitle>
         </CardHeader>
@@ -477,7 +477,7 @@ export default function Criterios() {
             <Button onClick={salvar} disabled={salvando}>
               {salvando ? 'Salvando…' : 'Salvar rascunho'}
             </Button>
-            <span className="text-xs text-[#6B7280]">
+            <span className="text-xs text-muted-foreground">
               Rascunho pode nascer incompleto — completar antes de aprovar.
             </span>
           </div>
@@ -507,7 +507,7 @@ export default function Criterios() {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     {badgeEstado(it.state)}
-                    <span className="text-xs text-[#6B7280]">versão {it.version}</span>
+                    <span className="text-xs text-muted-foreground">versão {it.version}</span>
                     {it.approved_by && (
                       <span className="text-xs text-emerald-700 flex items-center gap-1">
                         <ShieldCheck className="h-3.5 w-3.5" />
@@ -524,7 +524,7 @@ export default function Criterios() {
                       minBase: it.min_base,
                     })}
                   </p>
-                  <p className="text-xs text-[#6B7280]">
+                  <p className="text-xs text-muted-foreground">
                     {[it.canal, it.objetivo, it.result_type, it.natureza]
                       .filter(Boolean)
                       .map((v) => ROTULO[v as string] ?? v)
@@ -545,7 +545,7 @@ export default function Criterios() {
                     )}
                   </div>
                   {it.state === 'draft' && (
-                    <p className="text-xs text-[#6B7280]">
+                    <p className="text-xs text-muted-foreground">
                       Aprovar exige todos os campos preenchidos e um responsável diferente de quem
                       criou.
                     </p>

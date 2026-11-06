@@ -811,11 +811,11 @@ export default function Leads() {
               >
                 <p className="mb-1 flex items-start justify-between gap-1 px-1 text-xs font-semibold leading-tight">
                   <span className="flex-1">{s.rotulo}</span>
-                  <span className="shrink-0 rounded-full bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+                  <span className="shrink-0 rounded-full bg-background px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
                     {coluna.length}
                   </span>
                 </p>
-                <p className="mb-2 px-1 text-[10px] tabular-nums text-muted-foreground">
+                <p className="mb-2 px-1 text-xs tabular-nums text-muted-foreground">
                   {valorColuna > 0
                     ? 'R$ ' + valorColuna.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
                     : 'R$ 0,00'}
@@ -830,7 +830,7 @@ export default function Leads() {
                         <p className="truncate text-sm font-medium">{l.nome}</p>
                         <span
                           className={
-                            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' +
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ' +
                             corNota(l.ia_nota)
                           }
                           title={
@@ -841,17 +841,17 @@ export default function Leads() {
                           {rotuloNota(l.ia_nota)}
                         </span>
                       </div>
-                      <p className="text-[11px] tabular-nums text-muted-foreground">
+                      <p className="text-xs tabular-nums text-muted-foreground">
                         R${' '}
                         {Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
-                      <p className="truncate text-[11px] text-muted-foreground">
+                      <p className="truncate text-xs text-muted-foreground">
                         {l.telefone || l.email || '—'}
                       </p>
                       {l.ia_humor && (
                         <span
                           className={
-                            'mt-0.5 inline-block rounded px-1 py-0.5 text-[10px] ' +
+                            'mt-0.5 inline-block rounded px-1 py-0.5 text-xs ' +
                             (COR_HUMOR[l.ia_humor] || 'bg-gray-100 text-gray-600')
                           }
                           title="Humor da última mensagem do cliente"
@@ -860,11 +860,11 @@ export default function Leads() {
                         </span>
                       )}
                       {l.owner_nome && (
-                        <p className="mt-0.5 truncate text-[11px] text-emerald-700">
+                        <p className="mt-0.5 truncate text-xs text-emerald-700">
                           👤 {l.owner_nome}
                         </p>
                       )}
-                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {(l.data_lead || l.criado_em || '')
                           .slice(0, 10)
                           .split('-')
@@ -949,7 +949,7 @@ export default function Leads() {
                     >
                       {l.nome}
                     </p>
-                    <Badge className={'shrink-0 text-[10px] ' + (COR_STATUS[l.status] || '')}>
+                    <Badge className={'shrink-0 text-xs ' + (COR_STATUS[l.status] || '')}>
                       {ROTULO_STATUS[l.status] || l.status}
                     </Badge>
                   </div>
@@ -968,7 +968,7 @@ export default function Leads() {
                     {l.ia_humor && (
                       <span
                         className={
-                          'rounded px-1.5 py-0.5 text-[10px] ' +
+                          'rounded px-1.5 py-0.5 text-xs ' +
                           (COR_HUMOR[l.ia_humor] || 'bg-gray-100 text-gray-600')
                         }
                       >
@@ -981,7 +981,7 @@ export default function Leads() {
                   </div>
                   {l.ia_resumo && (
                     <p
-                      className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground"
+                      className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground"
                       title={l.ia_resumo}
                     >
                       {l.ia_resumo}
@@ -1007,7 +1007,7 @@ export default function Leads() {
 
                   {/* responsável */}
                   <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-                    <p className="min-w-0 flex-1 truncate text-[11px] text-emerald-700">
+                    <p className="min-w-0 flex-1 truncate text-xs text-emerald-700">
                       {l.owner_nome ? '👤 ' + l.owner_nome : '—'}
                     </p>
                     <Button

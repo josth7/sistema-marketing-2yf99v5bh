@@ -361,11 +361,11 @@ export default function Acessos() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <CardTitle className="truncate text-sm">{p.nome || p.email}</CardTitle>
-                      <p className="truncate text-[11px] text-muted-foreground">{p.email}</p>
+                      <p className="truncate text-xs text-muted-foreground">{p.email}</p>
                     </div>
                     <Badge
                       className={
-                        'shrink-0 text-[10px] ' +
+                        'shrink-0 text-xs ' +
                         (COR_CARGO[p.papeis[0] || ''] || 'bg-gray-100 text-gray-600')
                       }
                     >
@@ -373,7 +373,7 @@ export default function Acessos() {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-1.5 pt-0 text-[11px]">
+                <CardContent className="space-y-1.5 pt-0 text-xs">
                   <p>
                     <span className="text-muted-foreground">Leads na carteira: </span>
                     <strong className="tabular-nums">{p.leads_ativos}</strong>
@@ -392,22 +392,22 @@ export default function Acessos() {
                   </p>
                   <div className="flex flex-wrap gap-1 pt-1">
                     {!p.ativa && (
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-xs">
                         sem acesso
                       </Badge>
                     )}
                     {p.senha_provisoria && p.ativa && (
-                      <Badge className="bg-amber-100 text-[10px] text-amber-800">
+                      <Badge className="bg-amber-100 text-xs text-amber-800">
                         senha provisória
                       </Badge>
                     )}
                     {p.conta_teste && (
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-xs">
                         conta de teste
                       </Badge>
                     )}
                     {p.vence_em !== '' && (
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-xs">
                         até {p.vence_em}
                       </Badge>
                     )}
@@ -549,7 +549,7 @@ export default function Acessos() {
               if (doGrupo.length === 0) return null
               return (
                 <div key={grupo} className="rounded-md border p-2">
-                  <p className="mb-1 text-[11px] font-semibold uppercase text-muted-foreground">
+                  <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
                     {grupo}
                   </p>
                   <div className="grid gap-1 sm:grid-cols-2">
@@ -568,10 +568,10 @@ export default function Acessos() {
             })}
           </div>
 
-          {avisoEdicao !== '' && <p className="text-[11px] text-muted-foreground">{avisoEdicao}</p>}
+          {avisoEdicao !== '' && <p className="text-xs text-muted-foreground">{avisoEdicao}</p>}
 
           <div className="rounded-md border border-dashed p-2">
-            <p className="mb-1 text-[11px] font-semibold">Redefinir senha</p>
+            <p className="mb-1 text-xs font-semibold">Redefinir senha</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -585,7 +585,7 @@ export default function Acessos() {
               </Button>
             </div>
             {senhaAviso !== '' && (
-              <p className="mt-1 text-[11px] text-muted-foreground">{senhaAviso}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{senhaAviso}</p>
             )}
           </div>
 
@@ -631,13 +631,13 @@ export default function Acessos() {
                       {bonito(n.numero)}{' '}
                       <span className="font-normal text-muted-foreground">· {n.nome}</span>
                     </p>
-                    <p className="truncate text-[11px] text-muted-foreground">
+                    <p className="truncate text-xs text-muted-foreground">
                       Quem vê: {n.quem_ve.length === 0 ? '—' : n.quem_ve.join(' · ')}
                     </p>
                   </div>
                   <Badge
                     className={
-                      'text-[10px] ' +
+                      'text-xs ' +
                       (n.papel === 'central'
                         ? 'bg-indigo-100 text-indigo-800'
                         : 'bg-emerald-100 text-emerald-800')

@@ -114,7 +114,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-center text-[11px] text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground">
           Esqueceu a senha? Fale com a gerência para redefinir.
         </p>
       </div>
