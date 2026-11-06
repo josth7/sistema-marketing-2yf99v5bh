@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T18:41:17.400Z",
+  "generatedAt": "2026-11-06T18:44:58.875Z",
   "collections": [
     {
       "name": "users",
@@ -3106,6 +3106,24 @@
         {
           "name": "dedupe_key",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado_google",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erro_google",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviado_google_em",
+          "type": "date",
           "required": false,
           "system": false
         }

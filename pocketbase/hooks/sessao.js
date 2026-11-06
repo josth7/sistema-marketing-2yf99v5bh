@@ -105,6 +105,12 @@ routerAdd(
         aceita: ['read_reports'],
       },
       {
+        para: '/conversoes',
+        categoria: 'Marketing',
+        rotulo: 'Conversões',
+        aceita: ['read_metrics'],
+      },
+      {
         para: '/caixa',
         categoria: 'Inteligência artificial',
         rotulo: 'Caixa',
