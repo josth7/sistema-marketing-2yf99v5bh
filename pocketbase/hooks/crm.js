@@ -348,6 +348,42 @@ routerAdd(
     } catch (_) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
+    // CA-3-37 (06/11): escopo do cargo ANTES de devolver o lead. A lista já
+    // filtrava, mas ficha/trilha/conversão aceitavam qualquer id — bastava
+    // saber o id para ler o cliente de outro vendedor. Gestão (escopo '*') vê
+    // tudo; vendedor só o lead dele. Decisão do dono: a exceção da central
+    // continua — o lead dele vale em qualquer conexão.
+    var podeLead = false
+    try {
+      const hojeE = new Date().toISOString().slice(0, 10)
+      const gsE = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '-created',
+        60,
+        0,
+      )
+      for (const gE of gsE) {
+        const deE = String(gE.get('valid_from') || '')
+        const ateE = String(gE.get('valid_until') || '')
+        if (deE !== '' && deE.slice(0, 10) > hojeE) continue
+        if (ateE !== '' && ateE.slice(0, 10) < hojeE) continue
+        var escE = []
+        try {
+          const rawE = gE.get('scope_accounts')
+          escE =
+            Array.isArray(rawE) && rawE.length > 0 && typeof rawE[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawE))
+              : typeof rawE === 'string'
+                ? JSON.parse(rawE)
+                : rawE || []
+        } catch (eEE) {}
+        if (Array.isArray(escE) && escE.indexOf('*') >= 0) podeLead = true
+      }
+      if (!podeLead && String(lead.get('owner_id') || '') === e.auth.id) podeLead = true
+    } catch (eEs) {}
+    if (!podeLead) return e.json(404, { ok: false, erro: 'lead não encontrado' })
+
     const body = e.requestInfo().body || {}
     const STATUSES = [
       'entrada_lead',
@@ -489,11 +525,44 @@ routerAdd(
     if (!temRead) {
       return e.json(403, { ok: false, erro: 'sem permissão para ver leads (read_leads)' })
     }
+    var leadEv = null
     try {
-      $app.findRecordById('crm_leads', e.request.pathValue('id'))
+      leadEv = $app.findRecordById('crm_leads', e.request.pathValue('id'))
     } catch (_) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
+    // CA-3-37 (06/11): escopo do cargo — vendedor só vê a trilha do próprio lead.
+    var podeTrilha = false
+    try {
+      const hojeT = new Date().toISOString().slice(0, 10)
+      const gsT = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '-created',
+        60,
+        0,
+      )
+      for (const gT of gsT) {
+        const deT = String(gT.get('valid_from') || '')
+        const ateT = String(gT.get('valid_until') || '')
+        if (deT !== '' && deT.slice(0, 10) > hojeT) continue
+        if (ateT !== '' && ateT.slice(0, 10) < hojeT) continue
+        var escT = []
+        try {
+          const rawT = gT.get('scope_accounts')
+          escT =
+            Array.isArray(rawT) && rawT.length > 0 && typeof rawT[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawT))
+              : typeof rawT === 'string'
+                ? JSON.parse(rawT)
+                : rawT || []
+        } catch (eET) {}
+        if (Array.isArray(escT) && escT.indexOf('*') >= 0) podeTrilha = true
+      }
+      if (!podeTrilha && String(leadEv.get('owner_id') || '') === e.auth.id) podeTrilha = true
+    } catch (eEsT) {}
+    if (!podeTrilha) return e.json(404, { ok: false, erro: 'lead não encontrado' })
+
     const colEv = $app.findCollectionByNameOrId('crm_lead_events')
     const evs = $app.findRecordsByFilter(
       colEv,
@@ -562,7 +631,38 @@ routerAdd(
       lead = $app.findRecordById('crm_leads', e.request.pathValue('id'))
     } catch (_) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
-    }
+    } // CA-3-37 (06/11): escopo do cargo — vendedor só o próprio lead.
+    var podeLead2 = false
+    try {
+      const hojeE2 = new Date().toISOString().slice(0, 10)
+      const gsE2 = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '-created',
+        60,
+        0,
+      )
+      for (const gE2 of gsE2) {
+        const deE2 = String(gE2.get('valid_from') || '')
+        const ateE2 = String(gE2.get('valid_until') || '')
+        if (deE2 !== '' && deE2.slice(0, 10) > hojeE2) continue
+        if (ateE2 !== '' && ateE2.slice(0, 10) < hojeE2) continue
+        var escE2 = []
+        try {
+          const rawE2 = gE2.get('scope_accounts')
+          escE2 =
+            Array.isArray(rawE2) && rawE2.length > 0 && typeof rawE2[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawE2))
+              : typeof rawE2 === 'string'
+                ? JSON.parse(rawE2)
+                : rawE2 || []
+        } catch (eEE2) {}
+        if (Array.isArray(escE2) && escE2.indexOf('*') >= 0) podeLead2 = true
+      }
+      if (!podeLead2 && String(lead.get('owner_id') || '') === e.auth.id) podeLead2 = true
+    } catch (eEs2) {}
+    if (!podeLead2) return e.json(404, { ok: false, erro: 'lead não encontrado' })
+
     const body = e.requestInfo().body || {}
     const valor = Number(body.valor)
     if (!Number.isFinite(valor) || valor <= 0) {
