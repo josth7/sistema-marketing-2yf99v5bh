@@ -72,12 +72,13 @@ routerAdd(
     } catch (e1) {}
 
     for (const u of users) {
-      out.total_pessoas++
       const email = String(u.get('email') || '')
       const nomeU = String(u.get('name') || '')
       // conta de teste não é pessoa da equipe: sai da conta inteira
       if (email.toLowerCase().indexOf('fixture') >= 0) continue
       if (nomeU.toLowerCase().indexOf('fixture') >= 0) continue
+      // só conta DEPOIS de descartar teste — antes somava fixture e o total mentia
+      out.total_pessoas++
 
       // grants ativos
       var papeis = []
