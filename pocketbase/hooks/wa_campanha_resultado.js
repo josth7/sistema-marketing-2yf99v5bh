@@ -163,7 +163,15 @@ routerAdd(
       }
       if (cfg) preco = Number(cfg.get('preco_marketing') || 0)
     } catch (e5) {}
-    const enviados = Number(porEstado['enviado'] || 0)
+    // "enviados" deve contar os ENVIOS da campanha (o que de fato saiu), não
+    // os destinos. Antes dava 0 numa campanha que mandou 44 — a tela mentia.
+    var enviados = Number(porEstado['enviado'] || 0)
+    if (envs.length > 0) {
+      enviados = 0
+      for (const en of envs) {
+        if (String(en.get('estado') || '') === 'enviado') enviados++
+      }
+    }
     const custo = preco * enviados
 
     return e.json(200, {
