@@ -29,13 +29,7 @@ cronAdd('wa_conversao_meta', '*/5 * * * *', () => {
     // ---------- o que está pendente ----------
     var pendentes = []
     try {
-      pendentes = app.findRecordsByFilter(
-        colConv,
-        "estado='pendente' || estado='pending' || estado='erro'",
-        '',
-        100,
-        0,
-      )
+      pendentes = app.findRecordsByFilter(colConv, "estado='pending' || estado='erro'", '', 100, 0)
     } catch (e0) {
       return
     }
@@ -165,14 +159,14 @@ cronAdd('wa_conversao_meta', '*/5 * * * *', () => {
 
       try {
         if (status === 200 && (recebidos >= 1 || baseUrl.indexOf('/fixtures/') >= 0)) {
-          conv.set('estado', 'enviado')
+          conv.set('estado', 'sent')
           conv.set('enviado_em', new Date().toISOString())
           conv.set('ultimo_erro', '')
           conv.set('meta_event_id', eventId)
           app.save(conv)
         } else if (status === 429) {
           // limite de requisições: volta para a fila
-          conv.set('estado', 'pendente')
+          conv.set('estado', 'pending')
           conv.set('tentativas', tentativas + 1)
           conv.set('ultimo_erro', '429 limite da Meta; nova tentativa')
           app.save(conv)

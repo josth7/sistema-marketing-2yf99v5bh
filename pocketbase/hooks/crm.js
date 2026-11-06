@@ -788,7 +788,7 @@ routerAdd(
         // já existe: atualiza o valor e volta para a fila se tinha falhado
         try {
           conv.set('valor', valor)
-          if (String(conv.get('estado') || '') !== 'enviado') conv.set('estado', 'pendente')
+          if (String(conv.get('estado') || '') !== 'sent') conv.set('estado', 'pending')
           if (String(conv.get('event_id') || '') === '') {
             conv.set('event_id', 'purchase-' + lead.id + '-' + String(new Date().getTime()))
           }
@@ -800,7 +800,7 @@ routerAdd(
         nova.set('valor', valor)
         nova.set('canal', canalOk)
         nova.set('descricao', descricao)
-        nova.set('estado', 'pendente')
+        nova.set('estado', 'pending')
         nova.set('fixture', ehFixture)
         nova.set('event_name', 'Purchase')
         // `origem_plataforma` é obrigatório nesta coleção: sem ele o save é
