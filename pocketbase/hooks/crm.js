@@ -803,6 +803,11 @@ routerAdd(
         nova.set('estado', 'pendente')
         nova.set('fixture', ehFixture)
         nova.set('event_name', 'Purchase')
+        // `origem_plataforma` é obrigatório nesta coleção: sem ele o save é
+        // RECUSADO em silêncio e a conversão nunca nasce (06/11).
+        try {
+          nova.set('origem_plataforma', 'meta')
+        } catch (eOP) {}
         // event_id estável: a Meta deduplica por ele
         nova.set('event_id', 'purchase-' + lead.id + '-' + String(new Date().getTime()))
         nova.set('dedupe_key', 'conv-' + lead.id)
@@ -811,7 +816,11 @@ routerAdd(
           nova.set('ctwa_clid', String(lead.get('anuncio_ctwa') || '').slice(0, 200))
           nova.set('waba_id', String(lead.get('anuncio_id') || '').slice(0, 100))
         } catch (eCtx) {}
-        $app.save(nova)
+        try {
+          $app.save(nova)
+        } catch (eSaveConv) {
+          console.log('crm: FALHOU criar conversao -> ' + String(eSaveConv).slice(0, 200))
+        }
       }
     } catch (eConv) {}
     return e.json(200, {
