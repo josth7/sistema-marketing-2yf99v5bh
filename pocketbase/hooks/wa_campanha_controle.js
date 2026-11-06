@@ -88,6 +88,8 @@ routerAdd(
       // só número da equipe: o teste não vai para cliente
       const internos = {}
       try {
+        // LÊ SÓ A VERSÃO MAIS RECENTE da config: antes somava todas as versões,
+        // então número removido no passado continuava valendo como equipe.
         const vs = app.findRecordsByFilter(
           app.findCollectionByNameOrId('atendimento_config'),
           '',
@@ -95,12 +97,22 @@ routerAdd(
           200,
           0,
         )
+        var cfg = null
         for (const v of vs) {
-          var li = lerL(v.get('internos'))
-          if (!Array.isArray(li)) continue
-          for (const i of li) {
-            const n = String(i.numero || '').replace(/\D/g, '')
-            if (n !== '') internos[n] = true
+          if (!cfg || Number(v.get('versao') || 0) > Number(cfg.get('versao') || 0)) cfg = v
+        }
+        if (cfg) {
+          var li = lerL(cfg.get('internos'))
+          if (Array.isArray(li)) {
+            for (const i of li) {
+              const n = String(i.numero || '').replace(/\D/g, '')
+              if (n !== '') {
+                internos[n] = true
+                // a mesma pessoa pode estar gravada com e sem o 9
+                if (n.length === 13) internos[n.slice(0, 4) + n.slice(5)] = true
+                if (n.length === 12) internos[n.slice(0, 4) + '9' + n.slice(4)] = true
+              }
+            }
           }
         }
       } catch (e2) {}
