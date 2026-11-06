@@ -288,7 +288,11 @@ routerAdd(
     rec.set('owner_id', String(body.owner_id || e.auth.id))
     rec.set('conta_id', String(body.conta_id || 'haisan'))
     rec.set('fixture', ehFixture)
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     // evento de criação na trilha
     const colEv = $app.findCollectionByNameOrId('crm_lead_events')
     const ev = new Record(colEv)
@@ -300,7 +304,11 @@ routerAdd(
     )
     ev.set('user_id', e.auth.id)
     ev.set('fixture', ehFixture)
-    $app.save(ev)
+    try {
+      $app.save(ev)
+    } catch (eSaveSolto) {
+      console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(201, { ok: true, id: rec.id, status: status })
   },
   $apis.requireAuth(),
@@ -528,7 +536,11 @@ routerAdd(
     if (mudancas.length === 0) {
       return e.json(200, { ok: true, id: lead.id, sem_mudanca: true })
     }
-    $app.save(lead)
+    try {
+      $app.save(lead)
+    } catch (eSaveSolto) {
+      console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     const colEv = $app.findCollectionByNameOrId('crm_lead_events')
     const ehFixture = String(lead.get('fixture')) === 'true'
     for (const m of mudancas) {
@@ -538,7 +550,11 @@ routerAdd(
       ev.set('texto', m.texto)
       ev.set('user_id', e.auth.id)
       ev.set('fixture', ehFixture)
-      $app.save(ev)
+      try {
+        $app.save(ev)
+      } catch (eSaveSolto) {
+        console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+      }
     }
     return e.json(200, { ok: true, id: lead.id, mudancas: mudancas.length })
   },
@@ -752,19 +768,31 @@ routerAdd(
     )
     ev.set('user_id', e.auth.id)
     ev.set('fixture', ehFixture)
-    $app.save(ev)
+    try {
+      $app.save(ev)
+    } catch (eSaveSolto) {
+      console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     // status → fechado (conversão = venda fechada)
     const statusAntigo = String(lead.get('status') || 'novo')
     if (statusAntigo !== 'venda_realizada') {
       lead.set('status', 'venda_realizada')
-      $app.save(lead)
+      try {
+        $app.save(lead)
+      } catch (eSaveSolto) {
+        console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+      }
       const ev2 = new Record(colEv)
       ev2.set('lead_id', lead.id)
       ev2.set('tipo', 'status')
       ev2.set('texto', 'status: ' + statusAntigo + ' → fechado (conversão registrada)')
       ev2.set('user_id', e.auth.id)
       ev2.set('fixture', ehFixture)
-      $app.save(ev2)
+      try {
+        $app.save(ev2)
+      } catch (eSaveSolto) {
+        console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+      }
     }
     // se o status já era venda_realizada, o bloco acima não salvou o lead:
     // salva agora para o VALOR não ficar em memória
@@ -1020,7 +1048,11 @@ routerAdd(
         rec.set('conta_id', 'haisan')
         rec.set('fixture', ehFixture)
         rec.set('origem_import', 'planilha-agencia')
-        $app.save(rec)
+        try {
+          $app.save(rec)
+        } catch (eSaveSolto) {
+          console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+        }
         criados++
         const ev = new Record(colEv)
         ev.set('lead_id', rec.id)
@@ -1038,7 +1070,11 @@ routerAdd(
         )
         ev.set('user_id', e.auth.id)
         ev.set('fixture', ehFixture)
-        $app.save(ev)
+        try {
+          $app.save(ev)
+        } catch (eSaveSolto) {
+          console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+        }
       } catch (eSave) {
         // UNIQUE pode disparar aqui em corrida — conta como duplicado
         duplicados++
@@ -1322,7 +1358,11 @@ routerAdd(
     conv.set('estado', estado)
     conv.set('meta_event_id', metaEventId)
     conv.set('origem_plataforma', origemPlataforma)
-    $app.save(conv)
+    try {
+      $app.save(conv)
+    } catch (eSaveSolto) {
+      console.log('save falhou em crm.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(200, { ok: true, id: conv.id, estado: estado })
   },
   $apis.requireAuth(),

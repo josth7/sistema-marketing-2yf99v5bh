@@ -240,7 +240,11 @@ routerAdd(
     })
     rec.set('history', JSON.stringify(hist).slice(0, 1900000))
 
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em criterios.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(200, {
       ok: true,
       id: rec.id,
@@ -556,7 +560,11 @@ routerAdd(
       acao: 'arquivou_v' + rec.get('version'),
     })
     rec.set('history', JSON.stringify(hist).slice(0, 1900000))
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em criterios.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(200, { ok: true, id: rec.id, state: rec.get('state') })
   },
   $apis.requireAuth(),

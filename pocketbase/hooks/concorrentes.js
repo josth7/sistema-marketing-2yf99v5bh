@@ -150,7 +150,11 @@ routerAdd(
     )
     rec.set('user_id', e.auth.id)
     rec.set('fixture', ehFixture)
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em concorrentes.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(201, { ok: true, id: rec.id })
   },
   $apis.requireAuth(),

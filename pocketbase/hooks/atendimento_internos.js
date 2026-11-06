@@ -94,7 +94,11 @@ routerAdd(
       const r = new Record(col)
       r.set('numero', n)
       r.set('rotulo', n === dig ? rotulo : rotulo + ' (sem o 9)')
-      $app.save(r)
+      try {
+        $app.save(r)
+      } catch (eSaveSolto) {
+        console.log('save falhou em atendimento_internos.js: ' + String(eSaveSolto).slice(0, 160))
+      }
       gravados++
     }
     if (gravados === 0) return e.json(409, { ok: false, erro: 'Este número já está na lista.' })

@@ -953,7 +953,11 @@ routerAdd(
     if (justificativa) entrada.justificativa = justificativa
     hist.push(entrada)
     rec.set('history', JSON.stringify(hist).slice(0, 1900000))
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em alertas.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(200, { ok: true, id: rec.id, state: novo })
   },
   $apis.requireAuth(),

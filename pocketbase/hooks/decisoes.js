@@ -263,7 +263,11 @@ routerAdd(
       'history',
       JSON.stringify([{ at: new Date().toISOString(), ator: e.auth.id, acao: 'criou_decisao' }]),
     )
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em decisoes.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(200, { ok: true, id: rec.id, uuid: rec.get('uuid'), revision: 1, state: 'open' })
   },
   $apis.requireAuth(),
@@ -444,7 +448,11 @@ routerAdd(
     }
     rec.set('revision', Number(rec.get('revision')) + 1)
     rec.set('updated_at', new Date().toISOString())
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em decisoes.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(200, {
       ok: true,
       id: rec.id,
@@ -541,7 +549,11 @@ routerAdd(
       depois: { state: 'closed', review_outcome: body.review_outcome },
     })
     rec.set('history', JSON.stringify(hist))
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSaveSolto) {
+      console.log('save falhou em decisoes.js: ' + String(eSaveSolto).slice(0, 160))
+    }
     return e.json(200, {
       ok: true,
       id: rec.id,
