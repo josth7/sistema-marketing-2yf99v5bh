@@ -333,7 +333,11 @@ routerAdd(
       sum.set('revisado_por', e.auth.id)
       sum.set('revisado_em', agora)
       sum.set('revisao_nota', nota.slice(0, 500))
-      $app.save(sum)
+      try {
+        $app.save(sum)
+      } catch (eSv) {
+        console.log('relatorios_resumo.js: save falhou -> ' + String(eSv).slice(0, 160))
+      }
       // itens dos demais revisores fechados
       const colI = $app.findCollectionByNameOrId('inbox_items')
       const itens = $app.findRecordsByFilter(
@@ -346,7 +350,11 @@ routerAdd(
       for (const it of itens) {
         it.set('status', 'delivered')
         it.set('read_at', agora)
-        $app.save(it)
+        try {
+          $app.save(it)
+        } catch (eSv) {
+          console.log('relatorios_resumo.js: save falhou -> ' + String(eSv).slice(0, 160))
+        }
       }
       return e.json(200, {
         ok: true,
@@ -524,7 +532,11 @@ routerAdd(
     sum.set('revisado_por', e.auth.id)
     sum.set('revisado_em', agora)
     sum.set('revisao_nota', nota.slice(0, 500))
-    $app.save(sum)
+    try {
+      $app.save(sum)
+    } catch (eSv) {
+      console.log('relatorios_resumo.js: save falhou -> ' + String(eSv).slice(0, 160))
+    }
     // itens de revisão dos demais revisores fechados
     const itens2 = $app.findRecordsByFilter(
       colI,
@@ -536,7 +548,11 @@ routerAdd(
     for (const it of itens2) {
       it.set('status', 'delivered')
       it.set('read_at', agora)
-      $app.save(it)
+      try {
+        $app.save(it)
+      } catch (eSv) {
+        console.log('relatorios_resumo.js: save falhou -> ' + String(eSv).slice(0, 160))
+      }
     }
     return e.json(200, {
       ok: true,
@@ -772,7 +788,11 @@ routerAdd(
     sum.set('revisado_por', e.auth.id)
     sum.set('revisado_em', agora)
     sum.set('revisao_nota', ('retirado: ' + nota).slice(0, 500))
-    $app.save(sum)
+    try {
+      $app.save(sum)
+    } catch (eSv) {
+      console.log('relatorios_resumo.js: save falhou -> ' + String(eSv).slice(0, 160))
+    }
     return e.json(200, {
       ok: true,
       estado: 'retirado',

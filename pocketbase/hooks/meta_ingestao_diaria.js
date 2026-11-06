@@ -131,7 +131,11 @@ cronAdd('meta_ingestao_diaria', '0 9 * * *', () => {
       if (r.impressoes !== null && r.impressoes !== undefined) rec.set('impressoes', r.impressoes)
       if (r.cliques !== null && r.cliques !== undefined) rec.set('cliques', r.cliques)
       if (r.gasto !== null && r.gasto !== undefined) rec.set('gasto', r.gasto)
-      $app.save(rec)
+      try {
+        $app.save(rec)
+      } catch (eSv) {
+        console.log('meta_ingestao_diaria.js: save falhou -> ' + String(eSv).slice(0, 160))
+      }
       gravados++
     }
 

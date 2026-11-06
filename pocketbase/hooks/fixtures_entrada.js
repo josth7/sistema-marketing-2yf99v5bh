@@ -194,7 +194,11 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/entrada', (e) => {
       ns.set('contador', 1)
       ns.set('leitores', leitores)
       ns.set('fixture', true)
-      $app.save(ns)
+      try {
+        $app.save(ns)
+      } catch (eSv) {
+        console.log('fixtures_entrada.js: save falhou -> ' + String(eSv).slice(0, 160))
+      }
     }
   } catch (eSinal) {}
 

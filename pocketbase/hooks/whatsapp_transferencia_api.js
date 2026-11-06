@@ -100,7 +100,11 @@ routerAdd(
     pedido.set('estado', 'pendente')
     pedido.set('criado_por', e.auth.id)
     pedido.set('fixture', ehFixture)
-    $app.save(pedido)
+    try {
+      $app.save(pedido)
+    } catch (eSv) {
+      console.log('whatsapp_transferencia_api.js: save falhou -> ' + String(eSv).slice(0, 160))
+    }
 
     // o hook onRecordAfterCreateSuccess já executou (RN-67); reler para
     // devolver o resultado de verdade, não o pedido em aberto
@@ -271,7 +275,11 @@ routerAdd(
     }
     env.set('estado', 'pendente')
     env.set('tentativas', 0)
-    $app.save(env)
+    try {
+      $app.save(env)
+    } catch (eSv) {
+      console.log('whatsapp_transferencia_api.js: save falhou -> ' + String(eSv).slice(0, 160))
+    }
     return e.json(200, { ok: true, id: env.id, estado: 'pendente' })
   },
   $apis.requireAuth(),

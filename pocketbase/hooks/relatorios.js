@@ -628,7 +628,11 @@ routerAdd(
     rec.set('warnings', JSON.stringify(warnings))
     rec.set('alert_refs', JSON.stringify({ aviso: avisoAlertas, itens: alertaRefs }))
     rec.set('decision_refs', JSON.stringify(decisaoRefs))
-    $app.save(rec)
+    try {
+      $app.save(rec)
+    } catch (eSv) {
+      console.log('relatorios.js: save falhou -> ' + String(eSv).slice(0, 160))
+    }
     return e.json(200, {
       ok: true,
       id: rec.id,

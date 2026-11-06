@@ -1218,7 +1218,11 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
           const est = String(conversa.get('estado') || '')
           if (est === '') conversa.set('estado', 'triagem')
         }
-        $app.save(conversa)
+        try {
+          $app.save(conversa)
+        } catch (eSv) {
+          console.log('whatsapp_dapi.js: save falhou -> ' + String(eSv).slice(0, 160))
+        }
       } catch (eCv2) {}
 
       // ---------- leitores (RN-71/RN-87) ----------

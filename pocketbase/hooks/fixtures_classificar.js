@@ -69,7 +69,11 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/classificar', (e) => {
   env.set('fixture', true)
   env.set('fixture_status', status)
   env.set('dedupe_key', 'classif_' + String(Date.now()) + '_' + String(Math.random()).slice(2, 9))
-  $app.save(env)
+  try {
+    $app.save(env)
+  } catch (eSv) {
+    console.log('fixtures_classificar.js: save falhou -> ' + String(eSv).slice(0, 160))
+  }
 
   // roda a MESMA classificação da fila, quantas vezes a fila rodaria
   const historico = []
@@ -83,7 +87,11 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/classificar', (e) => {
       env.set('enviado_em', new Date().toISOString())
       env.set('ultimo_erro', '')
       env.set('tentativas', Number(env.get('tentativas') || 0) + 1)
-      $app.save(env)
+      try {
+        $app.save(env)
+      } catch (eSv) {
+        console.log('fixtures_classificar.js: save falhou -> ' + String(eSv).slice(0, 160))
+      }
       historico.push(String(env.get('estado')))
       continue
     }
@@ -91,7 +99,11 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/classificar', (e) => {
       env.set('tentativas', Number(env.get('tentativas') || 0) + 1)
       env.set('estado', 'erro_definitivo')
       env.set('ultimo_erro', 'dapi_http_4xx')
-      $app.save(env)
+      try {
+        $app.save(env)
+      } catch (eSv) {
+        console.log('fixtures_classificar.js: save falhou -> ' + String(eSv).slice(0, 160))
+      }
       historico.push('erro_definitivo')
       continue
     }
@@ -99,7 +111,11 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/classificar', (e) => {
     env.set('tentativas', t)
     env.set('ultimo_erro', status === 429 ? 'dapi_http_429' : 'dapi_http_5xx')
     env.set('estado', t >= 3 ? 'erro_definitivo' : 'erro')
-    $app.save(env)
+    try {
+      $app.save(env)
+    } catch (eSv) {
+      console.log('fixtures_classificar.js: save falhou -> ' + String(eSv).slice(0, 160))
+    }
     historico.push(String(env.get('estado')))
   }
 

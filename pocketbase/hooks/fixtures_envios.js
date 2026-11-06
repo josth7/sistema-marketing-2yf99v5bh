@@ -47,7 +47,11 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/envios', (e) => {
     'dedupe_key',
     'fixture_envio_' + String(Date.now()) + '_' + String(Math.random()).slice(2, 8),
   )
-  $app.save(env)
+  try {
+    $app.save(env)
+  } catch (eSv) {
+    console.log('fixtures_envios.js: save falhou -> ' + String(eSv).slice(0, 160))
+  }
 
   // processa AGORA (mesma classificação da fila real)
   const historico = []
@@ -101,7 +105,11 @@ routerAdd('POST', '/backend/v1/fixtures/whatsapp/envios', (e) => {
     historico.push({ tentativa: tent, status: st, estado: String(env.get('estado')) })
     estadoFinal = String(env.get('estado'))
   }
-  $app.save(env)
+  try {
+    $app.save(env)
+  } catch (eSv) {
+    console.log('fixtures_envios.js: save falhou -> ' + String(eSv).slice(0, 160))
+  }
 
   return e.json(200, {
     ok: true,
