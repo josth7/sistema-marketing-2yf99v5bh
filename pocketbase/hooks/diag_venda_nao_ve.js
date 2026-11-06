@@ -94,7 +94,7 @@ routerAdd(
     out.passos.push({
       passo: '2. está em leitores do sinal',
       ok: emLeitores,
-      detalhe: leitores.length + ' leitores' + (sins === undefined ? '' : ''),
+      detalhe: leitores.length + ' leitores',
     })
 
     // 3. é o vendedor da conexão?
