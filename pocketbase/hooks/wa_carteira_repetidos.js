@@ -301,6 +301,12 @@ routerAdd(
         criterio = 'menor_carga'
       }
 
+      // BUG corrigido 06/11: a carga NÃO era atualizada a cada decisão, então
+      // o "menor carga" era sempre o mesmo vendedor e TODOS os 8.847 repetidos
+      // iriam para ele — sobrecarregando uma pessoa com o trabalho de quatro.
+      // Agora a carga sobe a cada escolha e a distribuição é de fato equilibrada.
+      carga[escolhido] = (carga[escolhido] || 0) + 1
+
       if (escolhido === '') {
         out.por_criterio.sem_criterio++
         continue
