@@ -116,23 +116,35 @@ cronAdd('wa_resumo_gestao', '*/10 * * * *', () => {
             }
           } catch (eC) {}
         }
-        // e ainda: o número interno cadastrado com o nome da pessoa
-        if (tel === '' && internos[String(uid)] === undefined) {
+        // e ainda: o número interno cadastrado com o NOME da pessoa.
+        // O cadastro de números internos NÃO tem `user_id` — só rótulo e
+        // número. Procurar por user_id devolvia vazio e o resumo nunca saía
+        // ("nenhum destinatario com numero da equipe" no log de 06/11).
+        if (tel === '') {
+          var nomePessoa = ''
           try {
-            const is = app.findRecordsByFilter(
-              app.findCollectionByNameOrId('whatsapp_numeros_internos'),
-              '',
-              '',
-              300,
-              0,
-            )
-            for (const i of is) {
-              if (String(i.get('user_id') || '') === String(uid)) {
-                tel = String(i.get('numero') || '').replace(/[^0-9]/g, '')
-                break
+            const u = app.findRecordById('users', String(uid))
+            nomePessoa = String(u.get('name') || u.get('email') || '').toLowerCase()
+          } catch (eN) {}
+          if (nomePessoa !== '') {
+            try {
+              const is = app.findRecordsByFilter(
+                app.findCollectionByNameOrId('whatsapp_numeros_internos'),
+                '',
+                '',
+                300,
+                0,
+              )
+              const primeiro = nomePessoa.split(' ')[0]
+              for (const i of is) {
+                const rot = String(i.get('rotulo') || '').toLowerCase()
+                if (rot.indexOf(primeiro) >= 0) {
+                  tel = String(i.get('numero') || '').replace(/[^0-9]/g, '')
+                  break
+                }
               }
-            }
-          } catch (eI2) {}
+            } catch (eI2) {}
+          }
         }
         if (tel === '') continue
         if (!internos[tel]) continue // só número da equipe
