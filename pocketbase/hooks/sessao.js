@@ -71,26 +71,77 @@ routerAdd(
 
     // cada módulo: QUALQUER uma das ações listadas libera (OR)
     const catalogo = [
-      { para: '/painel', rotulo: 'Painel', aceita: ['read_metrics'] },
-      { para: '/leads', rotulo: 'CRM', aceita: ['read_leads', 'read_metrics'] },
-      { para: '/conversas', rotulo: 'Conversas', aceita: ['read_conversas'] },
-      { para: '/criterios', rotulo: 'Critérios', aceita: ['manage_criteria'] },
-      { para: '/alertas', rotulo: 'Alertas', aceita: ['read_alerts'] },
-      { para: '/decisoes', rotulo: 'Decisões', aceita: ['read_decisions'] },
-      { para: '/relatorios', rotulo: 'Relatórios', aceita: ['read_reports'] },
-      { para: '/caixa', rotulo: 'Caixa', aceita: ['read_reports'] },
+      { para: '/painel', categoria: 'Visão geral', rotulo: 'Painel', aceita: ['read_metrics'] },
+      {
+        para: '/leads',
+        categoria: 'Vendas',
+        rotulo: 'CRM',
+        aceita: ['read_leads', 'read_metrics'],
+      },
+      { para: '/conversas', categoria: 'Vendas', rotulo: 'Conversas', aceita: ['read_conversas'] },
+      {
+        para: '/criterios',
+        categoria: 'Marketing',
+        rotulo: 'Critérios',
+        aceita: ['manage_criteria'],
+      },
+      { para: '/alertas', categoria: 'Marketing', rotulo: 'Alertas', aceita: ['read_alerts'] },
+      {
+        para: '/decisoes',
+        categoria: 'Inteligência artificial',
+        rotulo: 'Decisões',
+        aceita: ['read_decisions'],
+      },
+      {
+        para: '/relatorios',
+        categoria: 'Inteligência artificial',
+        rotulo: 'Relatórios',
+        aceita: ['read_reports'],
+      },
+      {
+        para: '/caixa',
+        categoria: 'Inteligência artificial',
+        rotulo: 'Caixa',
+        aceita: ['read_reports'],
+      },
       {
         para: '/vendas-sem-valor',
+        categoria: 'Vendas',
         rotulo: 'Vendas sem valor',
         aceita: ['manage_leads', 'read_leads'],
       },
-      { para: '/recontato', rotulo: 'Recontato', aceita: ['read_leads'] },
-      { para: '/precisa-acao', rotulo: 'Precisa de ação', aceita: ['manage_access', 'read_leads'] },
-      { para: '/numeros', rotulo: 'Números', aceita: ['manage_whatsapp'] },
-      { para: '/concorrentes', rotulo: 'Concorrentes', aceita: ['read_analyses'] },
-      { para: '/analises', rotulo: 'Análises', aceita: ['read_analyses'] },
-      { para: '/saude-canal', rotulo: 'Saúde do canal', aceita: ['read_metrics'] },
-      { para: '/acessos', rotulo: 'Acessos', aceita: ['manage_access'] },
+      { para: '/recontato', categoria: 'Vendas', rotulo: 'Recontato', aceita: ['read_leads'] },
+      {
+        para: '/precisa-acao',
+        categoria: 'Vendas',
+        rotulo: 'Precisa de ação',
+        aceita: ['manage_access', 'read_leads'],
+      },
+      {
+        para: '/numeros',
+        categoria: 'Administração',
+        rotulo: 'Números',
+        aceita: ['manage_whatsapp'],
+      },
+      {
+        para: '/concorrentes',
+        categoria: 'Marketing',
+        rotulo: 'Concorrentes',
+        aceita: ['read_analyses'],
+      },
+      { para: '/analises', categoria: 'Marketing', rotulo: 'Análises', aceita: ['read_analyses'] },
+      {
+        para: '/saude-canal',
+        categoria: 'Marketing',
+        rotulo: 'Saúde do canal',
+        aceita: ['read_metrics'],
+      },
+      {
+        para: '/acessos',
+        categoria: 'Administração',
+        rotulo: 'Acessos',
+        aceita: ['manage_access'],
+      },
     ]
 
     const menu = []
@@ -99,7 +150,8 @@ routerAdd(
       for (const acao of item.aceita) {
         if (pode.indexOf(acao) >= 0) liberado = true
       }
-      if (liberado) menu.push({ para: item.para, rotulo: item.rotulo })
+      if (liberado)
+        menu.push({ para: item.para, rotulo: item.rotulo, categoria: item.categoria || '' })
     }
 
     return e.json(200, {

@@ -53,6 +53,26 @@ export default function Layout({ sessao }: { sessao: Sessao }) {
   // Minha senha todo mundo tem; o resto vem do servidor
   const itens = [...sessao.menu, { para: '/minha-senha', rotulo: 'Minha senha' }]
 
+  // CA-3-39 (06/11): menu por CATEGORIA, na ordem em que a gestão pensa o
+  // negócio — Vendas, Marketing, Inteligência artificial, Administração.
+  // Um item sem categoria cai em "Outros" em vez de sumir.
+  const ORDEM_CATEGORIAS = [
+    'Visão geral',
+    'Vendas',
+    'Marketing',
+    'Inteligência artificial',
+    'Administração',
+    'Outros',
+  ]
+  const grupoMenu = ORDEM_CATEGORIAS.map((cat) => ({
+    categoria: cat,
+    itens: itens.filter((i) =>
+      cat === 'Outros'
+        ? !i.categoria || ORDEM_CATEGORIAS.indexOf(i.categoria) < 0
+        : i.categoria === cat,
+    ),
+  })).filter((g) => g.itens.length > 0)
+
   function sair() {
     pb.authStore.clear()
     window.location.replace('/')
@@ -74,26 +94,38 @@ export default function Layout({ sessao }: { sessao: Sessao }) {
           className="flex items-center gap-0.5 md:gap-1 overflow-x-auto"
           aria-label="Navegação principal"
         >
-          {itens.map(({ para, rotulo }) => {
-            const Icone = ICONES[para] || KeyRound
-            const ativo = atual === para || atual.startsWith(para + '/')
-            return (
-              <Link
-                key={para}
-                to={para}
-                aria-current={ativo ? 'page' : undefined}
-                className={
-                  'flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 md:px-3 py-1.5 text-sm font-medium transition-colors ' +
-                  (ativo
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground')
-                }
-              >
-                <Icone className="h-4 w-4" aria-hidden="true" />
-                {rotulo}
-              </Link>
-            )
-          })}
+          {grupoMenu.map((grupo, gi) => (
+            <span key={grupo.categoria} className="flex items-center gap-0.5 md:gap-1">
+              {gi > 0 && (
+                <span
+                  className="mx-1 h-5 w-px shrink-0 bg-border"
+                  aria-hidden="true"
+                  title={grupo.categoria}
+                />
+              )}
+              {grupo.itens.map(({ para, rotulo }) => {
+                const Icone = ICONES[para] || KeyRound
+                const ativo = atual === para || atual.startsWith(para + '/')
+                return (
+                  <Link
+                    key={para}
+                    to={para}
+                    aria-current={ativo ? 'page' : undefined}
+                    title={grupo.categoria}
+                    className={
+                      'flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 md:px-3 py-1.5 text-sm font-medium transition-colors ' +
+                      (ativo
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+                    }
+                  >
+                    <Icone className="h-4 w-4" aria-hidden="true" />
+                    {rotulo}
+                  </Link>
+                )
+              })}
+            </span>
+          ))}
           <button
             type="button"
             onClick={sair}
