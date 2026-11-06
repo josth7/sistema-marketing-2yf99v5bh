@@ -410,7 +410,19 @@ routerAdd(
       const antigo = String(lead.get('status') || 'novo')
       if (novo !== antigo) {
         lead.set('status', novo)
-        mudancas.push({ tipo: 'status', texto: 'status: ' + antigo + ' → ' + novo })
+        // CA-3-63 (06/11): MUDANÇA MANUAL TRAVA A ETAPA. A partir daqui o robô
+        // e a IA não alteram mais a etapa deste lead — decisão humana vale mais
+        // que automação. Sem esta marca, o cron do roteiro desfazia a mudança
+        // no minuto seguinte e o vendedor perdia a confiança no funil.
+        try {
+          lead.set('etapa_manual_em', new Date().toISOString())
+          lead.set('etapa_manual_por', e.auth.id)
+        } catch (eMarca) {}
+        mudancas.push({
+          tipo: 'status',
+          texto:
+            'status: ' + antigo + ' → ' + novo + ' (mudança manual; etapa travada para o robô)',
+        })
       }
     }
     if (body.observacoes !== undefined) {
@@ -423,6 +435,45 @@ routerAdd(
       mudancas.push({ tipo: 'nota', texto: 'observações atualizadas' })
     }
     if (body.owner_id !== undefined) {
+      // CA-3-62 (06/11): vendedor NÃO troca o dono do lead. Só a gestão passa
+      // carteira (pela tela de gestão, pelo ponto único). Antes o PATCH aceitava
+      // e o vendedor podia puxar para si o cliente de outro.
+      var ehGestaoOwner = false
+      try {
+        const hojeO = new Date().toISOString().slice(0, 10)
+        const gsO = $app.findRecordsByFilter(
+          $app.findCollectionByNameOrId('access_grants'),
+          "user_id='" + e.auth.id + "' && revoked_at=''",
+          '',
+          60,
+          0,
+        )
+        for (const gO of gsO) {
+          const deO = String(gO.get('valid_from') || '')
+          const ateO = String(gO.get('valid_until') || '')
+          if (deO !== '' && deO.slice(0, 10) > hojeO) continue
+          if (ateO !== '' && ateO.slice(0, 10) < hojeO) continue
+          var scO = []
+          try {
+            const rawO = gO.get('scope_accounts')
+            scO =
+              Array.isArray(rawO) && rawO.length > 0 && typeof rawO[0] === 'number'
+                ? JSON.parse(String.fromCharCode.apply(null, rawO))
+                : typeof rawO === 'string'
+                  ? JSON.parse(rawO)
+                  : rawO || []
+          } catch (eO) {}
+          if (Array.isArray(scO) && scO.indexOf('*') >= 0) ehGestaoOwner = true
+        }
+      } catch (eGO) {}
+      if (!ehGestaoOwner) {
+        return e.json(403, {
+          ok: false,
+          erro: 'campo_nao_permitido',
+          campo: 'owner_id',
+          detalhe: 'o dono do lead só muda pela gestão',
+        })
+      }
       lead.set('owner_id', String(body.owner_id || '').slice(0, 40))
       mudancas.push({ tipo: 'nota', texto: 'responsável atualizado' })
     }
