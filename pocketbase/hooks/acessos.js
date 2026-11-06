@@ -245,6 +245,9 @@ routerAdd(
       'review_ai_summary',
 
       'read_conversas',
+      // CA-3-50 (06/11): responder pelo sistema é ação SEPARADA de ler.
+      // A gestão libera pessoa por pessoa na tela Administração.
+      'reply_conversas',
       'manage_whatsapp',
       'manage_atendimento',
     ]

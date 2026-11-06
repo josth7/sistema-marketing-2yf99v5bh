@@ -221,6 +221,7 @@ routerAdd(
       0,
     )
     var temConversas = false
+    var podeResponder = false
     var temTudo = false
     var ehGestao = false
     for (const g of meus) {
@@ -230,6 +231,9 @@ routerAdd(
       if (ate !== '' && ate.slice(0, 10) < hoje) continue
       const acts = lerLista(g.get('actions'))
       if (acts.indexOf('read_conversas') >= 0) temConversas = true
+      // CA-3-50 (06/11): responder é ação própria. Quem só lê VÊ a conversa,
+      // mas não envia. A gestão libera em Administração.
+      if (acts.indexOf('reply_conversas') >= 0) podeResponder = true
       if (acts.indexOf('read_leads') >= 0) {
         const sa = lerLista(g.get('scope_accounts'))
         if (sa.indexOf('*') >= 0) temTudo = true
@@ -237,7 +241,14 @@ routerAdd(
       if (acts.indexOf('manage_atendimento') >= 0) ehGestao = true
     }
     if (!temConversas) {
-      return e.json(403, { ok: false, erro: 'sem permissão para responder (read_conversas)' })
+      return e.json(403, { ok: false, erro: 'sem permissão para ver conversas (read_conversas)' })
+    }
+    if (!podeResponder) {
+      return e.json(403, {
+        ok: false,
+        erro: 'sem permissão para responder pelo sistema (reply_conversas)',
+        detalhe: 'peça à gestão para liberar em Administração',
+      })
     }
 
     var conv = null
