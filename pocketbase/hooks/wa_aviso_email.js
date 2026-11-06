@@ -92,24 +92,65 @@ routerAdd(
 
 // ==================== cron do aviso ====================
 cronAdd('wa_aviso_email', '*/5 * * * *', () => {
-  // DESLIGADO em 05/11/2026 a pedido da gestão (Rodrigo, call com a Haisan):
-  // os e-mails com a lista de clientes enchiam a caixa dos vendedores e da
-  // Anézia. O lead novo continua visível no CRM e em Conversas. NÃO religar
-  // sem pedido explícito do consultor/gestão (ver changelog de 05/11).
-  const ATIVO = false
+  // CA-3-48 (06/11): QUEM DECIDE É A TELA ADMINISTRAÇÃO, não uma constante.
+  // Antes o `ATIVO = true` fixo fazia o cron ignorar o liga/desliga da gestão —
+  // a tela dizia "desligado" e o e-mail saía do mesmo jeito.
+  var cfgAdm = null
+  try {
+    const vs = $app.findRecordsByFilter(
+      $app.findCollectionByNameOrId('admin_config'),
+      '',
+      '',
+      200,
+      0,
+    )
+    for (const v of vs) {
+      if (!cfgAdm || Number(v.get('versao') || 0) > Number(cfgAdm.get('versao') || 0)) cfgAdm = v
+    }
+  } catch (eCfg) {}
+  if (!cfgAdm) return
+  if (cfgAdm.get('email_ativo') !== true) return
 
-  if (!ATIVO) return
+  // destinatários vêm da Administração
+  var destIds = []
+  try {
+    const rawD = cfgAdm.get('email_destinatarios')
+    destIds =
+      Array.isArray(rawD) && rawD.length > 0 && typeof rawD[0] === 'number'
+        ? JSON.parse(String.fromCharCode.apply(null, rawD))
+        : typeof rawD === 'string'
+          ? JSON.parse(rawD)
+          : rawD || []
+  } catch (eD) {}
+  if (!Array.isArray(destIds) || destIds.length === 0) return
   // heartbeat: sem isso eu nao sabia se o cron rodava ou nao (03/11)
   console.log('wa_aviso_email: rodando')
   try {
-    const colDest = $app.findCollectionByNameOrId('whatsapp_avisos_email')
+    // destino: as PESSOAS escolhidas na Administração (email do cadastro).
+    // A coleção `whatsapp_avisos_email` fica como histórico do que foi enviado.
     var dests = []
     try {
-      dests = $app.findRecordsByFilter(colDest, 'ativo=true', '', 100, 0)
-    } catch (e0) {
-      return
-    }
-    if (dests.length === 0) return // sem destinatario cadastrado: nao inventa
+      for (const uid of destIds) {
+        try {
+          const u = $app.findRecordById('users', String(uid))
+          const em = String(u.get('email') || '')
+          if (em !== '') {
+            // objeto com `get`, igual ao registro: o resto do cron usa d.get(...)
+            const dados = {
+              user_id: String(uid),
+              email: em,
+              nome: String(u.get('name') || em),
+            }
+            dests.push({
+              get: function (k) {
+                return dados[k]
+              },
+            })
+          }
+        } catch (eU) {}
+      }
+    } catch (e0) {}
+    if (dests.length === 0) return // sem destinatario valido: nao inventa
 
     const colL = $app.findCollectionByNameOrId('crm_leads')
     const colEv = $app.findCollectionByNameOrId('whatsapp_eventos')
