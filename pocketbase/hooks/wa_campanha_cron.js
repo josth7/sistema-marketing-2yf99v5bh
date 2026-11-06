@@ -62,11 +62,42 @@ cronAdd('wa_campanha_disparo', '*/10 * * * *', () => {
       }
     } catch (e1) {}
 
+    // dia da semana em Brasília (0=domingo)
+    var diaSem = String(agoraBR.getUTCDay())
+
     for (const camp of camps) {
-      // ---------- 1. janela 7h-20h (decisão do dono) ----------
+      // ---------- 1. janela de horas (decisão do dono: 7h-20h) ----------
       const ini = String(camp.get('hora_inicio') || '07:00')
       const fim = String(camp.get('hora_fim') || '20:00')
       if (hhmm < ini || hhmm >= fim) continue
+
+      // ---------- 1b. DIAS da semana (CA-3-85) ----------
+      // Padrão segunda a sábado. Sem esta trava o cron disparava domingo.
+      var diasCamp = []
+      try {
+        var brutoD = camp.get('dias')
+        diasCamp =
+          Array.isArray(brutoD) && brutoD.length > 0 && typeof brutoD[0] === 'number'
+            ? JSON.parse(String.fromCharCode.apply(null, brutoD))
+            : typeof brutoD === 'string'
+              ? JSON.parse(brutoD)
+              : brutoD || []
+      } catch (eD) {}
+      if (!Array.isArray(diasCamp) || diasCamp.length === 0) {
+        diasCamp = ['1', '2', '3', '4', '5', '6']
+      }
+      var hojePermitido = false
+      for (const d of diasCamp) {
+        if (String(d) === diaSem) hojePermitido = true
+      }
+      if (!hojePermitido) continue
+
+      // ---------- 1c. só a partir do INÍCIO marcado (CA-3-85) ----------
+      const inicioEm = String(camp.get('inicio_em') || '')
+      if (inicioEm !== '') {
+        const q0 = new Date(inicioEm).getTime()
+        if (q0 > 0 && agoraMs < q0) continue
+      }
 
       const conexaoId = String(camp.get('conexao') || '')
       const ritmo = Number(camp.get('ritmo_hora') || 20)
@@ -172,6 +203,33 @@ cronAdd('wa_campanha_disparo', '*/10 * * * *', () => {
       for (const d of fila) {
         if (enviados >= quantos) break
         const tel = String(d.get('telefone') || '').replace(/\D/g, '')
+        // CA-3-85: o mesmo telefone não recebe outra campanha dentro do
+        // intervalo (padrão 7 dias). Conferido de novo aqui, porque a campanha
+        // pode ficar dias na fila.
+        const intervaloDias = Number(camp.get('intervalo_dias') || 7)
+        var recebeuRecentemente = false
+        try {
+          const anteriores = app.findRecordsByFilter(
+            colEnv,
+            "destino_telefone='" + tel + "' && motivo='campanha'",
+            '',
+            20,
+            0,
+          )
+          for (const ant of anteriores) {
+            const q = new Date(String(ant.get('created') || '')).getTime()
+            if (q > 0 && agoraMs - q < intervaloDias * 86400000) recebeuRecentemente = true
+          }
+        } catch (eInt) {}
+        if (recebeuRecentemente) {
+          try {
+            d.set('estado', 'pulado')
+            d.set('erro', 'recebeu campanha ha menos de ' + intervaloDias + ' dias')
+            app.save(d)
+          } catch (eP) {}
+          continue
+        }
+
         // opt-out de última hora
         if (fora[tel]) {
           try {
@@ -195,6 +253,20 @@ cronAdd('wa_campanha_disparo', '*/10 * * * *', () => {
           env.set('estado', 'pendente')
           env.set('tentativas', 0)
           env.set('fixture', false)
+          // CA-3-85: leva a IMAGEM do cabeçalho e as VARIÁVEIS do corpo.
+          // Antes ia só o nome do modelo — a D-API não tem como montar a
+          // mensagem sem os parâmetros, e o cliente recebia vazio.
+          const imagem = String(camp.get('imagem_url') || '')
+          if (imagem !== '') {
+            env.set('midia_url', imagem)
+            env.set('legenda', '')
+          }
+          // variáveis: nome do contato como {{1}}, telefone como {{2}}
+          const nomeDest = String(d.get('nome') || '')
+          const vars = { 1: nomeDest.split(' ')[0] || 'Cliente', 2: tel }
+          try {
+            env.set('variaveis', JSON.stringify(vars))
+          } catch (eV) {}
           env.set('dedupe_key', 'camp-' + camp.id + '-' + tel)
           app.save(env)
           d.set('estado', 'enviado')
