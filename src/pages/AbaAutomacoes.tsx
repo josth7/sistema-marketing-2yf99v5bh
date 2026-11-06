@@ -83,7 +83,7 @@ export default function AbaAutomacoes() {
     { nome: string; categoria: string; cabecalho: string; corpo: string }[]
   >([])
   const [avisoModelos, setAvisoModelos] = useState('')
-  const [previa, setPrevia] = useState<{
+  const [previaModelo, setPreviaModelo] = useState<{
     corpo: string
     cabecalho: string
     contato_exemplo: string
@@ -160,9 +160,9 @@ export default function AbaAutomacoes() {
           encodeURIComponent(nomeModelo),
         { method: 'GET' },
       )) as { corpo: string; cabecalho: string; contato_exemplo: string; aviso: string }
-      setPrevia(r)
+      setPreviaModelo(r)
     } catch {
-      setPrevia(null)
+      setPreviaModelo(null)
     }
   }
 
@@ -316,19 +316,25 @@ export default function AbaAutomacoes() {
                   Ver prévia
                 </Button>
               )}
-              {previa && (
+              {previaModelo && (
                 <div className="space-y-1 rounded-md border border-emerald-300 bg-emerald-50/50 p-2">
                   <p className="text-xs font-semibold">Como o cliente vai receber</p>
-                  {previa.cabecalho !== '' && (
-                    <p className="text-xs text-muted-foreground">Cabeçalho: {previa.cabecalho}</p>
-                  )}
-                  <p className="whitespace-pre-wrap text-sm">{previa.corpo || '(sem corpo)'}</p>
-                  {previa.contato_exemplo !== '' && (
+                  {previaModelo.cabecalho !== '' && (
                     <p className="text-xs text-muted-foreground">
-                      Variáveis com: {previa.contato_exemplo}
+                      Cabeçalho: {previaModelo.cabecalho}
                     </p>
                   )}
-                  {previa.aviso !== '' && <p className="text-xs text-amber-700">{previa.aviso}</p>}
+                  <p className="whitespace-pre-wrap text-sm">
+                    {previaModelo.corpo || '(sem corpo)'}
+                  </p>
+                  {previaModelo.contato_exemplo !== '' && (
+                    <p className="text-xs text-muted-foreground">
+                      Variáveis com: {previaModelo.contato_exemplo}
+                    </p>
+                  )}
+                  {previaModelo.aviso !== '' && (
+                    <p className="text-xs text-amber-700">{previaModelo.aviso}</p>
+                  )}
                 </div>
               )}
             </div>
