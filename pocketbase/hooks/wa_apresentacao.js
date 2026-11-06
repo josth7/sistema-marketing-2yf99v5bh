@@ -75,11 +75,37 @@ routerAdd(
       return e.json(200, out)
     }
 
+    // `segredo_configurado` NÃO é campo da coleção: é calculado na rota de
+    // conexões comparando `nome_segredo_chave` com os segredos existentes.
+    // Aqui se faz a mesma conta — antes o valor vinha sempre falso.
+    var segredosExistentes = []
+    try {
+      segredosExistentes = $secrets.list
+        ? $secrets.list().map(function (s) {
+            return String(s.key || s.name || '')
+          })
+        : []
+    } catch (eSec) {}
+    if (segredosExistentes.length === 0) {
+      // fallback: tenta ler o segredo que a conexão declara
+      try {
+        const teste = String($secrets.get('DAPI_KEY_CENTRAL') || '')
+        if (teste !== '') segredosExistentes = ['DAPI_KEY_CENTRAL']
+      } catch (eSec2) {}
+    }
+
     for (const c of cxs) {
       // conta de teste não aparece na tela de gente real
       const nomeCx = String(c.get('nome_exibicao') || '')
       if (nomeCx.toLowerCase().indexOf('fixture') >= 0) continue
       const ativa = c.get('apresentacao_ativa') === true
+      const chaveCx = String(c.get('nome_segredo_chave') || '')
+      var temSegredo = segredosExistentes.indexOf(chaveCx) >= 0
+      if (!temSegredo && chaveCx !== '') {
+        try {
+          temSegredo = String($secrets.get(chaveCx) || '') !== ''
+        } catch (eSk) {}
+      }
       if (ativa) out.algum_ligado = true
       out.itens.push({
         conexao: c.id,
@@ -87,7 +113,7 @@ routerAdd(
         numero: String(c.get('numero') || ''),
         ativa: ativa,
         modelo: String(c.get('modelo_apresentacao_vendedor') || ''),
-        segredo_ok: c.get('segredo_configurado') === true,
+        segredo_ok: temSegredo,
       })
     }
 
