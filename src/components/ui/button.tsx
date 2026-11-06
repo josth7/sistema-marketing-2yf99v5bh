@@ -20,7 +20,9 @@ const buttonVariants = cva(
       },
       size: {
         default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
+        // CA-3-41 (06/11): no celular o botão tem 44px de altura (mínimo de
+        // toque recomendado); no desktop volta a 36px para não inflar a tela.
+        sm: 'h-11 sm:h-9 rounded-md px-3',
         lg: 'h-11 rounded-md px-8',
         icon: 'h-10 w-10',
       },
