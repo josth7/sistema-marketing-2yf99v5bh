@@ -176,6 +176,12 @@ routerAdd(
         rotulo: 'Acessos',
         aceita: ['manage_access'],
       },
+      {
+        para: '/admin',
+        categoria: 'Administração',
+        rotulo: 'Administração',
+        aceita: ['manage_access'],
+      },
     ]
 
     // ---------- usuarios ----------
