@@ -50,6 +50,7 @@ cronAdd('wa_conversao_meta', '*/5 * * * *', () => {
     for (const conv of pendentes) {
       const tentativas = Number(conv.get('tentativas') || 0)
       if (tentativas >= 3) continue
+      // 403 de fixture não conta tentativa: reprocessa na próxima rodada
 
       const leadId = String(conv.get('lead_id') || '')
       var lead = null
@@ -120,10 +121,18 @@ cronAdd('wa_conversao_meta', '*/5 * * * *', () => {
       var status = 0
       var resp = ''
       try {
+        // na fixture, a rota exige o segredo compartilhado
+        var cabecalhos = { 'Content-Type': 'application/json' }
+        if (baseUrl.indexOf('/fixtures/') >= 0) {
+          try {
+            const seg = String($secrets.get('FIXTURE_TICK_SECRET') || '')
+            if (seg !== '') cabecalhos['X-Fixture-Secret'] = seg
+          } catch (eSeg) {}
+        }
         const r = $http.send({
           url: url,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: cabecalhos,
           body: JSON.stringify(baseUrl.indexOf('/fixtures/') >= 0 ? corpo : corpo),
           timeout: 25,
         })
