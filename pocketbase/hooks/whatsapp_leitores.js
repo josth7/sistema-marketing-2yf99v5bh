@@ -52,10 +52,41 @@ onRecordAfterUpdateSuccess((e) => {
         if (uid !== '' && ehTudo && base.indexOf(uid) < 0) base.push(uid)
       }
     } catch (eB) {}
+    // CA-3-26 (06/11): quem o CADASTRO libera para o número da conversa também
+    // é leitor. Antes o tempo real só considerava escopo '*' e o vendedor da
+    // conexão; agora o `scope_channels` do grant manda, como a SPEC pede.
+    const porCanal = {}
+    try {
+      const grants2 = $app.findRecordsByFilter(colG, "revoked_at=''", '', 200, 0)
+      for (const g2 of grants2) {
+        var sc2 = []
+        try {
+          const rawC = g2.get('scope_channels')
+          sc2 =
+            Array.isArray(rawC) && rawC.length > 0 && typeof rawC[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawC))
+              : typeof rawC === 'string'
+                ? JSON.parse(rawC)
+                : rawC || []
+        } catch (eC2) {}
+        if (!Array.isArray(sc2) || sc2.length === 0) continue
+        const uid2 = String(g2.get('user_id') || '')
+        if (uid2 === '') continue
+        for (const cx2 of sc2) {
+          if (cx2 === '*') continue
+          if (!porCanal[cx2]) porCanal[cx2] = []
+          if (porCanal[cx2].indexOf(uid2) < 0) porCanal[cx2].push(uid2)
+        }
+      }
+    } catch (ePC) {}
+
     for (const c of convs) {
       const sinais = $app.findRecordsByFilter(colSin, "conversa='" + c.id + "'", '', 1, 0)
       if (!sinais || sinais.length === 0) continue
       const leitores = base.slice()
+      // quem o cadastro libera para esta conexão
+      const doCadastro = porCanal[String(c.get('conexao') || '')] || []
+      for (const uC of doCadastro) if (leitores.indexOf(uC) < 0) leitores.push(uC)
       // vendedor dono do número
       try {
         const cx = $app.findRecordById('whatsapp_conexoes', String(c.get('conexao')))
