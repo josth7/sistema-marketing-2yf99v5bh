@@ -45,7 +45,11 @@ onRecordAfterCreateSuccess((e) => {
     } catch (eL) {
       tr.set('estado', 'erro')
       tr.set('detalhe', 'lead_nao_encontrado')
-      $app.save(tr)
+      try {
+        $app.save(tr)
+      } catch (eSvT) {
+        console.log('transferencias: save falhou -> ' + String(eSvT).slice(0, 160))
+      }
       e.next()
       return
     }
@@ -288,7 +292,11 @@ onRecordAfterCreateSuccess((e) => {
       if (destino.replace(/\D/g, '').length < 10) {
         env.set('estado', 'sem_numero')
         env.set('ultimo_erro', 'destino_invalido')
-        $app.save(env)
+        try {
+          $app.save(env)
+        } catch (eSvT) {
+          console.log('transferencias: save falhou -> ' + String(eSvT).slice(0, 160))
+        }
         return 'sem_numero'
       }
       const secao = String(
@@ -309,18 +317,30 @@ onRecordAfterCreateSuccess((e) => {
           env.set('ultimo_erro', '')
           env.set('wa_message_id', 'fixture-' + String(Date.now()))
           env.set('enviado_em', new Date().toISOString())
-          $app.save(env)
+          try {
+            $app.save(env)
+          } catch (eSvT) {
+            console.log('transferencias: save falhou -> ' + String(eSvT).slice(0, 160))
+          }
           return 'enviado'
         }
         if (statusSimulado >= 400 && statusSimulado < 500 && statusSimulado !== 429) {
           env.set('estado', 'erro_definitivo')
           env.set('ultimo_erro', 'dapi_http_4xx')
-          $app.save(env)
+          try {
+            $app.save(env)
+          } catch (eSvT) {
+            console.log('transferencias: save falhou -> ' + String(eSvT).slice(0, 160))
+          }
           return 'erro_definitivo'
         }
         env.set('ultimo_erro', statusSimulado === 429 ? 'dapi_http_429' : 'dapi_http_5xx')
         env.set('estado', tentFit >= 3 ? 'erro_definitivo' : 'erro')
-        $app.save(env)
+        try {
+          $app.save(env)
+        } catch (eSvT) {
+          console.log('transferencias: save falhou -> ' + String(eSvT).slice(0, 160))
+        }
         return String(env.get('estado'))
       }
       {
@@ -330,7 +350,11 @@ onRecordAfterCreateSuccess((e) => {
         } catch (eSec) {}
         if (chave === '') {
           env.set('ultimo_erro', 'chave_nao_configurada')
-          $app.save(env)
+          try {
+            $app.save(env)
+          } catch (eSvT) {
+            console.log('transferencias: save falhou -> ' + String(eSvT).slice(0, 160))
+          }
           return 'pendente'
         }
         url = 'https://api.deliverify.io/api/v1/messages/send/text'
@@ -431,90 +455,100 @@ onRecordAfterCreateSuccess((e) => {
       if (nd.indexOf('55') === 0 && (nd.length === 12 || nd.length === 13)) numValido = true
     } catch (eNv) {}
 
-    // ---------- 7. NADA vai para o vendedor (decisão do dono, 06/11) ----------
-    // O vendedor não recebe aviso. O cliente recebe da central a frase com o
-    // LINK do WhatsApp do vendedor (RN-136). Se em 15 minutos não houver
-    // nenhuma mensagem entre o cliente e o número do vendedor, o NÚMERO DO
-    // VENDEDOR manda ao CLIENTE o modelo de apresentação (RN-138b, CA-3-68,
-    // CA-3-79) — isso é do cron `wa_apresentacao_cron.js`, que usa esta frase
-    // (link wa.me) como o momento da transferência.
-    // Até a v0.0.617 a "apresentação" saía na hora, do número do vendedor
-    // para o PRÓPRIO vendedor, com o texto de aviso de lead, e a frase ao
-    // cliente prometia "uma mensagem nos próximos minutos" sem link.
-    var fraseDoRobo = false
-    if (telefoneCliente !== '' && central) {
-      const nomePublico =
-        String(conexaoVendedor.get('vendedor_nome_publico') || '').trim() || vendedorNome
-      const primeiroVend = String(nomePublico).split(' ')[0] || nomePublico
-      const digitosVend = numeroVendedor.replace(/\D/g, '')
-      var linkVend = ''
-      if (numValido) {
-        linkVend =
-          'https://wa.me/' +
-          digitosVend +
-          '?text=' +
-          encodeURIComponent('Oi, ' + primeiroVend + '! Vim do atendimento da Haisan')
-      }
-      // o robô da central já mandou a frase com o link DESTE vendedor? então
-      // não repete (o cliente ficava com duas frases de transferência)
-      if (digitosVend !== '') {
+    if (numValido) {
+      const textoVendedor =
+        'Você recebeu um novo lead para atendimento! Nome: ' +
+        String(lead.get('nome') || '') +
+        ' · Telefone: ' +
+        telefoneCliente +
+        ' · Canal: ' +
+        String(lead.get('origem') || 'whatsapp') +
+        '. Responda o cliente pelo seu WhatsApp.'
+      // ---------- MODELO APROVADO (03/11) ----------
+      // O aviso ao vendedor cai fora da janela de 24h na maioria dos casos
+      // (erro 131047 "Re-engagement message"). Texto livre só passa dentro da
+      // janela; fora dela, só template aprovado pela Meta.
+      // O nome do modelo vem da conexão (`modelo_aviso_vendedor`); quando o dono
+      // aprovar, o campo já aponta para ele e o envio passa a usar template.
+      // ---------- CA-3-68 / RN-137 (05/11) — CUSTO ZERO POR PADRÃO ----------
+      // Decisão do dono: a apresentação por modelo pago fica DESLIGADA até a
+      // gestão autorizar na Administração. Enquanto estiver desligada, NADA
+      // sai pelo número do vendedor — nem aviso por modelo, nem apresentação.
+      // O vendedor descobre o lead pelo CRM e por "Clientes para recontatar".
+      //
+      // Texto livre só é permitido se a janela com o VENDEDOR estiver aberta
+      // (RN-137). Fora dela, nenhum envio.
+      const apresentacaoLigada = conexaoVendedor
+        ? conexaoVendedor.get('apresentacao_ativa') === true
+        : false
+      const modeloApresentacao = conexaoVendedor
+        ? String(conexaoVendedor.get('modelo_apresentacao_vendedor') || '')
+        : ''
+      if (!apresentacaoLigada || modeloApresentacao === '') {
+        // registra que não saiu, para a gestão ver o motivo — sem criar envio
         try {
-          const desde = new Date(Date.now() - 30 * 60 * 1000).toISOString().replace('T', ' ')
-          const doRobo = $app.findRecordsByFilter(
-            colEnv,
-            "lead='" +
-              leadId +
-              "' && conexao='" +
-              central.id +
-              "' && motivo='ia_resposta' && created>='" +
-              desde +
-              "'",
-            '-created',
-            20,
-            0,
+          const colEvS = $app.findCollectionByNameOrId('crm_lead_events')
+          const evS = new Record(colEvS)
+          evS.set('lead_id', lead.id)
+          evS.set('tipo', 'nota')
+          evS.set(
+            'texto',
+            'Aviso ao vendedor NÃO enviado: apresentação desligada (CA-3-68). O lead aparece no CRM e em Clientes para recontatar.',
           )
-          for (const r of doRobo) {
-            if (String(r.get('texto') || '').indexOf('wa.me/' + digitosVend) >= 0) {
-              fraseDoRobo = true
-              break
-            }
-          }
-        } catch (eRb) {}
+          evS.set('fixture', ehFixture)
+          $app.save(evS)
+        } catch (eSil) {}
       }
-      if (!fraseDoRobo) {
-        const textoCliente =
-          linkVend !== ''
-            ? 'Quem vai te atender é *' +
-              nomePublico +
-              '*, do nosso time de vendas. Fala direto por aqui: ' +
-              linkVend +
-              '\nPode salvar como *Haisan Vendas*! 😊'
-            : 'Quem vai te atender é *' +
-              nomePublico +
-              '*, do nosso time de vendas. Pode salvar como *Haisan Vendas*! 😊'
-        const id = enfileirar(
-          central,
-          telefoneCliente,
-          'aviso_cliente',
-          textoCliente,
-          String(central.get('modelo_transferencia_cliente') || ''),
-          { vendedor: nomePublico, numero_vendedor: numeroVendedor },
-          'transf_cliente_' + leadId,
+      var id = null
+      if (apresentacaoLigada && modeloApresentacao !== '') {
+        id = enfileirar(
+          conexaoVendedor,
+          numeroVendedor,
+          'apresentacao_vendedor',
+          textoVendedor,
+          modeloApresentacao,
+          // variáveis do modelo, na ordem: {{1}} nome, {{2}} telefone, {{3}} canal
+          {
+            nome: String(lead.get('nome') || ''),
+            telefone: telefoneCliente,
+            canal: String(lead.get('origem') || 'whatsapp'),
+          },
+          'apresentacao|' + leadId,
         )
-        if (id) envios.push(id)
       }
+      if (id) envios.push(id)
+    }
+
+    if (telefoneCliente !== '' && central) {
+      const textoCliente =
+        'Quem vai te atender é *' +
+        vendedorNome +
+        '*, do nosso time de vendas. Nos próximos minutos você recebe uma mensagem' +
+        (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
+        '. Pode salvar como *Haisan Vendas*! 😊'
+      const id = enfileirar(
+        central,
+        telefoneCliente,
+        'aviso_cliente',
+        textoCliente,
+        String(central.get('modelo_transferencia_cliente') || ''),
+        { vendedor: vendedorNome, numero_vendedor: numeroVendedor },
+        'transf_cliente_' + leadId,
+      )
+      if (id) envios.push(id)
     }
 
     tr.set('vendedor_user', vendedorId)
     tr.set('vendedor_nome', vendedorNome)
     tr.set('regra', regra)
     tr.set('envios', envios)
-    tr.set('estado', envios.length > 0 || fraseDoRobo ? 'concluida' : 'erro')
-    tr.set(
-      'detalhe',
-      envios.length > 0 ? '' : fraseDoRobo ? 'frase_enviada_pelo_robo' : 'nenhum_envio_enfileirado',
-    )
-    $app.save(tr)
+    tr.set('estado', envios.length > 0 ? 'concluida' : 'erro')
+    tr.set('detalhe', envios.length > 0 ? '' : 'nenhum_envio_enfileirado')
+    try {
+      $app.save(tr)
+    } catch (eSvT) {
+      console.log('transferencias: save falhou -> ' + String(eSvT).slice(0, 160))
+    }
 
     try {
       const convs = $app.findRecordsByFilter(colConv, "lead='" + leadId + "'", '', 20, 0)
