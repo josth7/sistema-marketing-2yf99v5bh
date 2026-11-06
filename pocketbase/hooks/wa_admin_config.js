@@ -90,6 +90,8 @@ routerAdd(
         responder_sistema: lerL(v.get('responder_sistema')),
         autor_nome: String(v.get('autor_nome') || ''),
         observacao: String(v.get('observacao') || ''),
+        preco_marketing: Number(v.get('preco_marketing') || 0),
+        preco_utilidade: Number(v.get('preco_utilidade') || 0),
         criado: String(v.get('created') || '').slice(0, 16),
       }
       if (!out.atual) out.atual = item
@@ -223,6 +225,14 @@ routerAdd(
       )
       nv.set('autor_id', e.auth.id)
       nv.set('autor_nome', nomeAutor)
+      // CA-3-83 (06/11): preço da mensagem em CENTAVOS, por categoria.
+      // É o que permite a tela de campanha estimar o custo antes de aprovar.
+      if (body.preco_marketing !== undefined) {
+        nv.set('preco_marketing', Number(body.preco_marketing) || 0)
+      }
+      if (body.preco_utilidade !== undefined) {
+        nv.set('preco_utilidade', Number(body.preco_utilidade) || 0)
+      }
       nv.set('observacao', String(body.observacao || '').slice(0, 300))
       app.save(nv)
       return e.json(200, {
@@ -323,6 +333,8 @@ routerAdd(
       nv.set('responder_sistema', String(alvo.get('responder_sistema') || '[]'))
       nv.set('autor_id', e.auth.id)
       nv.set('autor_nome', nomeAutor)
+      nv.set('preco_marketing', Number(alvo.get('preco_marketing') || 0))
+      nv.set('preco_utilidade', Number(alvo.get('preco_utilidade') || 0))
       nv.set('observacao', 'Voltou para a versão ' + alvoVersao)
       app.save(nv)
       return e.json(200, { ok: true, versao: maior + 1, voltou_para: alvoVersao })
