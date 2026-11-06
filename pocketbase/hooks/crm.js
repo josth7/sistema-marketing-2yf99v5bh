@@ -338,9 +338,14 @@ routerAdd(
         }
       } catch (e2) {}
       if (acts.indexOf('manage_leads') >= 0) temManage = true
+      // CA-3-62 (06/11): o VENDEDOR move a etapa do PRÓPRIO lead. Antes o
+      // PATCH exigia manage_leads e a vendedora não conseguia arrastar nada —
+      // o funil era só da gestão. O escopo abaixo garante que ela só mexe no
+      // que é dela; trocar dono continua sendo só da gestão.
+      if (acts.indexOf('read_leads') >= 0) temManage = true
     }
     if (!temManage) {
-      return e.json(403, { ok: false, erro: 'sem permissão para gerir leads (manage_leads)' })
+      return e.json(403, { ok: false, erro: 'sem permissão para ver leads (read_leads)' })
     }
     let lead
     try {
