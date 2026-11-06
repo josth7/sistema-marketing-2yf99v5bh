@@ -85,35 +85,27 @@ routerAdd(
           erro: 'informe ao menos um telefone da equipe para o teste',
         })
       }
-      // só número da equipe: o teste não vai para cliente
+      // só número da equipe: o teste não vai para cliente.
+      // A lista real mora em `whatsapp_numeros_internos` — NÃO em
+      // `atendimento_config.internos`, que é campo virtual (só existe na rota
+      // de leitura; no registro cru vem nulo, e por isso a checagem recusava
+      // até o número da própria equipe).
       const internos = {}
       try {
-        // LÊ SÓ A VERSÃO MAIS RECENTE da config: antes somava todas as versões,
-        // então número removido no passado continuava valendo como equipe.
-        const vs = app.findRecordsByFilter(
-          app.findCollectionByNameOrId('atendimento_config'),
+        const is = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('whatsapp_numeros_internos'),
           '',
           '',
-          200,
+          300,
           0,
         )
-        var cfg = null
-        for (const v of vs) {
-          if (!cfg || Number(v.get('versao') || 0) > Number(cfg.get('versao') || 0)) cfg = v
-        }
-        if (cfg) {
-          var li = lerL(cfg.get('internos'))
-          if (Array.isArray(li)) {
-            for (const i of li) {
-              const n = String(i.numero || '').replace(/\D/g, '')
-              if (n !== '') {
-                internos[n] = true
-                // a mesma pessoa pode estar gravada com e sem o 9
-                if (n.length === 13) internos[n.slice(0, 4) + n.slice(5)] = true
-                if (n.length === 12) internos[n.slice(0, 4) + '9' + n.slice(4)] = true
-              }
-            }
-          }
+        for (const i of is) {
+          const n = String(i.get('numero') || '').replace(/\D/g, '')
+          if (n === '') continue
+          internos[n] = true
+          // grava as duas formas (com e sem o 9)
+          if (n.length === 13) internos[n.slice(0, 4) + n.slice(5)] = true
+          if (n.length === 12) internos[n.slice(0, 4) + '9' + n.slice(4)] = true
         }
       } catch (e2) {}
 

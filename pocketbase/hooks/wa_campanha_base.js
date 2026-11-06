@@ -113,20 +113,22 @@ routerAdd(
     // números internos: Números da equipe + números das conexões
     const internos = {}
     try {
-      const vs = app.findRecordsByFilter(
-        app.findCollectionByNameOrId('atendimento_config'),
+      // A lista de números internos mora em `whatsapp_numeros_internos`.
+      // `atendimento_config.internos` é campo VIRTUAL: no registro cru vem
+      // nulo, e ler dali fazia a exclusão de número interno não funcionar.
+      const is = app.findRecordsByFilter(
+        app.findCollectionByNameOrId('whatsapp_numeros_internos'),
         '',
         '',
-        200,
+        300,
         0,
       )
-      for (const v of vs) {
-        var li = lerL(v.get('internos'))
-        if (!Array.isArray(li)) continue
-        for (const i of li) {
-          const n = String(i.numero || '').replace(/\D/g, '')
-          if (n !== '') internos[n] = true
-        }
+      for (const i of is) {
+        const n = String(i.get('numero') || '').replace(/[^0-9]/g, '')
+        if (n === '') continue
+        internos[n] = true
+        if (n.length === 13) internos[n.slice(0, 4) + n.slice(5)] = true
+        if (n.length === 12) internos[n.slice(0, 4) + '9' + n.slice(4)] = true
       }
     } catch (e2) {}
     try {
