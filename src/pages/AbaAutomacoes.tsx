@@ -76,6 +76,19 @@ export default function AbaAutomacoes() {
   const [conexao, setConexao] = useState('')
   const [modelo, setModelo] = useState('')
   const [criando, setCriando] = useState(false)
+  // CA-3-81 (06/11): lista de modelos APROVADOS do número + prévia real.
+  // Antes o nome era digitado à mão: uma letra errada fazia a Meta recusar
+  // o envio de toda a campanha.
+  const [modelos, setModelos] = useState<
+    { nome: string; categoria: string; cabecalho: string; corpo: string }[]
+  >([])
+  const [avisoModelos, setAvisoModelos] = useState('')
+  const [previa, setPrevia] = useState<{
+    corpo: string
+    cabecalho: string
+    contato_exemplo: string
+    aviso: string
+  } | null>(null)
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -111,6 +124,47 @@ export default function AbaAutomacoes() {
     void carregar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ao definir/trocar o número, busca os modelos aprovados dele
+  useEffect(() => {
+    if (conexao !== '') void carregarModelos(conexao)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conexao])
+
+  // carrega os modelos aprovados do número escolhido
+  const carregarModelos = useCallback(async (cxId: string) => {
+    if (cxId === '') return
+    try {
+      const r = (await pb.send('/backend/v1/campanhas/modelos?conexao=' + cxId, {
+        method: 'GET',
+      })) as {
+        ok: boolean
+        modelos: { nome: string; categoria: string; cabecalho: string; corpo: string }[]
+        aviso: string
+      }
+      setModelos(r.modelos || [])
+      setAvisoModelos(r.aviso || '')
+    } catch {
+      setModelos([])
+      setAvisoModelos('Não consegui buscar os modelos agora.')
+    }
+  }, [])
+
+  const verPreviaModelo = async (cxId: string, nomeModelo: string) => {
+    if (cxId === '' || nomeModelo === '') return
+    try {
+      const r = (await pb.send(
+        '/backend/v1/campanhas/previa-modelo?conexao=' +
+          cxId +
+          '&modelo=' +
+          encodeURIComponent(nomeModelo),
+        { method: 'GET' },
+      )) as { corpo: string; cabecalho: string; contato_exemplo: string; aviso: string }
+      setPrevia(r)
+    } catch {
+      setPrevia(null)
+    }
+  }
 
   const criar = async () => {
     if (nome.trim() === '' || conexao === '' || modelo.trim() === '') {
@@ -218,16 +272,65 @@ export default function AbaAutomacoes() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1 sm:col-span-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label>Modelo aprovado</Label>
-              <Input
-                value={modelo}
-                onChange={(e) => setModelo(e.target.value)}
-                placeholder="Nome exato do modelo aprovado na Meta"
-              />
+              {modelos.length > 0 ? (
+                <Select
+                  value={modelo}
+                  onValueChange={(v) => {
+                    setModelo(v)
+                    void verPreviaModelo(conexao, v)
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha um modelo aprovado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelos.map((m) => (
+                      <SelectItem key={m.nome} value={m.nome}>
+                        {m.nome}
+                        {m.categoria ? ' — ' + m.categoria : ''}
+                        {m.cabecalho ? ' · ' + m.cabecalho : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={modelo}
+                  onChange={(e) => setModelo(e.target.value)}
+                  placeholder="Nome exato do modelo aprovado na Meta"
+                />
+              )}
               <p className="text-xs text-muted-foreground">
-                Fora da janela de 24h a Meta só aceita modelo aprovado.
+                {avisoModelos !== ''
+                  ? avisoModelos
+                  : 'Fora da janela de 24h a Meta só aceita modelo aprovado.'}
               </p>
+              {modelo !== '' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void verPreviaModelo(conexao, modelo)}
+                >
+                  Ver prévia
+                </Button>
+              )}
+              {previa && (
+                <div className="space-y-1 rounded-md border border-emerald-300 bg-emerald-50/50 p-2">
+                  <p className="text-xs font-semibold">Como o cliente vai receber</p>
+                  {previa.cabecalho !== '' && (
+                    <p className="text-xs text-muted-foreground">Cabeçalho: {previa.cabecalho}</p>
+                  )}
+                  <p className="whitespace-pre-wrap text-sm">{previa.corpo || '(sem corpo)'}</p>
+                  {previa.contato_exemplo !== '' && (
+                    <p className="text-xs text-muted-foreground">
+                      Variáveis com: {previa.contato_exemplo}
+                    </p>
+                  )}
+                  {previa.aviso !== '' && <p className="text-xs text-amber-700">{previa.aviso}</p>}
+                </div>
+              )}
             </div>
           </div>
           <Button onClick={() => void criar()} disabled={criando}>
