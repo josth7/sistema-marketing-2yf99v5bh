@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import AbaAutomacoes from '@/pages/AbaAutomacoes'
 import pb from '@/lib/pocketbase/client'
 import { CabecalhoPagina, EstadoCarregando, EstadoErro } from '@/components/base/estados'
 
@@ -336,6 +337,7 @@ export default function Atendimento() {
             <TabsTrigger value="equipe">Números da equipe</TabsTrigger>
             <TabsTrigger value="historico">Histórico</TabsTrigger>
             <TabsTrigger value="respostas">Últimas respostas</TabsTrigger>
+            <TabsTrigger value="automacoes">Automações</TabsTrigger>
           </TabsList>
 
           <TabsContent value="horario">
@@ -674,6 +676,10 @@ export default function Atendimento() {
                 ))}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="automacoes">
+            <AbaAutomacoes />
           </TabsContent>
         </Tabs>
       )}
