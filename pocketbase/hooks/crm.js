@@ -338,9 +338,13 @@ routerAdd(
         }
       } catch (e2) {}
       if (acts.indexOf('manage_leads') >= 0) temManage = true
+      // CA-3-37: LER a ficha do próprio lead é `read_leads`. Antes a rota
+      // exigia `manage_leads` e a vendedora tomava 403 na ficha do próprio
+      // cliente — o escopo abaixo já limita ao que é dela.
+      if (acts.indexOf('read_leads') >= 0) temManage = true
     }
     if (!temManage) {
-      return e.json(403, { ok: false, erro: 'sem permissão para gerir leads (manage_leads)' })
+      return e.json(403, { ok: false, erro: 'sem permissão para ver leads (read_leads)' })
     }
     let lead
     try {
