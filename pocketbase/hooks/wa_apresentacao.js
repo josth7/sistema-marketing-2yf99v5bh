@@ -76,6 +76,9 @@ routerAdd(
     }
 
     for (const c of cxs) {
+      // conta de teste não aparece na tela de gente real
+      const nomeCx = String(c.get('nome_exibicao') || '')
+      if (nomeCx.toLowerCase().indexOf('fixture') >= 0) continue
       const ativa = c.get('apresentacao_ativa') === true
       if (ativa) out.algum_ligado = true
       out.itens.push({
