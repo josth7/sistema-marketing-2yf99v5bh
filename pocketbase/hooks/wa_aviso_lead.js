@@ -80,6 +80,11 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
         }
       } catch (eG) {}
       if (!ehVendedor || ehGestao) continue
+      // CA-3-110 (09/11): conta de teste NÃO é vendedor válido.
+      // Sem isto, as 7 conexões `FIXTURE QA` entravam na lista e a validação
+      // de "dono inválido" aceitava lead entregue a elas.
+      if (email.indexOf('fixture') >= 0) continue
+      if (nome.toLowerCase().indexOf('fixture') >= 0) continue
       vendedores.push({ id: u.id, nome: nome || email, email: email })
     }
     if (vendedores.length === 0) return
