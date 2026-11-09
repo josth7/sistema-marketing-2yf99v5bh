@@ -105,8 +105,16 @@ onRecordAfterCreateSuccess((e) => {
       const colGr = $app.findCollectionByNameOrId('access_grants')
       const colCxCandidato = $app.findCollectionByNameOrId('whatsapp_conexoes')
       const usuarios = $app.findRecordsByFilter(colU, '', '', 200, 0)
-      var melhor = ''
-      var melhorCarga = -1
+      // ORDEM FIXA (decisão do dono, 09/11): sempre
+      // Adriana → Douglas → Elisângela → Fábio, em ciclo.
+      // Não é mais "menor carga": o dono quer rodízio previsível e igual.
+      const ORDEM_FIXA = [
+        'adriana@haisan.com.br',
+        'douglasrenato@haisan.com.br',
+        'elisangela@haisan.com.br',
+        'fabio@haisan.com.br',
+      ]
+      var elegiveis = []
       for (const u of usuarios) {
         const email = String(u.get('email') || '').toLowerCase()
         const nomeU = String(u.get('name') || '').toLowerCase()
@@ -175,13 +183,53 @@ onRecordAfterCreateSuccess((e) => {
         )
         if (!cxDoVendedor || cxDoVendedor.length === 0) continue
 
-        const c = carga[u.id] || 0
-        if (melhor === '' || c < melhorCarga) {
-          melhor = u.id
-          melhorCarga = c
+        elegiveis.push({ id: u.id, email: email })
+      }
+
+      // ---------- escolhe pela ORDEM FIXA, em ciclo ----------
+      // Acha quem foi o ÚLTIMO a receber e entrega ao PRÓXIMO da lista.
+      // Se ninguém recebeu ainda, começa pela Adriana.
+      var ordem = []
+      for (const em of ORDEM_FIXA) {
+        for (const el of elegiveis) {
+          if (el.email === em) ordem.push(el.id)
         }
       }
-      vendedorId = melhor
+      // se algum vendedor real não estiver na lista fixa, entra no fim
+      for (const el of elegiveis) {
+        if (ordem.indexOf(el.id) < 0) ordem.push(el.id)
+      }
+
+      if (ordem.length > 0) {
+        // quem recebeu por último (pedido de rodízio mais recente)
+        var ultimoId = ''
+        try {
+          const anteriores = $app.findRecordsByFilter(
+            $app.findCollectionByNameOrId('whatsapp_transferencias'),
+            "regra='rodizio' && estado='concluida'",
+            '',
+            400,
+            0,
+          )
+          var maiorData = ''
+          for (const t of anteriores) {
+            const v = String(t.get('vendedor_user') || '')
+            const q = String(t.get('created') || '')
+            if (v === '' || q === '') continue
+            if (q > maiorData) {
+              maiorData = q
+              ultimoId = v
+            }
+          }
+        } catch (eUlt) {}
+
+        var proximo = ordem[0]
+        if (ultimoId !== '') {
+          const pos = ordem.indexOf(ultimoId)
+          if (pos >= 0) proximo = ordem[(pos + 1) % ordem.length]
+        }
+        vendedorId = proximo
+      }
     }
 
     if (vendedorId !== '') {
