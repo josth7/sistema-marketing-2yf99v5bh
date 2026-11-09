@@ -105,10 +105,18 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
     const agora = new Date().getTime()
     const colEv = $app.findCollectionByNameOrId('whatsapp_eventos')
 
+    // CA-3-110 (09/11): também entra o lead com DONO INVÁLIDO.
+    // Dono que não é um dos vendedores com conexão ativa (conta de teste,
+    // gestão ou agência) é o mesmo que não ter dono: ninguém atende. Foram 24
+    // casos em 09/11 (CA-3-104). Aqui eles voltam para o ponto único.
+    const idsValidos = {}
+    for (const v of vendedores) idsValidos[String(v.get('id') || '')] = true
+
     var distribuidos = 0
     for (const l of todos) {
       const ow = String(l.get('owner_id') || '')
-      if (ow !== '') continue
+      // sem dono OU com dono que não atende
+      if (ow !== '' && idsValidos[ow] === true) continue
       const criado = String(l.get('created') || '')
       if (criado === '') continue
       var idade = agora - new Date(criado).getTime()
@@ -163,7 +171,78 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
         $app.save(ev)
       } catch (e4) {}
 
-      // registra o aviso (dedupe)
+      // ---------- CA-3-110 (09/11): SÓ MARCA DEPOIS DE CONFIRMAR O DONO ----------
+      // Antes, a `dedupe_key` era gravada logo após criar o pedido. Se a
+      // transferência falhasse (como nos 24 órfãos de 09/11), o lead ficava
+      // sem dono E sem nova tentativa — o aviso nunca mais seria dado.
+      //
+      // Agora: relê o lead, confirma o dono gravado e só então marca.
+      // Se não houver dono: NÃO marca (tenta de novo na próxima rodada) e,
+      // na 3ª falha, joga em "Precisa de ação" com o motivo.
+      var donoGravado = ''
+      try {
+        const ldConf = $app.findRecordById('crm_leads', l.id)
+        donoGravado = String(ldConf.get('owner_id') || '')
+      } catch (eConf) {}
+
+      if (donoGravado === '') {
+        // conta as tentativas desta lead (eventos de falha)
+        var tentativasLead = 0
+        try {
+          const colF = $app.findCollectionByNameOrId('whatsapp_eventos')
+          const falhas = $app.findRecordsByFilter(
+            colF,
+            "evento='aviso_lead_novo_falha' && ref_id='" + l.id + "'",
+            '',
+            10,
+            0,
+          )
+          tentativasLead = falhas.length
+        } catch (eCont) {}
+
+        try {
+          const colF2 = $app.findCollectionByNameOrId('whatsapp_eventos')
+          const evF = new Record(colF2)
+          evF.set('dedupe_key', 'aviso_falha|' + l.id + '|' + String(tentativasLead + 1))
+          evF.set('evento', 'aviso_lead_novo_falha')
+          evF.set('session_id', '')
+          evF.set('ref_id', l.id)
+          evF.set('resultado', 'dono_nao_gravado')
+          evF.set('codigo_erro', 'tentativa ' + String(tentativasLead + 1))
+          evF.set('trace_id', '')
+          evF.set('duracao_ms', 0)
+          evF.set('recebido_em', new Date().toISOString())
+          evF.set('fixture', false)
+          $app.save(evF)
+        } catch (eF) {}
+
+        // na 3ª falha, manda para "Precisa de ação"
+        if (tentativasLead + 1 >= 3) {
+          try {
+            const colPA = $app.findCollectionByNameOrId('precisa_acao')
+            const jaPA = $app.findRecordsByFilter(
+              colPA,
+              "lead='" + l.id + "' && resolvido=false",
+              '',
+              1,
+              0,
+            )
+            if (!jaPA || jaPA.length === 0) {
+              const pa = new Record(colPA)
+              pa.set('lead', l.id)
+              pa.set('motivo', 'dono_nao_gravado')
+              pa.set('dono_anterior', '')
+              pa.set('dono_anterior_nome', '')
+              pa.set('resolvido', false)
+              pa.set('fixture', false)
+              $app.save(pa)
+            }
+          } catch (ePA) {}
+        }
+        continue // não grava a dedupe: tenta de novo na próxima rodada
+      }
+
+      // dono confirmado: agora sim registra o aviso
       try {
         const evA = new Record(colEv)
         evA.set('dedupe_key', chave)
@@ -171,7 +250,7 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
         evA.set('session_id', '')
         evA.set('ref_id', l.id)
         evA.set('resultado', ENVIAR_WHATSAPP ? 'enviado_whatsapp' : 'registrado_sem_envio')
-        evA.set('codigo_erro', 'pedido ao ponto unico de atribuicao')
+        evA.set('codigo_erro', 'dono confirmado: ' + donoGravado.slice(0, 12))
         evA.set('trace_id', '')
         evA.set('duracao_ms', 0)
         evA.set('recebido_em', new Date().toISOString())
