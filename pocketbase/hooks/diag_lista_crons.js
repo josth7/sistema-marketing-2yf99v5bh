@@ -35,7 +35,22 @@ routerAdd(
       }
     } catch (e2) {}
 
-    // 3. confere se o arquivo do cron tem o cronAdd
+    // 3. a coleção _cron_settings guarda os jobs
+    try {
+      const rs = $app.findRecordsByFilter('_cron_settings', '', '', 200, 0)
+      for (const r of rs) {
+        out.jobs.push({
+          id: r.id,
+          nome: String(r.get('name') || r.get('id') || ''),
+          cron: String(r.get('cron') || r.get('expression') || ''),
+          ativo: r.get('active') !== false,
+        })
+      }
+    } catch (e4) {
+      out.erro = String(e4).slice(0, 120)
+    }
+
+    // 4. confere se o arquivo do cron tem o cronAdd
     var temCronAdd = false
     try {
       temCronAdd = true
