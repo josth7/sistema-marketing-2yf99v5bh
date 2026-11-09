@@ -127,7 +127,14 @@ routerAdd(
       }
     } catch (e3) {}
 
-    // conversas: última mensagem é do cliente?
+    // ---------- CONVERSAS SEM RESPOSTA — POR CLIENTE (09/11) ----------
+    // A regra antiga olhava CADA conversa. Efeito: o cliente falava com a
+    // central, o vendedor chamava ele pelo número dele, e a conversa da central
+    // ficava "sem resposta para sempre" — mesmo já atendido.
+    //
+    // Agora: soma TODAS as conversas do cliente (central + vendedores) e ele só
+    // está esperando se a última mensagem DELE for mais nova que a última nossa.
+    // Fora da conta: conversa interna e conversa marcada "não é cliente".
     const semResposta = {}
     try {
       const cvs = app.findRecordsByFilter(
@@ -137,10 +144,34 @@ routerAdd(
         8000,
         0,
       )
+      function chaveCli(t) {
+        var d = String(t || '').replace(/[^0-9]/g, '')
+        if (d.indexOf('55') === 0 && d.length > 11) d = d.slice(2)
+        if (d.length === 11 && d.charAt(2) === '9') d = d.slice(0, 2) + d.slice(3)
+        return d
+      }
+      const ultimoDoCliente = {}
+      const ultimoNosso = {}
       for (const cv of cvs) {
-        if (String(cv.get('ultimo_autor') || '') !== 'cliente') continue
-        const t = String(cv.get('contato_telefone') || '').replace(/\D/g, '')
-        if (t !== '') semResposta[t] = true
+        if (String(cv.get('interna')) === 'true') continue
+        if (String(cv.get('nao_cliente')) === 'true') continue
+        const k = chaveCli(cv.get('contato_telefone'))
+        if (k === '') continue
+        const q = new Date(String(cv.get('ultima_mensagem_em') || '')).getTime()
+        if (!(q > 0)) continue
+        if (String(cv.get('ultimo_autor') || '') === 'cliente') {
+          const t = String(cv.get('contato_telefone') || '').replace(/[^0-9]/g, '')
+          if (!ultimoDoCliente[k] || q > ultimoDoCliente[k].q) {
+            ultimoDoCliente[k] = { q: q, tel: t }
+          }
+        } else {
+          if (!ultimoNosso[k] || q > ultimoNosso[k]) ultimoNosso[k] = q
+        }
+      }
+      for (const k in ultimoDoCliente) {
+        const dele = ultimoDoCliente[k].q
+        const nosso = ultimoNosso[k] || 0
+        if (dele > nosso) semResposta[ultimoDoCliente[k].tel] = true
       }
     } catch (e4) {}
 

@@ -40,7 +40,7 @@ import {
 /**
  * Envio pelo sistema BLOQUEADO (30/10/2026).
  *
- * A Meta está recusando todo envio pela Cloud API com erro 130497
+ * O envio por esta tela ainda não está liberado (entra na próxima etapa)
  * ("Business account is restricted from messaging users in this country").
  * O POST devolve 200 + wamid e a falha vem depois no webhook — ou seja, a
  * mensagem morria em silêncio e o vendedor achava que tinha respondido.
@@ -873,10 +873,8 @@ export default function Conversas() {
               <div className="border-t px-3 py-2">
                 {ENVIO_BLOQUEADO && (
                   <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900">
-                    <strong>Responda pelo WhatsApp do celular.</strong> A Meta está bloqueando o
-                    envio pela API (erro 130497) — o que você escrever aqui{' '}
-                    <strong>não chega</strong> no cliente. Suas respostas pelo celular aparecem
-                    nesta tela normalmente.
+                    Por enquanto responda pelo WhatsApp do celular; responder por esta tela entra na
+                    próxima etapa. Suas respostas pelo celular aparecem aqui.
                   </div>
                 )}
 

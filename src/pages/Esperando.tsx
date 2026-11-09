@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import pb from '@/lib/pocketbase/client'
+import { linkChamarWhatsapp } from '@/lib/marketing/crm'
 import { Dica, DicaNumero } from '@/components/base/dica'
 import {
   CabecalhoPagina,
@@ -181,7 +182,17 @@ export default function Esperando() {
                     {i.previa ? ' · ' + i.previa : ''}
                   </p>
                 </div>
-                <div className="shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
+                  {linkChamarWhatsapp(i.telefone) && (
+                    <a
+                      href={linkChamarWhatsapp(i.telefone) as string}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                    >
+                      Chamar no WhatsApp
+                    </a>
+                  )}
                   <Dica texto="Há quanto tempo o cliente espera resposta">
                     <Badge
                       variant={

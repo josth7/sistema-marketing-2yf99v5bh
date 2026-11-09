@@ -105,7 +105,7 @@ routerAdd(
         para: '/esperando',
         categoria: 'Vendas',
         rotulo: 'Conversas esperando',
-        aceita: ['read_metrics'],
+        aceita: ['read_conversas', 'read_leads', 'read_metrics'],
       },
       { para: '/conversas', categoria: 'Vendas', rotulo: 'Conversas', aceita: ['read_conversas'] },
       {
@@ -126,12 +126,6 @@ routerAdd(
         categoria: 'Inteligência artificial',
         rotulo: 'Relatórios',
         aceita: ['read_reports'],
-      },
-      {
-        para: '/conversoes',
-        categoria: 'Marketing',
-        rotulo: 'Conversões',
-        aceita: ['read_metrics'],
       },
       {
         para: '/caixa',
