@@ -610,24 +610,15 @@ onRecordAfterCreateSuccess((e) => {
           $app.save(evS)
         } catch (eSil) {}
       }
-      var id = null
-      if (apresentacaoLigada && modeloApresentacao !== '') {
-        id = enfileirar(
-          conexaoVendedor,
-          numeroVendedor,
-          'apresentacao_vendedor',
-          textoVendedor,
-          modeloApresentacao,
-          // variáveis do modelo, na ordem: {{1}} nome, {{2}} telefone, {{3}} canal
-          {
-            nome: String(lead.get('nome') || ''),
-            telefone: telefoneCliente,
-            canal: String(lead.get('origem') || 'whatsapp'),
-          },
-          'apresentacao|' + leadId,
-        )
-      }
-      if (id) envios.push(id)
+      // CA-3-107 (emenda 09/11): a DISTRIBUIÇÃO NÃO ENVIA NADA ao vendedor.
+      // Antes este bloco criava `apresentacao_vendedor` aqui, e o envio saía
+      // no ato da transferência — o que fazia a apresentação nascer em dupla
+      // (aqui e no cron de 15 min) e furar a dedupe.
+      //
+      // A apresentação nasce SÓ do cron `wa_apresentacao_15min`, e a
+      // `dedupe_key` `apresentacao|<lead>` só existe quando o cron cria.
+      // Aqui fica apenas o registro do motivo quando não há apresentação,
+      // já gravado acima.
     }
 
     if (telefoneCliente !== '' && central) {

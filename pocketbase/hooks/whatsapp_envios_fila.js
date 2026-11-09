@@ -164,26 +164,31 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
     } else if (ehModelo && nomeModelo !== '') {
       // corpo do modelo aprovado: nome + idioma + variáveis na ordem.
       // As variáveis vêm em `legenda` separadas por | (ex.: "Fabio|(41) 9721-3499")
+      // CA-3-106 (emenda 09/11): o formato é o da DOCUMENTAÇÃO da D-API, não o
+      // da Meta direto. `language` é TEXTO e as variáveis vão em
+      // `bodyVariables`, na ordem. Era isso que fazia a D-API recusar com 400
+      // as 28 apresentações de 09/11 — e nenhuma chegava ao cliente.
+      //
+      // ERRADO (antes):  language: { code: 'pt_BR' }, components: [{...}]
+      // CERTO  (agora):  language: 'pt_BR',          bodyVariables: ['...','...']
+      const idioma = String(env.get('modelo_idioma') || 'pt_BR')
       corpo = {
         sessionId: sessionId,
         to: destino,
         template: {
           name: nomeModelo,
-          language: { code: String(env.get('modelo_idioma') || 'pt_BR') },
-          components: [],
+          language: idioma,
+          bodyVariables: [],
         },
       }
       var vars = String(env.get('legenda') || '')
       if (vars !== '') {
         var partes = vars.split('|')
-        var params = []
+        var valores = []
         for (var iv = 0; iv < partes.length; iv++) {
-          if (String(partes[iv]) !== '')
-            params.push({ type: 'text', text: String(partes[iv]).slice(0, 200) })
+          if (String(partes[iv]) !== '') valores.push(String(partes[iv]).slice(0, 200))
         }
-        if (params.length > 0) {
-          corpo.template.components = [{ type: 'body', parameters: params }]
-        }
+        corpo.template.bodyVariables = valores
       }
     } else {
       corpo = { sessionId: sessionId, to: destino, text: texto }
@@ -288,7 +293,18 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
 
     if (status >= 400 && status < 500 && status !== 429) {
       env.set('estado', 'erro_definitivo')
-      env.set('ultimo_erro', 'dapi_http_4xx')
+      // CA-3-106/CA-3-108 (09/11): guarda o MOTIVO REAL da recusa, não só
+      // "dapi_http_4xx". Antes o operador não sabia o que a D-API reclamou.
+      // O telefone vai mascarado e a chave nunca entra.
+      var motivo4xx = 'dapi_http_4xx'
+      try {
+        var limpo = corpoResp
+        // mascara telefone (10+ dígitos seguidos) e qualquer token
+        limpo = limpo.replace(/[0-9]{10,}/g, '***')
+        limpo = limpo.replace(/"(api[_-]?key|token|authorization)"\s*:\s*"[^"]*"/gi, '"$1":"***"')
+        if (limpo !== '') motivo4xx = status + ' ' + limpo.slice(0, 240)
+      } catch (eLimpo) {}
+      env.set('ultimo_erro', motivo4xx.slice(0, 60))
       try {
         $app.save(env)
       } catch (e9) {}
