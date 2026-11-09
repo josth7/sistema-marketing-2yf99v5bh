@@ -116,10 +116,10 @@ routerAdd(
       }
 
       // ---------- 2. marca a origem ----------
-      const org = String(c.get('origem') || '')
+      const org = String(c.get('origem_carteira') || '')
       if (org === '') {
         try {
-          c.set('origem', 'planilha_agencia')
+          c.set('origem_carteira', 'planilha_agencia')
           mexeu = true
           out.origem_marcada++
         } catch (eO) {}
