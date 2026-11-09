@@ -24,20 +24,20 @@ routerAdd(
     try {
       const cs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('whatsapp_conexoes'),
-        "papel='central' && ativo=true",
+        "papel='vendedor' && ativo=true && apresentacao_ativa=true",
         '',
         1,
         0,
       )
       if (cs.length > 0) cx = cs[0]
     } catch (e0) {}
-    if (!cx) return e.json(200, { ok: false, erro: 'sem conexão central' })
+    if (!cx) return e.json(200, { ok: false, erro: 'sem conexão de vendedor com apresentação ligada' })
 
     // número interno da Anezia (não é cliente)
     var destino = '5541999601233'
     const modelo = String(cx.get('modelo_apresentacao_vendedor') || '')
     if (modelo === '') {
-      return e.json(200, { ok: false, erro: 'a central não tem modelo de apresentação' })
+      return e.json(200, { ok: false, erro: 'a conexão não tem modelo de apresentação' })
     }
 
     // cria na fila com legenda preenchida
