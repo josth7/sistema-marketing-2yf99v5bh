@@ -323,7 +323,21 @@ routerAdd(
         } catch (eS) {}
         if (sinais && sinais.length > 0) {
           const leitores = lerLista(sinais[0].get('leitores'))
-          if (leitores.indexOf(e.auth.id) >= 0) pode = true
+          if (leitores.indexOf(e.auth.id) >= 0) {
+            // DECISÃO DO DONO (09/11): `leitores` NÃO fura a regra do dono.
+            // Se o lead tem outro dono, a conversa não é sua — mesmo que o
+            // sinal liste você (o sinal é recalculado e pode estar velho).
+            var outroDono = false
+            const lidL = String(c.get('lead') || '')
+            if (lidL !== '') {
+              try {
+                const lL = $app.findRecordById('crm_leads', lidL)
+                const ow = String(lL.get('owner_id') || '')
+                if (ow !== '' && ow !== e.auth.id) outroDono = true
+              } catch (eL2) {}
+            }
+            if (!outroDono) pode = true
+          }
         }
       }
       if (!pode) {

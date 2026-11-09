@@ -125,7 +125,15 @@ routerAdd(
         const sin = $app.findRecordsByFilter(colSin, "conversa='" + conv.id + "'", '', 1, 0)
         if (sin && sin.length > 0) {
           const leit = lerLista(sin[0].get('leitores'))
-          if (leit.indexOf(e.auth.id) >= 0) pode = true
+          if (leit.indexOf(e.auth.id) >= 0) {
+            // `leitores` não fura a regra do dono (decisão de 09/11)
+            var outroDonoR = false
+            if (lead) {
+              const owR = String(lead.get('owner_id') || '')
+              if (owR !== '' && owR !== e.auth.id) outroDonoR = true
+            }
+            if (!outroDonoR) pode = true
+          }
         }
       } catch (errS) {}
     }
