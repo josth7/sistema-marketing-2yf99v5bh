@@ -103,6 +103,7 @@ onRecordAfterCreateSuccess((e) => {
       // tem grant de ler leads/conversas e NÃO tem escopo '*' (gestão).
       const colU = $app.findCollectionByNameOrId('users')
       const colGr = $app.findCollectionByNameOrId('access_grants')
+      const colCxCandidato = $app.findCollectionByNameOrId('whatsapp_conexoes')
       const usuarios = $app.findRecordsByFilter(colU, '', '', 200, 0)
       var melhor = ''
       var melhorCarga = -1
@@ -156,6 +157,23 @@ onRecordAfterCreateSuccess((e) => {
         } catch (eG) {}
         // gestão fica fora do rodízio: não tem número de vendedor para atender
         if (!ehVendedor || ehGestao) continue
+
+        // TRAVA (09/11): só entra quem é VENDEDOR DE VERDADE — tem conexão
+        // ativa com papel `vendedor` apontando para ele.
+        //
+        // Antes bastava ter grant de `read_leads`. Isso deixava entrar:
+        //   - `Marketing Haisan` (não tem escopo '*', mas não atende cliente);
+        //   - `rodrigo@adapta.org` (agência, recebeu 1 lead real);
+        //   - contas de teste (`Marketing A/B`, `Revisor Fixture`, `FIXTURE`).
+        // Foram 24 de 109 pedidos para contas erradas. Agora só os 4 reais.
+        const cxDoVendedor = $app.findRecordsByFilter(
+          colCxCandidato,
+          "vendedor_user='" + u.id + "' && papel='vendedor' && ativo=true",
+          '',
+          1,
+          0,
+        )
+        if (!cxDoVendedor || cxDoVendedor.length === 0) continue
 
         const c = carga[u.id] || 0
         if (melhor === '' || c < melhorCarga) {
