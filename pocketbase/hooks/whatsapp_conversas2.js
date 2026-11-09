@@ -280,20 +280,19 @@ routerAdd(
     var pode = false
     var ehDonoDaConversa = false
     if (temTudo || ehGestao) pode = true
-    if (papel === 'vendedor' && vendedorDaConexao === e.auth.id) {
-      pode = true
-      ehDonoDaConversa = true
-    }
-    // CORREÇÃO 09/11: o DONO DO LEAD responde em QUALQUER número, igual à
-    // leitura. Antes só podia responder no próprio número ou na central —
-    // então a Elisângela abria a conversa do cliente dela que tinha caído no
-    // número da Adriana (a leitura liberou hoje), via tudo, e ao responder
-    // recebia "sem permissão". Ver sem poder responder é pior que não ver.
+    // REGRA DO DONO (decisão do dono, 09/11): responde quem é dono do LEAD, em
+    // qualquer número. Ser dono do número NÃO basta — o cliente da Adriana que
+    // falou no número do Fábio continua sendo da Adriana.
     if (
       lead &&
       String(lead.get('owner_id') || '') === e.auth.id &&
       String(lead.get('owner_id') || '') !== ''
     ) {
+      pode = true
+      ehDonoDaConversa = true
+    }
+    // conversa SEM lead no próprio número: pode responder
+    if (!pode && !lead && papel === 'vendedor' && vendedorDaConexao === e.auth.id) {
       pode = true
       ehDonoDaConversa = true
     }

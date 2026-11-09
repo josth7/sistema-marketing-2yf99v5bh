@@ -334,23 +334,26 @@ routerAdd(
         if (conexao) {
           const papel = String(conexao.get('papel') || '')
           const vd = String(conexao.get('vendedor_user') || '')
-          if (papel === 'vendedor' && vd === e.auth.id) pode = true
-          // CORREÇÃO 06/11 (relato do dono): o DONO DO LEAD vê a conversa em
-          // QUALQUER número, não só na central e no dele.
+          // REGRA DO DONO (decisão do dono, 09/11): o vendedor vê a conversa
+          // quando é DONO DO LEAD — em qualquer número. NÃO basta ser o número
+          // dele: se o cliente é da Adriana e falou pelo número do Fábio, a
+          // conversa é da Adriana.
           //
-          // O caso real: lead "Adriana Pedroso" é do Fábio, mas o cliente falou
-          // pelo número da Adriana — e o Fábio NÃO via. Ele responderia por
-          // fora, sem saber o que o cliente já tinha dito.
+          // Histórico: em 06/11 eu liberava o número inteiro (`papel==='vendedor'
+          // && vd===e.auth.id`), o que fazia o Fábio ver conversa de cliente de
+          // outra vendedora — 6 casos reais. Agora só o dono do lead.
           //
-          // Antes a checagem de dono só valia quando a conexão era `central`,
-          // então 17 conversas ficavam invisíveis para quem era o responsável.
+          // A central continua visível para o dono do lead (é o caso de 17
+          // conversas que ficavam invisíveis antes).
           const lid = String(c.get('lead') || '')
-          if (!pode && lid !== '') {
+          if (lid !== '') {
             try {
               const l = $app.findRecordById('crm_leads', lid)
               if (String(l.get('owner_id') || '') === e.auth.id) pode = true
             } catch (eL) {}
           }
+          // conversa SEM lead no número dele: é dele (não há dono a respeitar)
+          if (!pode && lid === '' && papel === 'vendedor' && vd === e.auth.id) pode = true
         }
       }
       if (!pode) continue
