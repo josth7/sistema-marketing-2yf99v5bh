@@ -93,7 +93,8 @@ routerAdd(
       try {
         const tr = new Record(colTr)
         tr.set('lead', l.id)
-        tr.set('origem_pedido', 'gestao')
+        // o select `origem_pedido` só aceita 'botao' e 'ia'
+        tr.set('origem_pedido', 'botao')
         tr.set('motivo', 'primeiro_contato')
         tr.set('simulacao', false)
         tr.set('fixture', false)
