@@ -3,9 +3,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import pb from '@/lib/pocketbase/client'
 import { Dica } from '@/components/base/dica'
+import { ChaveEstado } from '@/components/base/chave-estado'
 import {
   CabecalhoPagina,
   EstadoCarregando,
@@ -256,9 +256,11 @@ export default function Admin() {
                   Manda um e-mail quando entra lead novo. Hoje está desligado.
                 </p>
               </div>
-              <Dica texto="Liga ou desliga o envio de e-mail de aviso de lead novo">
-                <Switch checked={emailAtivo} onCheckedChange={setEmailAtivo} />
-              </Dica>
+              <ChaveEstado
+                ligada={emailAtivo}
+                dica="Liga ou desliga o envio de e-mail de aviso de lead novo"
+                aoMudar={(novo) => setEmailAtivo(novo)}
+              />
             </div>
             {emailAtivo && (
               <div className="space-y-1">
@@ -293,9 +295,11 @@ export default function Admin() {
                   Um resumo por dia com recebidos, distribuídos e quem precisa de ação. Desligado.
                 </p>
               </div>
-              <Dica texto="Liga ou desliga o resumo diário no WhatsApp da gestão">
-                <Switch checked={resumoAtivo} onCheckedChange={setResumoAtivo} />
-              </Dica>
+              <ChaveEstado
+                ligada={resumoAtivo}
+                dica="Liga ou desliga o resumo diário no WhatsApp da gestão"
+                aoMudar={(novo) => setResumoAtivo(novo)}
+              />
             </div>
             {resumoAtivo && (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -412,18 +416,20 @@ export default function Admin() {
                     value={modeloPorCx[v.conexao] || ''}
                     onChange={(e) => setModeloPorCx((m) => ({ ...m, [v.conexao]: e.target.value }))}
                   />
-                  <Dica texto="Liga a apresentação automática por este número (precisa de modelo aprovado)">
-                    <Switch
-                      checked={v.ativa}
-                      onCheckedChange={(novo) =>
-                        void alternarApresentacao(
-                          v.conexao,
-                          novo,
-                          modeloPorCx[v.conexao] || v.modelo,
-                        )
-                      }
-                    />
-                  </Dica>
+                  <ChaveEstado
+                    ligada={v.ativa}
+                    dica="Liga a apresentação automática por este número (precisa de modelo aprovado)"
+                    aoMudar={async (novo) => {
+                      // se o servidor recusar, o componente volta ao estado
+                      // anterior e mostra o motivo
+                      await alternarApresentacao(
+                        v.conexao,
+                        novo,
+                        modeloPorCx[v.conexao] || v.modelo,
+                      )
+                      if (erroApres !== '') throw new Error(erroApres)
+                    }}
+                  />
                 </div>
               </div>
             ))}

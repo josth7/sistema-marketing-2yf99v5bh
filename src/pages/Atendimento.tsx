@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -10,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AbaAutomacoes from '@/pages/AbaAutomacoes'
 import pb from '@/lib/pocketbase/client'
 import { CabecalhoPagina, EstadoCarregando, EstadoErro } from '@/components/base/estados'
+import { ChaveEstado } from '@/components/base/chave-estado'
 
 /**
  * Tela Atendimento — governança do robô da central (SPEC-3-005, painel da
@@ -292,10 +292,12 @@ export default function Atendimento() {
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
           <div className="flex items-center gap-3">
-            <Switch
-              checked={estado.ligado}
-              onCheckedChange={(v) => void ligarDesligar(v)}
-              aria-label="Ligar ou desligar o robô"
+            <ChaveEstado
+              ligada={estado.ligado}
+              dica="Liga ou desliga o robô de atendimento"
+              aoMudar={async (v) => {
+                await ligarDesligar(v)
+              }}
             />
             <div>
               <p className="font-medium">{estado.ligado ? 'Robô ligado' : 'Robô desligado'}</p>
@@ -347,10 +349,10 @@ export default function Atendimento() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Switch
-                    checked={form.usar_horario}
-                    onCheckedChange={(v) => mudar({ usar_horario: v })}
-                    aria-label="Funcionar só no horário definido"
+                  <ChaveEstado
+                    ligada={form.usar_horario}
+                    dica="Funcionar só no horário definido"
+                    aoMudar={(v) => mudar({ usar_horario: v })}
                   />
                   <Label>
                     {form.usar_horario
