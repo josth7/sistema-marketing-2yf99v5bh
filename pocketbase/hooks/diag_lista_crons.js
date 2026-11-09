@@ -39,12 +39,16 @@ routerAdd(
     try {
       const rs = $app.findRecordsByFilter('_cron_settings', '', '', 200, 0)
       for (const r of rs) {
-        out.jobs.push({
-          id: r.id,
-          nome: String(r.get('name') || r.get('id') || ''),
-          cron: String(r.get('cron') || r.get('expression') || ''),
-          ativo: r.get('active') !== false,
-        })
+        // mostra os campos crus para descobrir onde fica o nome do job
+        var campos = {}
+        try {
+          const obj = r.publicExport ? r.publicExport() : {}
+          for (const k in obj) {
+            if (k === 'created' || k === 'updated') continue
+            campos[k] = String(obj[k]).slice(0, 40)
+          }
+        } catch (eExp) {}
+        out.jobs.push({ id: r.id, campos: campos })
       }
     } catch (e4) {
       out.erro = String(e4).slice(0, 120)
