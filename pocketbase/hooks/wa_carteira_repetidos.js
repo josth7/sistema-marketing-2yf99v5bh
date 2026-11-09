@@ -112,7 +112,7 @@ routerAdd(
         linhasTxt.push(rr.tel + ':' + rr.vendedores.join(','))
       }
       try {
-        registro.set('quando', linhasTxt.join('|'))
+        registro.set('indice', linhasTxt.join('|'))
       } catch (eS3) {}
       app.save(registro)
     } catch (e2) {
@@ -204,7 +204,7 @@ routerAdd(
       if (!achados || achados.length === 0) {
         return e.json(422, { ok: false, erro: 'monte o índice primeiro' })
       }
-      const bruto = String(achados[0].get('quando') || '')
+      const bruto = String(achados[0].get('indice') || '')
       if (bruto !== '') {
         for (const linha of bruto.split('|')) {
           const p2 = linha.indexOf(':')
@@ -381,7 +381,7 @@ routerAdd(
         0,
       )
       if (achados && achados.length > 0) {
-        const br = String(achados[0].get('quando') || '')
+        const br = String(achados[0].get('indice') || '')
         total = br === '' ? 0 : br.split('|').length
       }
     } catch (e0) {}
