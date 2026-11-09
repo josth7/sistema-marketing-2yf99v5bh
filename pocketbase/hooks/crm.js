@@ -844,6 +844,15 @@ routerAdd(
           nova.set('ctwa_clid', String(lead.get('anuncio_ctwa') || '').slice(0, 200))
           nova.set('waba_id', String(lead.get('anuncio_id') || '').slice(0, 100))
         } catch (eCtx) {}
+        // CA-3-61 (09/11): telefone HASHEADO para o Google. Ele exige o hash
+        // no formato E.164 com "+"; o telefone cru NUNCA sai do sistema.
+        try {
+          const telHash = String(lead.get('telefone') || '').replace(/[^0-9]/g, '')
+          if (telHash !== '') {
+            const e164 = '+' + telHash
+            nova.set('ph_google_sha256', $security.sha256(e164))
+          }
+        } catch (eHash) {}
         try {
           $app.save(nova)
         } catch (eSaveConv) {
