@@ -335,14 +335,21 @@ routerAdd(
           const papel = String(conexao.get('papel') || '')
           const vd = String(conexao.get('vendedor_user') || '')
           if (papel === 'vendedor' && vd === e.auth.id) pode = true
-          if (papel === 'central') {
-            const lid = String(c.get('lead') || '')
-            if (lid !== '') {
-              try {
-                const l = $app.findRecordById('crm_leads', lid)
-                if (String(l.get('owner_id') || '') === e.auth.id) pode = true
-              } catch (eL) {}
-            }
+          // CORREÇÃO 06/11 (relato do dono): o DONO DO LEAD vê a conversa em
+          // QUALQUER número, não só na central e no dele.
+          //
+          // O caso real: lead "Adriana Pedroso" é do Fábio, mas o cliente falou
+          // pelo número da Adriana — e o Fábio NÃO via. Ele responderia por
+          // fora, sem saber o que o cliente já tinha dito.
+          //
+          // Antes a checagem de dono só valia quando a conexão era `central`,
+          // então 17 conversas ficavam invisíveis para quem era o responsável.
+          const lid = String(c.get('lead') || '')
+          if (!pode && lid !== '') {
+            try {
+              const l = $app.findRecordById('crm_leads', lid)
+              if (String(l.get('owner_id') || '') === e.auth.id) pode = true
+            } catch (eL) {}
           }
         }
       }
