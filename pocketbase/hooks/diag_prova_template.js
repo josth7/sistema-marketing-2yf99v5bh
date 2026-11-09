@@ -31,7 +31,8 @@ routerAdd(
       )
       if (cs.length > 0) cx = cs[0]
     } catch (e0) {}
-    if (!cx) return e.json(200, { ok: false, erro: 'sem conexão de vendedor com apresentação ligada' })
+    if (!cx)
+      return e.json(200, { ok: false, erro: 'sem conexão de vendedor com apresentação ligada' })
 
     // número interno da Anezia (não é cliente)
     var destino = '5541999601233'
