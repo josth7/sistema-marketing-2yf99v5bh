@@ -61,7 +61,7 @@ routerAdd(
         0,
       ).length
     } catch (e3) {}
-    return e.json(200, { ok: true, ...out })
+    return e.json(200, out)
   },
   $apis.requireAuth(),
 )
