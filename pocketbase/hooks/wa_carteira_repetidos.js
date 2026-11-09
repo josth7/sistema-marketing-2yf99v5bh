@@ -105,8 +105,14 @@ routerAdd(
           registro.set('job', 'indice_repetidos')
         } catch (eS2) {}
       }
+      // formato compacto "tel:v1,v2|tel:v1,v2" — o JSON de objetos truncava
+      // em 3 MB e o lote lia "índice ilegível".
+      var linhasTxt = []
+      for (const rr of repetidos) {
+        linhasTxt.push(rr.tel + ':' + rr.vendedores.join(','))
+      }
       try {
-        registro.set('quando', JSON.stringify(repetidos).slice(0, 3000000))
+        registro.set('quando', linhasTxt.join('|'))
       } catch (eS3) {}
       app.save(registro)
     } catch (e2) {
@@ -198,8 +204,21 @@ routerAdd(
       if (!achados || achados.length === 0) {
         return e.json(422, { ok: false, erro: 'monte o índice primeiro' })
       }
-      const bruto = String(achados[0].get('quando') || '[]')
-      indice = JSON.parse(bruto)
+      const bruto = String(achados[0].get('quando') || '')
+      if (bruto !== '') {
+        for (const linha of bruto.split('|')) {
+          const p2 = linha.indexOf(':')
+          if (p2 < 1) continue
+          const tel2 = linha.slice(0, p2)
+          const vs2 = linha
+            .slice(p2 + 1)
+            .split(',')
+            .filter(function (x) {
+              return x !== ''
+            })
+          if (tel2 !== '' && vs2.length > 1) indice.push({ tel: tel2, vendedores: vs2 })
+        }
+      }
     } catch (e1) {
       return e.json(200, { ok: false, erro: 'índice ilegível: ' + String(e1).slice(0, 120) })
     }
@@ -362,7 +381,8 @@ routerAdd(
         0,
       )
       if (achados && achados.length > 0) {
-        total = JSON.parse(String(achados[0].get('quando') || '[]')).length
+        const br = String(achados[0].get('quando') || '')
+        total = br === '' ? 0 : br.split('|').length
       }
     } catch (e0) {}
     return e.json(200, { ok: true, repetidos_no_indice: total })
