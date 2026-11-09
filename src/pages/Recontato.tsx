@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dica } from '@/components/base/dica'
 import pb from '@/lib/pocketbase/client'
 import { linkChamarWhatsapp } from '@/lib/marketing/crm'
 import {
@@ -35,6 +36,9 @@ interface ClienteRecontato {
   criado: string
   dias_esperando: number
   vendedor_nome: string
+  /** CA-3-109: o cliente não recebeu o aviso automático de apresentação. */
+  apresentacao_nao_chegou?: boolean
+  marca?: string
 }
 
 const ROTULO_STATUS: Record<string, string> = {
@@ -150,6 +154,13 @@ export default function Recontato() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  {c.apresentacao_nao_chegou && (
+                    <Dica texto="O aviso automático não chegou ao cliente — ele não sabe que a Haisan vai atender. Chame pessoalmente.">
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                        apresentação não chegou
+                      </span>
+                    </Dica>
+                  )}
                   {linkChamarWhatsapp(c.telefone) && (
                     <a
                       href={linkChamarWhatsapp(c.telefone) as string}

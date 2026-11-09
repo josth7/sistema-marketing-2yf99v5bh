@@ -128,6 +128,30 @@ routerAdd(
 
     const STATUS_OK = ['entrada_lead', 'pre_atendimento_ia', 'mql']
     const DESDE = '2026-10-31'
+
+    // CA-3-109 (09/11): marca o lead cuja APRESENTAÇÃO não chegou.
+    // A apresentação é o aviso automático ao cliente ("oi, sou o vendedor X").
+    // Quando ela falha, o cliente NUNCA soube que existe, mas o lead fica
+    // "em aberto" como se estivesse andando — o vendedor precisa saber que
+    // tem de chamar pessoalmente.
+    //
+    // NÃO reenvia nada: só marca na lista.
+    const apresentacaoFalhou = {}
+    try {
+      const envs = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('whatsapp_envios'),
+        "motivo='apresentacao_vendedor'",
+        '',
+        3000,
+        0,
+      )
+      for (const en of envs) {
+        const est = String(en.get('estado') || '')
+        if (est !== 'erro' && est !== 'erro_definitivo') continue
+        const lid = String(en.get('lead') || '')
+        if (lid !== '') apresentacaoFalhou[lid] = true
+      }
+    } catch (eApF) {}
     const agoraMs = new Date().getTime()
 
     for (const l of leads) {
@@ -170,6 +194,9 @@ routerAdd(
         criado: criado,
         dias_esperando: dias,
         vendedor_nome: String(l.get('vendedor_nome') || ''),
+        // CA-3-109: o cliente não recebeu o aviso automático
+        apresentacao_nao_chegou: apresentacaoFalhou[l.id] === true,
+        marca: apresentacaoFalhou[l.id] === true ? 'apresentação não chegou' : '',
       })
     }
 
