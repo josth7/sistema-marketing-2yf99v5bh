@@ -284,8 +284,12 @@ routerAdd(
       pode = true
       ehDonoDaConversa = true
     }
+    // CORREÇÃO 09/11: o DONO DO LEAD responde em QUALQUER número, igual à
+    // leitura. Antes só podia responder no próprio número ou na central —
+    // então a Elisângela abria a conversa do cliente dela que tinha caído no
+    // número da Adriana (a leitura liberou hoje), via tudo, e ao responder
+    // recebia "sem permissão". Ver sem poder responder é pior que não ver.
     if (
-      papel === 'central' &&
       lead &&
       String(lead.get('owner_id') || '') === e.auth.id &&
       String(lead.get('owner_id') || '') !== ''
