@@ -23,6 +23,8 @@
 cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
   // quando a Meta liberar o envio, trocar para true
   const ENVIAR_WHATSAPP = false
+  // instrumentação 09/11: sem isto não se sabia se o cron rodava nem onde parava
+  console.log('wa_aviso_lead_novo: inicio')
 
   try {
     // ---------- vendedores elegíveis ----------
@@ -87,6 +89,7 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
       if (nome.toLowerCase().indexOf('fixture') >= 0) continue
       vendedores.push({ id: u.id, nome: nome || email, email: email })
     }
+    console.log('wa_aviso_lead_novo: vendedores validos = ' + vendedores.length)
     if (vendedores.length === 0) return
 
     // ---------- carga ativa por vendedor ----------
@@ -127,7 +130,10 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
       var idade = agora - new Date(criado).getTime()
       // janela de 30 dias: cobre a base que ficou sem dono antes da
       // distribuicao automatica existir (34 leads de 28/10 encontrados)
-      if (!(idade >= 0) || idade > 30 * 86400000) continue
+      if (!(idade >= 0) || idade > 30 * 86400000) {
+        console.log('wa_aviso_lead_novo: lead fora da janela de 30d -> ' + l.id)
+        continue
+      }
 
       // já avisado? (dedupe por lead)
       const chave = 'aviso_lead_novo|' + l.id
@@ -264,9 +270,9 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
       } catch (e5) {}
     }
 
-    if (distribuidos > 0) {
-      console.log('wa_aviso_lead_novo: ' + distribuidos + ' lead(s) distribuído(s)')
-    }
+    console.log(
+      'wa_aviso_lead_novo: fim, distribuidos = ' + distribuidos + ' de ' + todos.length + ' lidos',
+    )
   } catch (eTop) {}
 })
 
