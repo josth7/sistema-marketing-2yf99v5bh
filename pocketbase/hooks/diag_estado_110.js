@@ -32,7 +32,10 @@ routerAdd(
       )) {
         const u = String(c.get('vendedor_user') || '')
         if (u === '') continue
-        validos[u] = String(c.get('nome_exibicao') || '')
+        const nomeCx = String(c.get('nome_exibicao') || '')
+        // espelha a exclusão do cron (CA-3-110): conta de teste não é válida
+        if (nomeCx.toLowerCase().indexOf('fixture') >= 0) continue
+        validos[u] = nomeCx
       }
     } catch (e0) {}
     for (const id in validos) out.validos.push(validos[id])
