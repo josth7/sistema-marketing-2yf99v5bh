@@ -192,11 +192,26 @@ routerAdd(
             'sem modelo, o envio fica em "aguardando_modelo" e nada sai — a Meta não aceita texto livre fora da janela',
         })
       }
-      if (cx.get('segredo_configurado') !== true) {
+      // MESMA CONTA DO GET (correção 09/11).
+      // `segredo_configurado` NÃO é campo de `whatsapp_conexoes` — é calculado
+      // na rota de conexões. Ler o campo aqui devolvia SEMPRE falso e o POST
+      // recusava todo número com 422 "sem chave própria" (5 recusas em 09/11
+      // entre 8h24 e 8h25). A conta certa: o número tem chave quando o segredo
+      // com o nome de `nome_segredo_chave` existe e não está vazio.
+      const chaveDoNumero = String(cx.get('nome_segredo_chave') || '')
+      var temChave = false
+      if (chaveDoNumero !== '') {
+        try {
+          temChave = String($secrets.get(chaveDoNumero) || '') !== ''
+        } catch (eSk) {}
+      }
+      if (!temChave) {
         return e.json(422, {
           ok: false,
           erro: 'este número não tem chave própria configurada',
-          detalhe: 'sem chave, o envio pelo número do vendedor não sai (RN-106)',
+          detalhe:
+            'sem chave, o envio pelo número do vendedor não sai (RN-106). Chave esperada: ' +
+            (chaveDoNumero !== '' ? chaveDoNumero : '(não definida na conexão)'),
         })
       }
     }

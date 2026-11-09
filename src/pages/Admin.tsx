@@ -87,6 +87,10 @@ export default function Admin() {
   // cliente 15 min depois da transferência, usando modelo aprovado.
   const [apres, setApres] = useState<VendedorApres[]>([])
   const [modeloPorCx, setModeloPorCx] = useState<Record<string, string>>({})
+  // 09/11: erro do interruptor de apresentação, mostrado AO LADO dele.
+  // Antes o texto caía no erro geral e a página parecia sumir ("Something went
+  // wrong") sem dizer o motivo da recusa.
+  const [erroApres, setErroApres] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -191,7 +195,7 @@ export default function Admin() {
   }
 
   const alternarApresentacao = async (cx: string, ativa: boolean, modelo: string) => {
-    setErro('')
+    setErroApres('')
     try {
       await pb.send('/backend/v1/atendimento/apresentacao', {
         method: 'POST',
@@ -201,7 +205,21 @@ export default function Admin() {
       setAviso(ativa ? 'Apresentação ligada para este número.' : 'Apresentação desligada.')
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : String(e))
+      // o texto da recusa vem no campo `erro` da resposta; melhor mostrá-lo
+      // do que deixar a tela parecer quebrada
+      let texto = ''
+      try {
+        const qualquer = e as unknown as {
+          data?: { erro?: string; detalhe?: string }
+          status?: number
+        }
+        if (qualquer && qualquer.data) {
+          texto = String(qualquer.data.erro || '')
+          if (qualquer.data.detalhe) texto += ' — ' + String(qualquer.data.detalhe)
+        }
+      } catch (eLer) {}
+      if (texto === '') texto = e instanceof Error ? e.message : String(e)
+      setErroApres(texto)
     }
   }
 
@@ -380,6 +398,12 @@ export default function Admin() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{v.nome}</p>
                   <p className="text-xs text-muted-foreground">{v.numero}</p>
+                  {/* recusa do interruptor aparece AQUI, sem esconder a página */}
+                  {erroApres !== '' && (
+                    <p className="mt-1 max-w-md rounded bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                      {erroApres}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
