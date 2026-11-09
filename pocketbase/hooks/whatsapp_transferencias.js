@@ -213,8 +213,39 @@ onRecordAfterCreateSuccess((e) => {
     // ---------- 3. grava responsável e move status ----------
     if (String(lead.get('owner_id') || '') === '' && vendedorId !== '') {
       lead.set('owner_id', vendedorId)
-      if (String(lead.get('status') || 'novo') === 'novo') lead.set('status', 'em_contato')
-      $app.save(lead)
+      // O status 'novo' não existe mais desde 30/10 (funil de 10 etapas usa
+      // 'entrada_lead'); mantido só como fallback para base antiga.
+      if (String(lead.get('status') || '') === 'novo') lead.set('status', 'em_contato')
+      // GRAVA O DONO E CONFIRMA (correção 09/11).
+      // Antes: `$app.save(lead)` sem try/catch. Se o save falhasse, o fluxo
+      // seguia, marcava o pedido como `concluida` e o lead ficava SEM DONO —
+      // foi assim que 26 leads ficaram órfãos entre 06 e 09/11. Agora o erro
+      // fica visível e o pedido registra o motivo.
+      var gravouDono = false
+      var erroDono = ''
+      try {
+        $app.save(lead)
+        // confirma relendo: o save pode passar e não persistir
+        const conferido = $app.findRecordById('crm_leads', leadId)
+        gravouDono = String(conferido.get('owner_id') || '') === vendedorId
+        if (!gravouDono) erroDono = 'save passou mas owner_id nao persistiu'
+      } catch (eDono) {
+        erroDono = String(eDono).slice(0, 200)
+        console.log('transferencias: NAO consegui gravar o dono -> ' + erroDono)
+      }
+      if (!gravouDono) {
+        // não marca concluída: o pedido tem de mostrar que falhou
+        try {
+          tr.set('vendedor_user', vendedorId)
+          tr.set('vendedor_nome', vendedorNome)
+          tr.set('regra', regra)
+          tr.set('estado', 'erro')
+          tr.set('detalhe', 'dono_nao_gravado: ' + erroDono)
+          $app.save(tr)
+        } catch (eT2) {}
+        e.next()
+        return
+      }
       try {
         const colEv = $app.findCollectionByNameOrId('crm_lead_events')
         const ev = new Record(colEv)
