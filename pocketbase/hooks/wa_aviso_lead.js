@@ -117,8 +117,11 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
     // Dono que não é um dos vendedores com conexão ativa (conta de teste,
     // gestão ou agência) é o mesmo que não ter dono: ninguém atende. Foram 24
     // casos em 09/11 (CA-3-104). Aqui eles voltam para o ponto único.
+    // BUG (09/11): `vendedores` guarda objetos simples {id, nome, email} —
+    // usar v.get('id') aqui lança (não é registro do banco) e o cron morria
+    // antes de distribuir. Por isso ele "rodava" e não fazia nada.
     const idsValidos = {}
-    for (const v of vendedores) idsValidos[String(v.get('id') || '')] = true
+    for (const v of vendedores) idsValidos[String(v.id || '')] = true
 
     var distribuidos = 0
     for (const l of todos) {
