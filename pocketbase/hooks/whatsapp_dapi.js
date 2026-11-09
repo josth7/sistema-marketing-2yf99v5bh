@@ -301,12 +301,31 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       )
       if (rF && rF.length > 0) achouF = rF[0]
     } catch (eSF) {}
-    const motivoFalha = String(
-      (data.error && (data.error.message || data.error.title)) ||
-        data.reason ||
-        data.message ||
-        'falha_nao_informada',
-    ).slice(0, 200)
+    // CA-3-108 (09/11): a D-API manda `error` como TEXTO, não objeto.
+    // Formato real capturado: {"success":false,"error":"(#131009) Parameter
+    // value is not valid"}. O código lia `data.error.message`, que em texto é
+    // `undefined` — então caía em "falha_nao_informada" e o vendedor ficava
+    // sem saber o motivo.
+    function extrairMotivo(d) {
+      if (!d) return ''
+      // 1. error como texto (formato real da D-API)
+      if (typeof d.error === 'string' && d.error !== '') return d.error
+      // 2. error como objeto (formato antigo/Meta)
+      if (d.error && typeof d.error === 'object') {
+        const m = d.error.message || d.error.title || d.error.error_data || ''
+        if (m !== '') return String(m)
+      }
+      // 3. outros campos
+      if (d.reason) return String(d.reason)
+      if (d.message) return String(d.message)
+      if (d.title) return String(d.title)
+      return ''
+    }
+    const brutoMotivo = extrairMotivo(data)
+    const motivoFalha = String(brutoMotivo !== '' ? brutoMotivo : 'falha_nao_informada').slice(
+      0,
+      200,
+    )
     // sem telefone (04/11): deixa a recusa da Meta visível no log do Skip
     console.log('whatsapp_dapi: Meta recusou um envio | ' + motivoFalha)
 
