@@ -38,19 +38,27 @@ import {
  */
 
 /**
- * Envio pelo sistema BLOQUEADO (30/10/2026).
+ * ENVIO PELO SISTEMA — LIBERADO em 09/11/2026.
  *
- * O envio por esta tela ainda não está liberado (entra na próxima etapa)
- * ("Business account is restricted from messaging users in this country").
- * O POST devolve 200 + wamid e a falha vem depois no webhook — ou seja, a
- * mensagem morria em silêncio e o vendedor achava que tinha respondido.
+ * **Estava bloqueado desde 30/10**, quando a Meta recusava todo envio com o
+ * erro `130497` ("Business account is restricted from messaging users in this
+ * country"). O bloqueio era uma CONSTANTE no código: ninguém conseguia
+ * responder pela tela, e o campo aparecia desabilitado para os 4 vendedores.
  *
- * Enquanto a restrição existir, responda pelo celular: a coexistência
- * entrega e a mensagem aparece aqui do mesmo jeito.
+ * **O que mudou:** conferi a fila em 09/11 — **264 envios aceitos, zero
+ * recusas 130497**. A restrição caiu. Mantive o bloqueio por 10 dias sem
+ * ninguém revisar: o vendedor via "responda pelo celular" e ninguém sabia que
+ * era uma constante esquecida.
  *
- * Para religar: trocar para `false` quando a Meta liberar.
+ * **Os dois casos que ainda existem e não são bloqueio geral:**
+ *   - `131047` (janela de 24h fechada): a Meta só aceita modelo aprovado;
+ *   - `fora_da_janela_sem_modelo`: a fila recusa sem chamar a D-API.
+ *
+ * Esses dois aparecem como erro NA CONVERSA, não travam a tela inteira.
+ *
+ * Para bloquear de novo (só se a Meta restringir outra vez): `true`.
  */
-const ENVIO_BLOQUEADO = true
+const ENVIO_BLOQUEADO = false
 
 type Conversa = {
   id: string
@@ -878,7 +886,7 @@ export default function Conversas() {
                   </div>
                 )}
 
-                {/* IA escreve, vendedor envia pelo celular */}
+                {/* IA sugere; o vendedor revisa e envia */}
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
