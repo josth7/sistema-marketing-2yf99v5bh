@@ -75,23 +75,40 @@ routerAdd(
     // vendedor tem leitura; quem não tem nada, não entra
     if (!ehGestao && !temLeitura) return e.json(404, { ok: false, erro: 'não encontrado' })
 
-
     // ---------- empresa ativa (CA-3-88) ----------
+    // BUG CORRIGIDO (10/11): antes eu usava `meus`, que é `const` DENTRO de um
+    // bloco try — fora dele não existe e o acesso lança ReferenceError, que o
+    // catch engolia. Resultado: ehDonoE ficava false e o 403 nunca disparava.
+    // Agora os grants são lidos aqui, no escopo desta rota.
     var empresaAtiva = ''
     try {
       var pedidaE = String(e.request.header.get('X-Empresa') || '')
+      var gsE = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
       var empGrant = []
-      for (const gE2 of meus) {
-        var empG3 = ''
-        try {
-          empG3 = String(gE2.get('empresa') || '')
-        } catch (eG3) {}
-        if (empG3 !== '' && empGrant.indexOf(empG3) < 0) empGrant.push(empG3)
-      }
       var ehDonoE = false
-      for (const gE4 of meus) {
-        var saE = lerL(gE4.get("scope_accounts"))
-        if (Array.isArray(saE) && saE.indexOf('*') >= 0) ehDonoE = true
+      for (const gE5 of gsE) {
+        var empG5 = ''
+        try {
+          empG5 = String(gE5.get('empresa') || '')
+        } catch (eG5) {}
+        if (empG5 !== '' && empGrant.indexOf(empG5) < 0) empGrant.push(empG5)
+        var saE5 = []
+        try {
+          var rawE5 = gE5.get('scope_accounts')
+          saE5 =
+            Array.isArray(rawE5) && rawE5.length > 0 && typeof rawE5[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawE5))
+              : typeof rawE5 === 'string'
+                ? JSON.parse(rawE5)
+                : rawE5 || []
+        } catch (eSA5) {}
+        if (Array.isArray(saE5) && saE5.indexOf('*') >= 0) ehDonoE = true
       }
       if (pedidaE !== '') {
         if (!ehDonoE && empGrant.indexOf(pedidaE) < 0) {
@@ -101,12 +118,11 @@ routerAdd(
       } else if (empGrant.length > 0) {
         empresaAtiva = empGrant[0]
       } else {
-        try {
-          const esE2 = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
-          if (esE2.length > 0) empresaAtiva = esE2[0].id
-        } catch (eEE2) {}
+        const esE5 = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esE5.length > 0) empresaAtiva = esE5[0].id
       }
-    } catch (eEmpE) {}
+    } catch (eEmpE5) {}
+
     const out = {
       ok: true,
       total: 0,
