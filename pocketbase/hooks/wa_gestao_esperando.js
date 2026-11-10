@@ -75,6 +75,7 @@ routerAdd(
     // vendedor tem leitura; quem não tem nada, não entra
     if (!ehGestao && !temLeitura) return e.json(404, { ok: false, erro: 'não encontrado' })
 
+
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -89,7 +90,7 @@ routerAdd(
       }
       var ehDonoE = false
       for (const gE4 of meus) {
-        var saE = lerLista(gE4.get('scope_accounts'))
+        var saE = lerL(gE4.get("scope_accounts"))
         if (Array.isArray(saE) && saE.indexOf('*') >= 0) ehDonoE = true
       }
       if (pedidaE !== '') {
