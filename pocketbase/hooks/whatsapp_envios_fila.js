@@ -74,6 +74,54 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
     const ehFixture =
       String(env.get('fixture')) === 'true' || String(conexao.get('fixture')) === 'true'
     const texto = String(env.get('texto') || '')
+
+    // ---------- RN-194 (10/11): fora do horário, NÃO prometer minutos ----------
+    // A fila não manda ao cliente texto da central com promessa imediata
+    // ("nos próximos minutos", "só um momento", "alguns minutos", "encaminhar
+    // agora"). O envio fica `bloqueado_horario`, visível na tela.
+    try {
+      const ehParaCliente =
+        String(env.get('motivo') || '') === 'aviso_cliente' ||
+        String(env.get('motivo') || '') === 'ia_resposta'
+      if (ehParaCliente && texto !== '') {
+        const baixo = texto.toLowerCase()
+        const promete =
+          baixo.indexOf('próximos minutos') >= 0 ||
+          baixo.indexOf('proximos minutos') >= 0 ||
+          baixo.indexOf('em alguns minutos') >= 0 ||
+          baixo.indexOf('só um momento') >= 0 ||
+          baixo.indexOf('so um momento') >= 0 ||
+          baixo.indexOf('encaminhar agora') >= 0
+
+        if (promete) {
+          var dentroH = true
+          try {
+            const cfgF = $app.findRecordsByFilter('atendimento_config', '', '', 50, 0)
+            var cfgFv = null
+            for (const cf of cfgF) {
+              if (!cfgFv || Number(cf.get('versao') || 0) > Number(cfgFv.get('versao') || 0))
+                cfgFv = cf
+            }
+            const iniF = cfgFv ? String(cfgFv.get('hora_inicio') || '08:00') : '08:00'
+            const fimF = cfgFv ? String(cfgFv.get('hora_fim') || '17:30') : '17:30'
+            const brF = new Date(new Date().getTime() - 3 * 3600000)
+            const diaF = brF.getUTCDay()
+            const hhF =
+              ('0' + brF.getUTCHours()).slice(-2) + ':' + ('0' + brF.getUTCMinutes()).slice(-2)
+            const utilF = diaF >= 1 && diaF <= 5
+            dentroH = utilF && hhF >= iniF && hhF <= fimF
+          } catch (eHF) {}
+          if (!dentroH) {
+            env.set('estado', 'bloqueado_horario')
+            env.set('ultimo_erro', 'promessa de contato imediato fora do horario (RN-194)')
+            try {
+              $app.save(env)
+            } catch (eBH) {}
+            continue
+          }
+        }
+      }
+    } catch (eR194) {}
     // TEMPLATE (modelo aprovado): é o único jeito de mandar mensagem FORA da
     // janela de 24h. Usado no aviso de lead novo ao vendedor, quando ele não
     // falou com a central nas últimas 24h (erro 131047).

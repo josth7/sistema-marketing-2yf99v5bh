@@ -36,7 +36,10 @@
  */
 
 // ==================== NÚCLEO (inline no cron e nas rotas) ====================
-cronAdd('wa_distribuicao_abertura', '1 8 * * 1-5', () => {
+// CA-3-117 (10/11): o SERVIDOR ESTÁ EM UTC (confirmado: getTimezoneOffset()=0).
+// `1 8` rodava às 8h UTC = **5h01 de Brasília**. Para abrir às 8h01 de Brasília
+// (UTC-3), a hora do cron tem de ser 11.
+cronAdd('wa_distribuicao_abertura', '1 11 * * 1-5', () => {
   try {
     const app = $app
 

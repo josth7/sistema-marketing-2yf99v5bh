@@ -610,24 +610,82 @@ onRecordAfterCreateSuccess((e) => {
           $app.save(evS)
         } catch (eSil) {}
       }
-      // CA-3-107 (emenda 09/11): a DISTRIBUIÇÃO NÃO ENVIA NADA ao vendedor.
-      // Antes este bloco criava `apresentacao_vendedor` aqui, e o envio saía
-      // no ato da transferência — o que fazia a apresentação nascer em dupla
-      // (aqui e no cron de 15 min) e furar a dedupe.
-      //
-      // A apresentação nasce SÓ do cron `wa_apresentacao_15min`, e a
-      // `dedupe_key` `apresentacao|<lead>` só existe quando o cron cria.
-      // Aqui fica apenas o registro do motivo quando não há apresentação,
-      // já gravado acima.
+      var id = null
+      if (apresentacaoLigada && modeloApresentacao !== '') {
+        id = enfileirar(
+          conexaoVendedor,
+          numeroVendedor,
+          'apresentacao_vendedor',
+          textoVendedor,
+          modeloApresentacao,
+          // variáveis do modelo, na ordem: {{1}} nome, {{2}} telefone, {{3}} canal
+          {
+            nome: String(lead.get('nome') || ''),
+            telefone: telefoneCliente,
+            canal: String(lead.get('origem') || 'whatsapp'),
+          },
+          'apresentacao|' + leadId,
+        )
+      }
+      if (id) envios.push(id)
     }
 
     if (telefoneCliente !== '' && central) {
-      const textoCliente =
-        'Quem vai te atender é *' +
-        vendedorNome +
-        '*, do nosso time de vendas. Nos próximos minutos você recebe uma mensagem' +
-        (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
-        '. Pode salvar como *Haisan Vendas*! 😊'
+      // ---------- RN-194 (10/11): NADA de "nos próximos minutos" fora do horário ----------
+      // O Rodrigo reclamou: fora do horário a central prometia contato imediato e
+      // ninguém chamava. Aqui se calcula o horário de Brasília (o servidor está
+      // em UTC) e a frase diz QUANDO o vendedor chama.
+      var dentroHorario = true
+      var aberturaTxt = ''
+      try {
+        const cfgA = $app.findRecordsByFilter('atendimento_config', '', '', 50, 0)
+        var cfgAt = null
+        for (const c of cfgA) {
+          if (!cfgAt || Number(c.get('versao') || 0) > Number(cfgAt.get('versao') || 0)) cfgAt = c
+        }
+        const diasOk = cfgAt ? String(cfgAt.get('dias') || '') : ''
+        const ini = cfgAt ? String(cfgAt.get('hora_inicio') || '08:00') : '08:00'
+        const fim = cfgAt ? String(cfgAt.get('hora_fim') || '17:30') : '17:30'
+
+        // Brasília = UTC-3. O servidor está em UTC (confirmado 10/11).
+        const agoraUtc = new Date()
+        const br = new Date(agoraUtc.getTime() - 3 * 3600000)
+        const diaBr = br.getUTCDay() // 0=dom
+        const hhmm = ('0' + br.getUTCHours()).slice(-2) + ':' + ('0' + br.getUTCMinutes()).slice(-2)
+
+        var diaUtil = diaBr >= 1 && diaBr <= 5
+        // se o painel tem dias configurados, usa os do painel
+        if (diasOk !== '') {
+          try {
+            const lista = JSON.parse(diasOk)
+            if (Array.isArray(lista)) diaUtil = lista.indexOf(diaBr) >= 0
+          } catch (eDias) {}
+        }
+        dentroHorario = diaUtil && hhmm >= ini && hhmm <= fim
+
+        if (!dentroHorario) {
+          // quando: amanhã ou na segunda, pela próxima abertura
+          var proxAbertura = 'amanhã'
+          if (diaBr === 5) proxAbertura = 'na segunda'
+          else if (diaBr === 6) proxAbertura = 'na segunda'
+          else if (!diaUtil) proxAbertura = 'no próximo dia útil'
+          aberturaTxt = proxAbertura + ', a partir das ' + ini.slice(0, 5)
+        }
+      } catch (eHor) {}
+
+      const textoCliente = dentroHorario
+        ? 'Quem vai te atender é *' +
+          vendedorNome +
+          '*, do nosso time de vendas. Nos próximos minutos você recebe uma mensagem' +
+          (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
+          '. Pode salvar como *Haisan Vendas*! 😊'
+        : 'Quem vai te atender é *' +
+          vendedorNome +
+          '*, do nosso time de vendas. Você recebe a mensagem' +
+          (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
+          ' ' +
+          aberturaTxt +
+          '. Pode salvar como *Haisan Vendas*! 😊'
       const id = enfileirar(
         central,
         telefoneCliente,
