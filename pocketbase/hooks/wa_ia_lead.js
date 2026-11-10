@@ -172,18 +172,25 @@ routerAdd(
     } catch (eR) {}
 
     // ---------- grava ----------
+    // RN-192 (10/11): este processo levou SEGUNDOS (três chamadas de IA).
+    // O `lead` foi lido ANTES. Salvar o objeto inteiro devolve ao banco o
+    // `owner_id` daquele momento e APAGA o dono que o rodízio gravou no meio —
+    // foi o caso de 09/11 22h49 (dono gravado às 22h50, apagado 4 s depois).
+    //
+    // Aqui se RELÊ o lead e grava SÓ os campos de IA.
     var gravou = false
     try {
-      if (nota !== null) lead.set('ia_nota', nota)
-      if (humor !== '') lead.set('ia_humor', humor)
-      if (resumo !== '') lead.set('ia_resumo', resumo.slice(0, 2000))
-      if (justificativa !== '') lead.set('ia_justificativa', justificativa)
-      if (score !== null) lead.set('ia_humor_score', score)
-      lead.set('ia_calculado_em', new Date().toISOString())
+      const leadAtual = $app.findRecordById('crm_leads', lead.id)
+      if (nota !== null) leadAtual.set('ia_nota', nota)
+      if (humor !== '') leadAtual.set('ia_humor', humor)
+      if (resumo !== '') leadAtual.set('ia_resumo', resumo.slice(0, 2000))
+      if (justificativa !== '') leadAtual.set('ia_justificativa', justificativa)
+      if (score !== null) leadAtual.set('ia_humor_score', score)
+      leadAtual.set('ia_calculado_em', new Date().toISOString())
       try {
-        lead.set('ia_atualizado_em', new Date().toISOString())
+        leadAtual.set('ia_atualizado_em', new Date().toISOString())
       } catch (eU) {}
-      $app.save(lead)
+      $app.save(leadAtual)
       gravou = true
     } catch (eSave) {
       return e.json(500, {
@@ -380,19 +387,19 @@ cronAdd('wa_ia_lead', '*/5 * * * *', () => {
         if (nota === null && humor === '' && resumo === '') continue
 
         try {
-          if (nota !== null) lead.set('ia_nota', nota)
-          if (humor !== '') lead.set('ia_humor', humor)
-          if (resumo !== '') lead.set('ia_resumo', resumo.slice(0, 2000))
-          if (just !== '') lead.set('ia_justificativa', just)
-          if (score !== null) lead.set('ia_humor_score', score)
-          lead.set('ia_calculado_em', new Date().toISOString())
+          // RN-192: mesmo cuidado do cron — relê e grava só os campos de IA,
+          // senão o `owner_id` lido antes volta por cima do dono atual.
+          const leadAtual2 = $app.findRecordById('crm_leads', lead.id)
+          if (nota !== null) leadAtual2.set('ia_nota', nota)
+          if (humor !== '') leadAtual2.set('ia_humor', humor)
+          if (resumo !== '') leadAtual2.set('ia_resumo', resumo.slice(0, 2000))
+          if (just !== '') leadAtual2.set('ia_justificativa', just)
+          if (score !== null) leadAtual2.set('ia_humor_score', score)
+          leadAtual2.set('ia_calculado_em', new Date().toISOString())
           try {
-            lead.set('ia_atualizado_em', new Date().toISOString())
-          } catch (eU2) {}
-          try {
-            lead.set('ia_atualizado_em', new Date().toISOString())
+            leadAtual2.set('ia_atualizado_em', new Date().toISOString())
           } catch (eU) {}
-          $app.save(lead)
+          $app.save(leadAtual2)
           feitos++
         } catch (eS) {}
 
