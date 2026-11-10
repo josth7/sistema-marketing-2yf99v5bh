@@ -30,7 +30,7 @@ routerAdd(
 
     // horario fechado de referencia
     const ini = '08:00'
-    const fim = '17:30'
+    const fim = '17:00'
     const util = dia >= 1 && dia <= 5
     const dentro = util && hhBr >= ini && hhBr <= fim
     out.horario_referencia = ini + ' - ' + fim
