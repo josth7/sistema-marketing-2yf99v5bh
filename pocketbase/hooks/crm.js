@@ -20,6 +20,50 @@ routerAdd(
   'GET',
   '/backend/v1/crm/leads',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
@@ -212,6 +256,50 @@ routerAdd(
   'POST',
   '/backend/v1/crm/leads',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
@@ -351,6 +439,50 @@ routerAdd(
   'PATCH',
   '/backend/v1/crm/leads/{id}',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
@@ -598,6 +730,50 @@ routerAdd(
   'GET',
   '/backend/v1/crm/leads/{id}/eventos',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
@@ -699,6 +875,50 @@ routerAdd(
   'POST',
   '/backend/v1/crm/leads/{id}/conversao',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
@@ -908,6 +1128,50 @@ routerAdd(
   'POST',
   '/backend/v1/crm/leads/importar',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
@@ -1141,6 +1405,50 @@ routerAdd(
   'GET',
   '/backend/v1/crm/rodizio',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
@@ -1278,6 +1586,50 @@ routerAdd(
   'GET',
   '/backend/v1/crm/conversoes/fila',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // guard: usuário com manage_leads OU canal assinado via query (token)
     const colC = $app.findCollectionByNameOrId('canal_estado')
@@ -1375,6 +1727,50 @@ routerAdd(
   'POST',
   '/backend/v1/crm/conversoes/{id}/marcar-enviado',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     let conv
     try {
@@ -1414,6 +1810,50 @@ routerAdd(
   'GET',
   '/backend/v1/crm/conversoes/resumo',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaX = String(e.request.header.get('X-Empresa') || '')
+      var gsX = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantX = []
+      var ehDonoX = false
+      for (const gX of gsX) {
+        var empGX = ''
+        try {
+          empGX = String(gX.get('empresa') || '')
+        } catch (eGX) {}
+        if (empGX !== '' && empGrantX.indexOf(empGX) < 0) empGrantX.push(empGX)
+        var saX = []
+        try {
+          var rawX = gX.get('scope_accounts')
+          saX =
+            Array.isArray(rawX) && rawX.length > 0 && typeof rawX[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawX))
+              : typeof rawX === 'string'
+                ? JSON.parse(rawX)
+                : rawX || []
+        } catch (eSAX) {}
+        if (Array.isArray(saX) && saX.indexOf('*') >= 0) ehDonoX = true
+      }
+      if (pedidaX !== '') {
+        if (!ehDonoX && empGrantX.indexOf(pedidaX) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaX
+      } else if (empGrantX.length > 0) {
+        empresaAtiva = empGrantX[0]
+      } else {
+        const esX = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esX.length > 0) empresaAtiva = esX[0].id
+      }
+    } catch (eEmpX) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
 
