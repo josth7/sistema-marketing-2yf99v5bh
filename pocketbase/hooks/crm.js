@@ -20,6 +20,7 @@ routerAdd(
   'GET',
   '/backend/v1/crm/leads',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -64,7 +65,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -256,6 +256,7 @@ routerAdd(
   'POST',
   '/backend/v1/crm/leads',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -300,7 +301,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -439,6 +439,7 @@ routerAdd(
   'PATCH',
   '/backend/v1/crm/leads/{id}',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -483,7 +484,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -730,6 +730,7 @@ routerAdd(
   'GET',
   '/backend/v1/crm/leads/{id}/eventos',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -774,7 +775,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -875,6 +875,7 @@ routerAdd(
   'POST',
   '/backend/v1/crm/leads/{id}/conversao',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -919,7 +920,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -1128,6 +1128,7 @@ routerAdd(
   'POST',
   '/backend/v1/crm/leads/importar',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -1172,7 +1173,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -1405,6 +1405,7 @@ routerAdd(
   'GET',
   '/backend/v1/crm/rodizio',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -1449,7 +1450,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -1586,6 +1586,7 @@ routerAdd(
   'GET',
   '/backend/v1/crm/conversoes/fila',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -1630,7 +1631,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // guard: usuário com manage_leads OU canal assinado via query (token)
     const colC = $app.findCollectionByNameOrId('canal_estado')
     let canal = null
@@ -1727,6 +1727,7 @@ routerAdd(
   'POST',
   '/backend/v1/crm/conversoes/{id}/marcar-enviado',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -1771,7 +1772,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     let conv
     try {
       conv = $app.findRecordById('conversion_events', e.request.pathValue('id'))
@@ -1810,6 +1810,7 @@ routerAdd(
   'GET',
   '/backend/v1/crm/conversoes/resumo',
   (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // ---------- empresa ativa (CA-3-88) ----------
     var empresaAtiva = ''
     try {
@@ -1854,7 +1855,6 @@ routerAdd(
       }
     } catch (eEmpX) {}
 
-    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
 
     // ESCOPO (30/10): este resumo é o "Na fila · R$ X" da tela do CRM e

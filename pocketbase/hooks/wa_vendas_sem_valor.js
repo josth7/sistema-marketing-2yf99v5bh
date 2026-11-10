@@ -155,6 +155,7 @@ routerAdd(
     const hoje = new Date().toISOString().slice(0, 10)
 
     var temManage = false
+    var temLeitura = false
     var temTudo = false
     try {
       const meus = app.findRecordsByFilter(
@@ -170,16 +171,18 @@ routerAdd(
         if (de !== '' && de.slice(0, 10) > hoje) continue
         if (ate !== '' && ate.slice(0, 10) < hoje) continue
         const a = lerB(g.get('actions'))
+        // RN-196 (10/11): o VENDEDOR registra o valor de um lead DELE.
+        // Antes só manage_leads passava — e o vendedor só tem read_leads, então
+        // ele recebia 403 numa venda da própria carteira (relato da Anézia).
         if (a.indexOf('manage_leads') >= 0 || a.indexOf('manage_metrics') >= 0) temManage = true
+        if (a.indexOf('read_leads') >= 0) temLeitura = true
         const sc = lerB(g.get('scope_accounts'))
         if (Array.isArray(sc) && sc.indexOf('*') >= 0) temTudo = true
       }
     } catch (e0) {}
-    if (!temManage) {
-      return e.json(403, {
-        ok: false,
-        erro: 'sem permissão para registrar valor de venda (manage_leads)',
-      })
+    // gestão registra qualquer venda; vendedor registra a da carteira dele
+    if (!temManage && !temLeitura) {
+      return e.json(403, { ok: false, erro: 'sem permissão para registrar valor de venda' })
     }
 
     var body = {}
