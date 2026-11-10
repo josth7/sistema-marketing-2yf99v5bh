@@ -110,22 +110,6 @@ routerAdd(
       }
     } catch (e2) {}
 
-    // ---------- leads ----------
-    var leads = []
-    try {
-      leads = app.findRecordsByFilter(
-        app.findCollectionByNameOrId('crm_leads'),
-        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
-        '',
-        8000,
-        0,
-      )
-    } catch (e3) {
-      out.ok = false
-      out.erro = 'leads: ' + String(e3).slice(0, 150)
-      return e.json(200, out)
-    }
-
     // ---------- empresa ativa (CA-3-88) ----------
     // BUG CORRIGIDO (10/11): antes eu usava `meus`, que é `const` DENTRO de um
     // bloco try — fora dele não existe e o acesso lança ReferenceError, que o
@@ -173,6 +157,22 @@ routerAdd(
         if (esE5.length > 0) empresaAtiva = esE5[0].id
       }
     } catch (eEmpE5) {}
+
+    // ---------- leads ----------
+    var leads = []
+    try {
+      leads = app.findRecordsByFilter(
+        app.findCollectionByNameOrId('crm_leads'),
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
+        '',
+        8000,
+        0,
+      )
+    } catch (e3) {
+      out.ok = false
+      out.erro = 'leads: ' + String(e3).slice(0, 150)
+      return e.json(200, out)
+    }
 
     const STATUS_OK = ['entrada_lead', 'pre_atendimento_ia', 'mql']
     const DESDE = '2026-10-31'
