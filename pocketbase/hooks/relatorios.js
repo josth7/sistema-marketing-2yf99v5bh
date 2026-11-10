@@ -25,6 +25,52 @@ routerAdd(
   'GET',
   '/backend/v1/reports',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    // Lê os grants AQUI, no escopo da rota: `const meus` de dentro de um try
+    // não existe fora dele (lança, o catch engole, o 403 não dispara).
+    var empresaAtiva = ''
+    try {
+      var pedidaW = String(e.request.header.get('X-Empresa') || '')
+      var gsW = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantW = []
+      var ehDonoW = false
+      for (const gW of gsW) {
+        var empGW = ''
+        try {
+          empGW = String(gW.get('empresa') || '')
+        } catch (eGW) {}
+        if (empGW !== '' && empGrantW.indexOf(empGW) < 0) empGrantW.push(empGW)
+        var saW = []
+        try {
+          var rawW = gW.get('scope_accounts')
+          saW =
+            Array.isArray(rawW) && rawW.length > 0 && typeof rawW[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawW))
+              : typeof rawW === 'string'
+                ? JSON.parse(rawW)
+                : rawW || []
+        } catch (eSAW) {}
+        if (Array.isArray(saW) && saW.indexOf('*') >= 0) ehDonoW = true
+      }
+      if (pedidaW !== '') {
+        if (!ehDonoW && empGrantW.indexOf(pedidaW) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaW
+      } else if (empGrantW.length > 0) {
+        empresaAtiva = empGrantW[0]
+      } else {
+        const esW = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esW.length > 0) empresaAtiva = esW[0].id
+      }
+    } catch (eEmpW) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // guard de leitura (SPEC-2-005, card 5b1de184): read_reports — INLINE (JSVM:
     // função top-level não é visível no callback — QA integrations 14/10)
@@ -92,6 +138,52 @@ routerAdd(
   'GET',
   '/backend/v1/reports/{id}',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    // Lê os grants AQUI, no escopo da rota: `const meus` de dentro de um try
+    // não existe fora dele (lança, o catch engole, o 403 não dispara).
+    var empresaAtiva = ''
+    try {
+      var pedidaW = String(e.request.header.get('X-Empresa') || '')
+      var gsW = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantW = []
+      var ehDonoW = false
+      for (const gW of gsW) {
+        var empGW = ''
+        try {
+          empGW = String(gW.get('empresa') || '')
+        } catch (eGW) {}
+        if (empGW !== '' && empGrantW.indexOf(empGW) < 0) empGrantW.push(empGW)
+        var saW = []
+        try {
+          var rawW = gW.get('scope_accounts')
+          saW =
+            Array.isArray(rawW) && rawW.length > 0 && typeof rawW[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawW))
+              : typeof rawW === 'string'
+                ? JSON.parse(rawW)
+                : rawW || []
+        } catch (eSAW) {}
+        if (Array.isArray(saW) && saW.indexOf('*') >= 0) ehDonoW = true
+      }
+      if (pedidaW !== '') {
+        if (!ehDonoW && empGrantW.indexOf(pedidaW) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaW
+      } else if (empGrantW.length > 0) {
+        empresaAtiva = empGrantW[0]
+      } else {
+        const esW = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esW.length > 0) empresaAtiva = esW[0].id
+      }
+    } catch (eEmpW) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     // guard read_reports — INLINE (JSVM: top-level não visível no callback)
     var temReadReports = false
@@ -170,6 +262,52 @@ routerAdd(
   'POST',
   '/backend/v1/reports/generate',
   (e) => {
+    // ---------- empresa ativa (CA-3-88) ----------
+    // Lê os grants AQUI, no escopo da rota: `const meus` de dentro de um try
+    // não existe fora dele (lança, o catch engole, o 403 não dispara).
+    var empresaAtiva = ''
+    try {
+      var pedidaW = String(e.request.header.get('X-Empresa') || '')
+      var gsW = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantW = []
+      var ehDonoW = false
+      for (const gW of gsW) {
+        var empGW = ''
+        try {
+          empGW = String(gW.get('empresa') || '')
+        } catch (eGW) {}
+        if (empGW !== '' && empGrantW.indexOf(empGW) < 0) empGrantW.push(empGW)
+        var saW = []
+        try {
+          var rawW = gW.get('scope_accounts')
+          saW =
+            Array.isArray(rawW) && rawW.length > 0 && typeof rawW[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawW))
+              : typeof rawW === 'string'
+                ? JSON.parse(rawW)
+                : rawW || []
+        } catch (eSAW) {}
+        if (Array.isArray(saW) && saW.indexOf('*') >= 0) ehDonoW = true
+      }
+      if (pedidaW !== '') {
+        if (!ehDonoW && empGrantW.indexOf(pedidaW) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaW
+      } else if (empGrantW.length > 0) {
+        empresaAtiva = empGrantW[0]
+      } else {
+        const esW = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esW.length > 0) empresaAtiva = esW[0].id
+      }
+    } catch (eEmpW) {}
+
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
     const body = e.requestInfo().body || {}
 
