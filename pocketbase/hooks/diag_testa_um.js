@@ -36,10 +36,9 @@ routerAdd(
           3,
           0,
         )
-        if (!trs || trs.length === 0) {
-          alvo = l
-          break
-        }
+        // pega o primeiro sem dono, com ou sem pedido
+        alvo = l
+        break
       }
     } catch (e0) {}
     if (!alvo) return e.json(200, { ok: false, erro: 'nenhum lead sem pedido' })
