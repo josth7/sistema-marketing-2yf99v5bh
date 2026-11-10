@@ -603,6 +603,43 @@ routerAdd(
         })
       }
     }
+    // RN-198 (10/11): o dono do lead corrige o NOME pela ficha.
+    // O nome corrigido vale também para as conversas do lead (abaixo).
+    if (body.nome !== undefined) {
+      const nomeNovo = String(body.nome || '').trim()
+      if (nomeNovo.length < 1 || nomeNovo.length > 200) {
+        return e.json(422, {
+          ok: false,
+          erro: 'nome_invalido',
+          detalhe: 'o nome precisa ter de 1 a 200 caracteres',
+        })
+      }
+      if (!/[A-Za-zÀ-ÿ0-9]/.test(nomeNovo)) {
+        return e.json(422, {
+          ok: false,
+          erro: 'nome_invalido',
+          detalhe: 'o nome precisa ter ao menos uma letra ou dígito',
+        })
+      }
+      lead.set('nome', nomeNovo)
+      mudancas.push({ tipo: 'nota', texto: 'nome corrigido para: ' + nomeNovo })
+      // propaga para as conversas do lead
+      try {
+        const convsN = $app.findRecordsByFilter(
+          'whatsapp_conversas',
+          "lead='" + lead.id + "'",
+          '',
+          50,
+          0,
+        )
+        for (const cvN of convsN) {
+          try {
+            cvN.set('contato_nome', nomeNovo)
+            $app.save(cvN)
+          } catch (eCN) {}
+        }
+      } catch (eNC) {}
+    }
     if (body.observacoes !== undefined) {
       lead.set(
         'observacoes',

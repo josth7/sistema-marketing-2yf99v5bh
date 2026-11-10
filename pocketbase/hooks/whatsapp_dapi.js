@@ -790,11 +790,21 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
   // Sem isso, a transportadora que manda mensagem virava lead e entrava no
   // rodízio — o vendedor recebia um "lead" que era o aviso de entrega.
   if (!lead && telefone !== '' && !fromMe && !ehNaoCliente) {
+    // RN-198 (10/11): nome sem LETRA nem DÍGITO não serve — "." e emoji
+    // deixavam o lead ilegível na tela (relato da Anézia). Vira
+    // "Cliente final XXXX" com os 4 últimos dígitos do telefone.
     const nomeContato = String(lado.name || '').trim()
-    const nomeLead =
-      nomeContato !== ''
-        ? nomeContato.slice(0, 200)
-        : 'Contato WhatsApp final ' + telefone.slice(-4)
+    function nomeLegivel(txt, tel) {
+      const t = String(txt || '').trim()
+      if (/[A-Za-zÀ-ÿ0-9]/.test(t)) return t.slice(0, 200)
+      return (
+        'Cliente final ' +
+        String(tel || '')
+          .replace(/[^0-9]/g, '')
+          .slice(-4)
+      )
+    }
+    const nomeLead = nomeLegivel(nomeContato, telefone)
     try {
       const novo = new Record(colLeads)
       novo.set('nome', nomeLead)
