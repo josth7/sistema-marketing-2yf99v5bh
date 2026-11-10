@@ -74,7 +74,44 @@ cronAdd('wa_orfaos', '*/15 * * * *', () => {
       // sem pedido nenhum também não é meu caso: o cron do aviso cuida
       if (!temConcluido) continue
 
-      // é resíduo: pedido concluído mas o lead sem dono
+      // ---------- RN-193 (10/11): volta para o VENDEDOR ANUNCIADO ----------
+      // Se o cliente já ouviu o nome de um vendedor (a central ou o robô
+      // anunciou), ele é o dono. O lead órfão volta para ELE — nunca para o
+      // rodízio escolher outro. Foi o caso da Sabrina (10/11): a central disse
+      // "Adriana" e o lead apareceu com a Elisângela.
+      var anunciado = ''
+      try {
+        const trsV = app.findRecordsByFilter(colTr, "lead='" + l.id + "'", '', 20, 0)
+        for (const tv of trsV) {
+          const vv = String(tv.get('vendedor_user') || '')
+          if (vv !== '') anunciado = vv
+        }
+      } catch (eV) {}
+
+      if (anunciado !== '') {
+        // devolve direto ao anunciado, sem passar pelo rodízio
+        try {
+          const lf = app.findRecordById('crm_leads', l.id)
+          lf.set('owner_id', anunciado)
+          app.save(lf)
+          const conf = app.findRecordById('crm_leads', l.id)
+          if (String(conf.get('owner_id') || '') === anunciado) {
+            corrigidos++
+            try {
+              const evA = new Record(app.findCollectionByNameOrId('crm_lead_events'))
+              evA.set('lead_id', l.id)
+              evA.set('tipo', 'status')
+              evA.set('texto', 'Lead órfão devolvido ao vendedor anunciado ao cliente (RN-193)')
+              evA.set('user_id', '')
+              evA.set('fixture', false)
+              $app.save(evA)
+            } catch (eEvA) {}
+            continue
+          }
+        } catch (eDev) {}
+      }
+
+      // sem anúncio registrado: pedido novo pelo rodízio (comportamento antigo)
       try {
         const tr = new Record(colTr)
         tr.set('lead', l.id)
