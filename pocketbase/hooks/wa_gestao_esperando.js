@@ -190,6 +190,79 @@ routerAdd(
 
     // ---------- decide quem está esperando ----------
     const agoraMs = new Date().getTime()
+    // ---------- CA-3-113 (10/11): mensagem de ENCERRAMENTO ----------
+    // Agradecimento, figurinha, reação ou emoji sozinho NÃO pedem resposta.
+    // Foto, áudio, documento e qualquer texto com pedido continuam contando.
+    function ehEncerramento(previa, tipo) {
+      const t = String(previa || '').trim()
+      const tp = String(tipo || '').toLowerCase()
+      // mídia que pede resposta
+      if (tp === 'image' || tp === 'audio' || tp === 'document' || tp === 'video') return false
+      if (t.indexOf('[foto]') >= 0 || t.indexOf('[áudio]') >= 0 || t.indexOf('[audio]') >= 0)
+        return false
+      if (t.indexOf('[documento]') >= 0) return false
+      // figurinha e reação nunca pedem
+      if (tp === 'sticker' || tp === 'reaction') return true
+      if (t === '') return false
+      // só emoji / símbolo
+      const semEmoji = t.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\s]/gu, '')
+      if (semEmoji === '') return true
+      // texto com pergunta pede resposta
+      if (t.indexOf('?') >= 0) return false
+      // pedido explícito pede resposta
+      const pedidos = [
+        'preco',
+        'preço',
+        'valor',
+        'quanto',
+        'frete',
+        'prazo',
+        'medida',
+        'foto',
+        'catalogo',
+        'catálogo',
+        'pode',
+        'quero',
+        'tem',
+        'qual',
+        'quando',
+        'como',
+        'onde',
+      ]
+      const low = t.toLowerCase()
+      for (const p of pedidos) if (low.indexOf(p) >= 0) return false
+      // agradecimento/confirmação com até 6 palavras
+      const thanks = [
+        'obrigado',
+        'obrigada',
+        'obg',
+        'brigado',
+        'agradeço',
+        'agradeco',
+        'valeu',
+        'vlw',
+        'ok',
+        'okay',
+        'blz',
+        'beleza',
+        'certo',
+        'combinado',
+        'show',
+        'top',
+        'perfeito',
+        'ótimo',
+        'otimo',
+      ]
+      var temThanks = false
+      for (const th of thanks) if (low.indexOf(th) >= 0) temThanks = true
+      if (!temThanks) return false
+      const palavras = t.split(/\s+/).filter(function (x) {
+        return x !== ''
+      })
+      if (palavras.length > 6) return false
+      return true
+    }
+
     for (const chave in porCliente) {
       const g = porCliente[chave]
       // olha TODAS as conversas do cliente: basta UMA ter a última mensagem
@@ -215,6 +288,24 @@ routerAdd(
         const lid = String(cv.get('lead') || '')
         if (lid !== '' && leadDoCliente === '') leadDoCliente = lid
       }
+      // já marcado como Resolvida? só volta se ele mandou algo novo depois
+      var resolvidaEm = 0
+      for (const cv of g.mensagens) {
+        const rq = new Date(String(cv.get('resolvida_em') || '')).getTime()
+        if (rq > resolvidaEm) resolvidaEm = rq
+      }
+      if (resolvidaEm > 0 && ultimaDoCliente <= resolvidaEm) continue
+
+      // encerramento (agradecimento, figurinha, emoji) não conta como esperando
+      if (
+        ehEncerramento(
+          String(cvRecente.get('ultima_previa') || ''),
+          String(cvRecente.get('ultimo_tipo') || ''),
+        )
+      ) {
+        continue
+      }
+
       // REGRA: esperando = a última mensagem DELE é mais nova que a última nossa
       if (!(ultimaDoCliente > 0 && ultimaDoCliente > ultimaNossa)) continue
 
@@ -259,6 +350,54 @@ routerAdd(
       return b.horas - a.horas
     })
     return e.json(200, out)
+  },
+  $apis.requireAuth(),
+)
+
+// ==================== MARCAR RESOLVIDA (CA-3-113) ====================
+routerAdd(
+  'POST',
+  '/backend/v1/gestao/esperando/resolver',
+  (e) => {
+    if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    var body = {}
+    try {
+      body = e.requestInfo().body || {}
+    } catch (eB) {}
+    const convId = String(body.conversa || '')
+    if (convId === '') return e.json(422, { ok: false, erro: 'informe a conversa' })
+
+    var cv = null
+    try {
+      cv = $app.findRecordById('whatsapp_conversas', convId)
+    } catch (e1) {
+      return e.json(404, { ok: false, erro: 'conversa não encontrada' })
+    }
+
+    try {
+      cv.set('resolvida_em', new Date().toISOString())
+      cv.set('resolvida_por', e.auth.id)
+      $app.save(cv)
+    } catch (e2) {
+      return e.json(500, { ok: false, erro: 'não consegui marcar: ' + String(e2).slice(0, 120) })
+    }
+
+    // trilha do lead
+    try {
+      const lid = String(cv.get('lead') || '')
+      if (lid !== '') {
+        const ev = new Record($app.findCollectionByNameOrId('crm_lead_events'))
+        ev.set('lead_id', lid)
+        ev.set('tipo', 'nota')
+        ev.set('texto', 'Cliente marcado como Resolvida na lista de esperando')
+        ev.set('user_id', e.auth.id)
+        ev.set('fixture', false)
+        $app.save(ev)
+      }
+    } catch (e3) {}
+
+    return e.json(200, { ok: true, conversa: convId })
   },
   $apis.requireAuth(),
 )
