@@ -71,6 +71,35 @@ routerAdd(
       return e.json(403, { ok: false, erro: 'sem permissão para ler conversas (read_conversas)' })
     }
 
+    // ---------- empresa ativa (CA-3-88) ----------
+    // `X-Empresa` sem grant -> 403. Sem header, usa a empresa do grant (ou a
+    // primeira ativa quando o usuário é dono com escopo '*').
+    var empresaAtiva = ''
+    try {
+      var pedidaC = String(e.request.header.get('X-Empresa') || '')
+      var empDoGrant = []
+      for (const gEmp of meus) {
+        var empG2 = ''
+        try {
+          empG2 = String(gEmp.get('empresa') || '')
+        } catch (eGE) {}
+        if (empG2 !== '' && empDoGrant.indexOf(empG2) < 0) empDoGrant.push(empG2)
+      }
+      if (pedidaC !== '') {
+        if (!temTudoLeads && empDoGrant.indexOf(pedidaC) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaC
+      } else if (empDoGrant.length > 0) {
+        empresaAtiva = empDoGrant[0]
+      } else {
+        try {
+          const esC = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+          if (esC.length > 0) empresaAtiva = esC[0].id
+        } catch (eEC) {}
+      }
+    } catch (eEmpC) {}
+
     let lead
     try {
       lead = $app.findRecordById('crm_leads', e.request.pathValue('id'))
@@ -288,9 +317,11 @@ routerAdd(
     // ordeno em JS pela última mensagem.
     var todas = []
     try {
+      // CA-3-88: só conversas da empresa ATIVA
+      const filtroEmpC = empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''
       todas = $app.findRecordsByFilter(
         colConv,
-        'fixture=' + (ehFixture ? 'true' : 'false'),
+        'fixture=' + (ehFixture ? 'true' : 'false') + filtroEmpC,
         '',
         5000,
         0,
