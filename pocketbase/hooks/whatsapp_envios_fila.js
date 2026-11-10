@@ -122,6 +122,38 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
         }
       }
     } catch (eR194) {}
+
+    // ---------- RN-195 (10/11): apresentação NUNCA fora do horário ----------
+    // Redundância com o cron: mesmo que o envio já esteja na fila, fora do
+    // horário comercial ele não sai — fica `bloqueado_horario` até a abertura.
+    try {
+      if (String(env.get('motivo') || '') === 'apresentacao_vendedor') {
+        var dentroAp = true
+        try {
+          const cfgApF = $app.findRecordsByFilter('atendimento_config', '', '', 50, 0)
+          var cfgApFv = null
+          for (const cfA of cfgApF) {
+            if (!cfgApFv || Number(cfA.get('versao') || 0) > Number(cfgApFv.get('versao') || 0))
+              cfgApFv = cfA
+          }
+          const iniA = cfgApFv ? String(cfgApFv.get('hora_inicio') || '08:00') : '08:00'
+          const fimA = cfgApFv ? String(cfgApFv.get('hora_fim') || '17:30') : '17:30'
+          const brA = new Date(new Date().getTime() - 3 * 3600000)
+          const diaA = brA.getUTCDay()
+          const hhA =
+            ('0' + brA.getUTCHours()).slice(-2) + ':' + ('0' + brA.getUTCMinutes()).slice(-2)
+          dentroAp = diaA >= 1 && diaA <= 5 && hhA >= iniA && hhA <= fimA
+        } catch (eApF) {}
+        if (!dentroAp) {
+          env.set('estado', 'bloqueado_horario')
+          env.set('ultimo_erro', 'apresentacao fora do horario comercial (RN-195)')
+          try {
+            $app.save(env)
+          } catch (eApS) {}
+          continue
+        }
+      }
+    } catch (eR195) {}
     // TEMPLATE (modelo aprovado): é o único jeito de mandar mensagem FORA da
     // janela de 24h. Usado no aviso de lead novo ao vendedor, quando ele não
     // falou com a central nas últimas 24h (erro 131047).

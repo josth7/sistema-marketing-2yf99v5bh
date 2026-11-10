@@ -36,6 +36,36 @@ cronAdd('wa_apresentacao_15min', '*/2 * * * *', () => {
   const TETO_HORA = 20
   const agora = Date.now()
 
+  // ---------- RN-195 (10/11): apresentação só no horário comercial ----------
+  // O Rodrigo reclamou: a apresentação saía de madrugada. Aqui se confere o
+  // horário do painel; fora dele, o cron NÃO enfileira — o envio fica para a
+  // abertura do próximo período útil (a fila também bloqueia, em redundância).
+  // O SERVIDOR ESTÁ EM UTC (confirmado 10/11): Brasília = UTC-3.
+  var dentroHorarioAp = true
+  var quandoAp = 'amanhã'
+  var iniAp = '08:00'
+  try {
+    const cfgAp = $app.findRecordsByFilter('atendimento_config', '', '', 50, 0)
+    var cfgApv = null
+    for (const ca of cfgAp) {
+      if (!cfgApv || Number(ca.get('versao') || 0) > Number(cfgApv.get('versao') || 0)) cfgApv = ca
+    }
+    iniAp = cfgApv ? String(cfgApv.get('hora_inicio') || '08:00') : '08:00'
+    const fimAp = cfgApv ? String(cfgApv.get('hora_fim') || '17:30') : '17:30'
+    const brAp = new Date(agora - 3 * 3600000)
+    const diaAp = brAp.getUTCDay()
+    const hhAp = ('0' + brAp.getUTCHours()).slice(-2) + ':' + ('0' + brAp.getUTCMinutes()).slice(-2)
+    const utilAp = diaAp >= 1 && diaAp <= 5
+    dentroHorarioAp = utilAp && hhAp >= iniAp && hhAp <= fimAp
+    if (diaAp === 5 || diaAp === 6) quandoAp = 'na segunda'
+    else if (!utilAp) quandoAp = 'no próximo dia útil'
+  } catch (eAp) {}
+
+  if (!dentroHorarioAp) {
+    // fora do horário: não enfileira agora; a fila também recusa
+    return
+  }
+
   function fmt(ms) {
     return new Date(ms).toISOString().replace('T', ' ')
   }
