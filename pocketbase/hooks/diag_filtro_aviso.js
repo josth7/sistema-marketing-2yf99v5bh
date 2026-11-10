@@ -62,10 +62,11 @@ routerAdd(
       if (cxPapel[cx] !== 'central') continue
       out.da_central++
 
-      const q = new Date(String(m.get('enviada_em') || m.get('created') || '')).getTime()
+      var q = new Date(String(m.get('enviada_em') || '')).getTime()
+      if (!(q > 0)) q = new Date(String(m.get('created') || '')).getTime()
       if (!(q > 0)) continue
       const horas = Math.round((agora - q) / 3600000)
-      if (agora - q > 2 * 3600000) continue
+      if (agora - q > 6 * 3600000) continue
       out.dentro_2h++
 
       const tel = String(m.get('contato_telefone') || '').replace(/[^0-9]/g, '')
