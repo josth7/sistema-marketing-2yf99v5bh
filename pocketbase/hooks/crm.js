@@ -33,6 +33,10 @@ routerAdd(
     var temRead = false
     var contas = []
     var temTudo = false
+    // CA-3-88: empresa ativa. `X-Empresa` pedindo empresa sem grant -> 403.
+    // Sem o header, usa a empresa do grant (ou a Haisan quando o grant é '*')
+    var empresaAtiva = ''
+    var empresasDoGrant = []
     for (const g of meus) {
       const de = String(g.get('valid_from') || '')
       const ate = String(g.get('valid_until') || '')
@@ -51,6 +55,11 @@ routerAdd(
       } catch (e2) {}
       if (acts.indexOf('read_leads') < 0) continue
       temRead = true
+      // empresa do grant (campo criado na mig 0168)
+      try {
+        const empG = String(g.get('empresa') || '')
+        if (empG !== '' && empresasDoGrant.indexOf(empG) < 0) empresasDoGrant.push(empG)
+      } catch (eEmp) {}
       let sa = []
       try {
         const ra = g.get('scope_accounts')
@@ -71,15 +80,39 @@ routerAdd(
     if (!temRead) {
       return e.json(403, { ok: false, erro: 'sem permissão para ver leads (read_leads)' })
     }
+    // ---------- empresa ativa (CA-3-88) ----------
+    var pedidaEmp = ''
+    try {
+      pedidaEmp = String(e.request.header.get('X-Empresa') || '')
+    } catch (ePe) {}
+    if (pedidaEmp !== '') {
+      // o dono (escopo '*') pode qualquer uma; os outros só a do grant
+      if (!temTudo && empresasDoGrant.indexOf(pedidaEmp) < 0) {
+        return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+      }
+      empresaAtiva = pedidaEmp
+    } else if (empresasDoGrant.length > 0) {
+      empresaAtiva = empresasDoGrant[0]
+    } else {
+      // sem empresa no grant: usa a Haisan (única hoje)
+      try {
+        const es = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (es.length > 0) empresaAtiva = es[0].id
+      } catch (eEm) {}
+    }
+
     const colL = $app.findCollectionByNameOrId('crm_leads')
     // fixture separado: usuários reais não veem fixture e vice-versa
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
     // teto alto: a base da agência trouxe 1.518 leads (28/10). O teto antigo
     // de 500 fazia a tela mostrar só um terço da base.
     // sort VAZIO: findRecordsByFilter com sort lança 400 no JSVM (lição 22/10)
+    // filtro por empresa ATIVA (CA-3-88): sem isto, a segunda empresa veria
+    // os leads da Haisan
+    const filtroEmpresa = empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''
     const registros = $app.findRecordsByFilter(
       colL,
-      'fixture=' + (ehFixture ? 'true' : 'false'),
+      'fixture=' + (ehFixture ? 'true' : 'false') + filtroEmpresa,
       '',
       5000,
       0,
