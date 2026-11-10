@@ -306,19 +306,29 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
     // value is not valid"}. O código lia `data.error.message`, que em texto é
     // `undefined` — então caía em "falha_nao_informada" e o vendedor ficava
     // sem saber o motivo.
+    // FORMATO REAL DO `message.failed` (capturado em 10/11, dois casos reais):
+    //   { message_id, remote_jid, participant, timestamp,
+    //     error_code, error_title, error_details }
+    // Não existe `error` (objeto nem texto). O código lia `data.error.message`
+    // e caía em "falha_nao_informada" — o vendedor nunca sabia o motivo.
     function extrairMotivo(d) {
       if (!d) return ''
-      // 1. error como texto (formato real da D-API)
+      // 1. FORMATO REAL da Meta no message.failed
+      if (d.error_title) return String(d.error_title)
+      if (d.error_details) return String(d.error_details)
+      // 2. `error` como texto (recusa da D-API no envio)
       if (typeof d.error === 'string' && d.error !== '') return d.error
-      // 2. error como objeto (formato antigo/Meta)
+      // 3. `error` como objeto (formato antigo)
       if (d.error && typeof d.error === 'object') {
         const m = d.error.message || d.error.title || d.error.error_data || ''
         if (m !== '') return String(m)
       }
-      // 3. outros campos
+      // 4. outros
       if (d.reason) return String(d.reason)
       if (d.message) return String(d.message)
       if (d.title) return String(d.title)
+      // 5. último recurso: só o código, para não dizer "não informada"
+      if (d.error_code) return 'codigo ' + String(d.error_code)
       return ''
     }
     const brutoMotivo = extrairMotivo(data)
@@ -337,8 +347,8 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       var codFalha = ''
       try {
         codFalha = String(
-          (data.error && (data.error.code || data.error.error_code || data.error.subcode)) ||
-            data.error_code ||
+          data.error_code ||
+            (data.error && (data.error.code || data.error.error_code || data.error.subcode)) ||
             data.code ||
             '',
         )
