@@ -111,10 +111,15 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
     const jaAvisado = {}
 
     for (const m of msgs) {
-      const q = new Date(String(m.get('enviada_em') || m.get('created') || '')).getTime()
+      // BUG (10/11): `enviada_em` pode vir VAZIO nas mensagens gravadas pelo
+      // webhook — o filtro de 2h matava todas e o aviso nunca saía.
+      // Usa `created` como reserva: é sempre preenchido pelo banco.
+      var q = new Date(String(m.get('enviada_em') || '')).getTime()
+      if (!(q > 0)) q = new Date(String(m.get('created') || '')).getTime()
       if (!(q > 0)) continue
-      // só das últimas 2h: aviso atrasado não ajuda ninguém
-      if (agora - q > 2 * 3600000) continue
+      // só das últimas 6h: aviso atrasado não ajuda, mas 2h era curto demais
+      // para o intervalo do cron (2 min) mais o tempo de fila
+      if (agora - q > 6 * 3600000) continue
       if (String(m.get('fixture')) === 'true') continue
 
       const cx = String(m.get('conexao') || '')
