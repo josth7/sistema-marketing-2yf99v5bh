@@ -1,0 +1,266 @@
+/// <reference path="../pb_data/types.d.ts" />
+/**
+ * AVISO AO VENDEDOR QUANDO O CLIENTE RESPONDE NA CENTRAL (10/11) — CA-3-112, RN-191.
+ *
+ * **O caso real (Sabrina, 09/11 17h03):** a Elisângela respondeu o cliente pelo
+ * CRM. O cliente respondeu de volta — mas na **central**. Nada chegou ao
+ * celular dela. A conversa ficou parada até alguém abrir o sistema.
+ *
+ * **A regra:** cliente de lead com dono escreve num número que **não é o do
+ * dono** → sai um aviso **da central para o número do dono**:
+ *
+ *   "{{1}} respondeu na central: "{{2}}". Abra no sistema: {{3}}"
+ *
+ * **As travas (todas do RN-191):**
+ *   - no máximo **1 aviso por cliente a cada 15 min** (mensagens seguidas viram um);
+ *   - **não avisa** se alguém da equipe já respondeu depois;
+ *   - **não avisa** enquanto a IA está atendendo a conversa;
+ *   - chave desligada na Administração → não manda nada;
+ *   - dono suspenso ou sem conexão → o cliente vai para "Precisa de ação".
+ *
+ * Cron: a cada 2 minutos.
+ */
+cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
+  try {
+    const app = $app
+
+    function lerL(raw) {
+      try {
+        if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+          return JSON.parse(String.fromCharCode.apply(null, raw))
+        }
+        if (typeof raw === 'string') return JSON.parse(raw)
+        return raw || []
+      } catch (err) {
+        return []
+      }
+    }
+
+    // ---------- chave ligada? ----------
+    var cfg = null
+    try {
+      const vs = app.findRecordsByFilter('admin_config', '', '', 200, 0)
+      for (const v of vs) {
+        if (!cfg || Number(v.get('versao') || 0) > Number(cfg.get('versao') || 0)) cfg = v
+      }
+    } catch (e0) {
+      return
+    }
+    if (!cfg) return
+    // nasce ligada: só não manda se explicitamente false
+    if (cfg.get('aviso_vendedor_ativo') === false) return
+
+    // ---------- conexões ----------
+    const cxPapel = {}
+    const cxVend = {}
+    var central = null
+    try {
+      for (const c of app.findRecordsByFilter(
+        app.findCollectionByNameOrId('whatsapp_conexoes'),
+        'ativo=true',
+        '',
+        60,
+        0,
+      )) {
+        cxPapel[c.id] = String(c.get('papel') || '')
+        cxVend[c.id] = String(c.get('vendedor_user') || '')
+        if (String(c.get('papel')) === 'central') central = c
+      }
+    } catch (e1) {}
+    if (!central) return
+
+    // número do dono
+    const numeroDoDono = {}
+    for (const id in cxVend) {
+      const v = cxVend[id]
+      if (v !== '' && cxPapel[id] === 'vendedor') {
+        numeroDoDono[v] = String(cxVend[id] || '')
+      }
+    }
+
+    // ---------- mensagens de cliente nas últimas 2h ----------
+    const agora = new Date().getTime()
+    var msgs = []
+    try {
+      msgs = app.findRecordsByFilter(
+        app.findCollectionByNameOrId('whatsapp_mensagens'),
+        "direcao='entrada'",
+        '',
+        4000,
+        0,
+      )
+    } catch (e2) {
+      return
+    }
+
+    const colEnv = app.findCollectionByNameOrId('whatsapp_envios')
+    const nomes = {}
+    try {
+      for (const u of app.findRecordsByFilter(
+        app.findCollectionByNameOrId('users'),
+        '',
+        '',
+        300,
+        0,
+      )) {
+        nomes[u.id] = String(u.get('name') || '')
+      }
+    } catch (e3) {}
+
+    var enviados = 0
+    const jaAvisado = {}
+
+    for (const m of msgs) {
+      const q = new Date(String(m.get('enviada_em') || m.get('created') || '')).getTime()
+      if (!(q > 0)) continue
+      // só das últimas 2h: aviso atrasado não ajuda ninguém
+      if (agora - q > 2 * 3600000) continue
+      if (String(m.get('fixture')) === 'true') continue
+
+      const cx = String(m.get('conexao') || '')
+      // só a CENTRAL gera aviso (o número do dono não precisa de aviso)
+      if (cxPapel[cx] !== 'central') continue
+
+      const tel = String(m.get('contato_telefone') || '').replace(/[^0-9]/g, '')
+      if (tel === '') continue
+      if (jaAvisado[tel]) continue
+
+      // acha o lead pelo telefone
+      var lead = null
+      try {
+        const ls = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('crm_leads'),
+          "telefone='" + tel + "' && fixture=false",
+          '',
+          1,
+          0,
+        )
+        if (ls && ls.length > 0) lead = ls[0]
+      } catch (e4) {}
+      if (!lead) continue
+
+      const dono = String(lead.get('owner_id') || '')
+      if (dono === '') continue
+
+      // dono tem conexão ativa?
+      var cxDono = ''
+      for (const id in cxVend) {
+        if (cxVend[id] === dono && cxPapel[id] === 'vendedor') cxDono = id
+      }
+      if (cxDono === '') {
+        // sem conexão: o cliente vai para "Precisa de ação"
+        try {
+          const colPA = app.findCollectionByNameOrId('precisa_acao')
+          const ja = app.findRecordsByFilter(
+            colPA,
+            "lead='" + lead.id + "' && resolvido=false",
+            '',
+            1,
+            0,
+          )
+          if (!ja || ja.length === 0) {
+            const pa = new Record(colPA)
+            pa.set('lead', lead.id)
+            pa.set('motivo', 'aviso_sem_canal')
+            pa.set('resolvido', false)
+            pa.set('fixture', false)
+            app.save(pa)
+          }
+        } catch (e5) {}
+        continue
+      }
+
+      // ---------- trava 15 min ----------
+      const chave = 'aviso_resposta|' + tel
+      var recente = false
+      try {
+        const ant = app.findRecordsByFilter(
+          colEnv,
+          "dedupe_key~'aviso_resposta' && destino_telefone='" + tel + "'",
+          '',
+          5,
+          0,
+        )
+        for (const a of ant) {
+          const qa = new Date(String(a.get('created') || '')).getTime()
+          if (qa > 0 && agora - qa < 15 * 60000) recente = true
+        }
+      } catch (e6) {}
+      if (recente) continue
+
+      // ---------- alguém da equipe respondeu depois? ----------
+      var equipeRespondeu = false
+      try {
+        const saidas = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('whatsapp_mensagens'),
+          "conexao='" + cx + "' && contato_telefone='" + tel + "' && direcao='saida'",
+          '',
+          200,
+          0,
+        )
+        for (const s of saidas) {
+          const qs = new Date(String(s.get('enviada_em') || s.get('created') || '')).getTime()
+          if (qs > q) equipeRespondeu = true
+        }
+      } catch (e7) {}
+      if (equipeRespondeu) continue
+
+      // ---------- IA ainda atendendo? ----------
+      var iaAtendendo = false
+      try {
+        const cvs = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('whatsapp_conversas'),
+          "conexao='" + cx + "' && contato_telefone='" + tel + "'",
+          '',
+          1,
+          0,
+        )
+        if (cvs && cvs.length > 0) {
+          const est = String(cvs[0].get('estado') || '')
+          if (est === 'triagem') iaAtendendo = true
+        }
+      } catch (e8) {}
+      if (iaAtendendo) continue
+
+      // ---------- monta e enfileira ----------
+      const primeiro =
+        String(lead.get('nome') || '')
+          .trim()
+          .split(/\s+/)[0] || ''
+      const pre = String(m.get('texto') || m.get('legenda') || '').trim()
+      var previa = pre !== '' ? pre.slice(0, 60) : '[mídia]'
+      const numDono = numeroDoDono[dono] || ''
+      const link = 'https://sistema-marketing-1f51e.goskip.app/conversas'
+
+      const textoAviso =
+        (primeiro !== '' ? primeiro : 'Um cliente') +
+        ' respondeu na central: "' +
+        previa +
+        '". Abra no sistema: ' +
+        link
+
+      try {
+        const env = new Record(colEnv)
+        env.set('conexao', central.id)
+        env.set('destino_telefone', numDono)
+        env.set('motivo', 'aviso_vendedor')
+        env.set('modo', 'texto')
+        env.set('texto', textoAviso)
+        env.set('legenda', '')
+        env.set('estado', 'pendente')
+        env.set('tentativas', 0)
+        env.set('fixture', false)
+        env.set('dedupe_key', chave + '|' + String(Math.floor(q / 60000)))
+        app.save(env)
+        enviados++
+        jaAvisado[tel] = true
+      } catch (e9) {
+        console.log('wa_aviso_resposta: falhou -> ' + String(e9).slice(0, 120))
+      }
+    }
+
+    if (enviados > 0) {
+      console.log('wa_aviso_resposta: ' + enviados + ' aviso(s) enfileirado(s)')
+    }
+  } catch (eTop) {}
+})

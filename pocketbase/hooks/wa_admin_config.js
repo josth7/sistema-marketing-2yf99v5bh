@@ -82,6 +82,8 @@ routerAdd(
         id: v.id,
         versao: Number(v.get('versao') || 0),
         email_ativo: v.get('email_ativo') === true,
+        // CA-3-112: chave do aviso ao vendedor (nasce ligada)
+        aviso_vendedor_ativo: v.get('aviso_vendedor_ativo') !== false,
         email_destinatarios: lerL(v.get('email_destinatarios')),
         resumo_ativo: v.get('resumo_ativo') === true,
         resumo_horarios: lerL(v.get('resumo_horarios')),
@@ -214,6 +216,11 @@ routerAdd(
       const nv = new Record(col)
       nv.set('versao', maior + 1)
       nv.set('email_ativo', emailAtivo)
+      // CA-3-112: a chave nasce LIGADA; só desliga se a gestão desligar
+      nv.set(
+        'aviso_vendedor_ativo',
+        body.aviso_vendedor_ativo === undefined ? true : body.aviso_vendedor_ativo === true,
+      )
       nv.set('email_destinatarios', JSON.stringify(emailDest))
       nv.set('resumo_ativo', resumoAtivo)
       nv.set('resumo_horarios', JSON.stringify(resumoHor))
