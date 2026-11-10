@@ -115,7 +115,7 @@ routerAdd(
     try {
       leads = app.findRecordsByFilter(
         app.findCollectionByNameOrId('crm_leads'),
-        'fixture=false',
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         8000,
         0,
@@ -126,6 +126,37 @@ routerAdd(
       return e.json(200, out)
     }
 
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaE = String(e.request.header.get('X-Empresa') || '')
+      var empGrant = []
+      for (const gE2 of meus) {
+        var empG3 = ''
+        try {
+          empG3 = String(gE2.get('empresa') || '')
+        } catch (eG3) {}
+        if (empG3 !== '' && empGrant.indexOf(empG3) < 0) empGrant.push(empG3)
+      }
+      var ehDonoE = false
+      for (const gE4 of meus) {
+        var saE = lerLista(gE4.get('scope_accounts'))
+        if (Array.isArray(saE) && saE.indexOf('*') >= 0) ehDonoE = true
+      }
+      if (pedidaE !== '') {
+        if (!ehDonoE && empGrant.indexOf(pedidaE) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaE
+      } else if (empGrant.length > 0) {
+        empresaAtiva = empGrant[0]
+      } else {
+        try {
+          const esE2 = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+          if (esE2.length > 0) empresaAtiva = esE2[0].id
+        } catch (eEE2) {}
+      }
+    } catch (eEmpE) {}
     const STATUS_OK = ['entrada_lead', 'pre_atendimento_ia', 'mql']
     const DESDE = '2026-10-31'
 

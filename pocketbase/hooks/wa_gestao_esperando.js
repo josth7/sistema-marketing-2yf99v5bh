@@ -75,6 +75,37 @@ routerAdd(
     // vendedor tem leitura; quem não tem nada, não entra
     if (!ehGestao && !temLeitura) return e.json(404, { ok: false, erro: 'não encontrado' })
 
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaE = String(e.request.header.get('X-Empresa') || '')
+      var empGrant = []
+      for (const gE2 of meus) {
+        var empG3 = ''
+        try {
+          empG3 = String(gE2.get('empresa') || '')
+        } catch (eG3) {}
+        if (empG3 !== '' && empGrant.indexOf(empG3) < 0) empGrant.push(empG3)
+      }
+      var ehDonoE = false
+      for (const gE4 of meus) {
+        var saE = lerLista(gE4.get('scope_accounts'))
+        if (Array.isArray(saE) && saE.indexOf('*') >= 0) ehDonoE = true
+      }
+      if (pedidaE !== '') {
+        if (!ehDonoE && empGrant.indexOf(pedidaE) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaE
+      } else if (empGrant.length > 0) {
+        empresaAtiva = empGrant[0]
+      } else {
+        try {
+          const esE2 = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+          if (esE2.length > 0) empresaAtiva = esE2[0].id
+        } catch (eEE2) {}
+      }
+    } catch (eEmpE) {}
     const out = {
       ok: true,
       total: 0,
@@ -118,7 +149,7 @@ routerAdd(
     try {
       for (const l of app.findRecordsByFilter(
         app.findCollectionByNameOrId('crm_leads'),
-        'fixture=false',
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         12000,
         0,
