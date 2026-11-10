@@ -60,6 +60,54 @@ routerAdd(
         if (Array.isArray(esc) && esc.indexOf('*') >= 0) ehGestao = true
       }
     } catch (e0) {}
+
+    // ---------- empresa ativa (CA-3-88) ----------
+    // Os grants são lidos AQUI (fora do try acima): `meus` é `const` dentro
+    // daquele bloco e não existe fora dele. Tentar usá-lo lança e o catch
+    // engole — foi assim que o 403 deixou de disparar nas outras rotas.
+    var empresaAtiva = ''
+    try {
+      var pedidaR = String(e.request.header.get('X-Empresa') || '')
+      var gsR = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantR = []
+      var ehDonoR = false
+      for (const gR of gsR) {
+        var empGR = ''
+        try {
+          empGR = String(gR.get('empresa') || '')
+        } catch (eGR) {}
+        if (empGR !== '' && empGrantR.indexOf(empGR) < 0) empGrantR.push(empGR)
+        var saR = []
+        try {
+          var rawR = gR.get('scope_accounts')
+          saR =
+            Array.isArray(rawR) && rawR.length > 0 && typeof rawR[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawR))
+              : typeof rawR === 'string'
+                ? JSON.parse(rawR)
+                : rawR || []
+        } catch (eSAR) {}
+        if (Array.isArray(saR) && saR.indexOf('*') >= 0) ehDonoR = true
+      }
+      if (pedidaR !== '') {
+        if (!ehDonoR && empGrantR.indexOf(pedidaR) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaR
+      } else if (empGrantR.length > 0) {
+        empresaAtiva = empGrantR[0]
+      } else {
+        const esR = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esR.length > 0) empresaAtiva = esR[0].id
+      }
+    } catch (eEmpR) {}
+
     // 404: não confirma nem que a rota existe
     if (!ehGestao) return e.json(404, { ok: false, erro: 'não encontrado' })
 
@@ -87,7 +135,7 @@ routerAdd(
     try {
       leads = app.findRecordsByFilter(
         app.findCollectionByNameOrId('crm_leads'),
-        'fixture=false',
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         12000,
         0,
@@ -139,7 +187,7 @@ routerAdd(
     try {
       const cvs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('whatsapp_conversas'),
-        'fixture=false',
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         8000,
         0,
