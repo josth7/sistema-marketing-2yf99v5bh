@@ -77,41 +77,6 @@ routerAdd(
     } catch (_) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
-    // ---------- empresa ativa (CA-3-88) ----------
-    // `X-Empresa` sem grant -> 403. Sem header, usa a empresa do grant; o dono
-    // (escopo '*') pode qualquer uma.
-    var empresaAtiva = ''
-    var temTudoC = false
-    var empDoGrantC = []
-    for (const gEmpC of meus) {
-      var saC = lerLista(gEmpC.get('scope_accounts'))
-      if (Array.isArray(saC) && saC.indexOf('*') >= 0) temTudoC = true
-      var empGC = ''
-      try {
-        empGC = String(gEmpC.get('empresa') || '')
-      } catch (eGEC) {}
-      if (empGC !== '' && empDoGrantC.indexOf(empGC) < 0) empDoGrantC.push(empGC)
-    }
-    var pedidaC = ''
-    try {
-      pedidaC = String(e.request.header.get('X-Empresa') || '')
-    } catch (ePC) {}
-    if (pedidaC !== '') {
-      if (!temTudoC && empDoGrantC.indexOf(pedidaC) < 0) {
-        return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
-      }
-      empresaAtiva = pedidaC
-    } else if (empDoGrantC.length > 0) {
-      empresaAtiva = empDoGrantC[0]
-    } else {
-      try {
-        const esC2 = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
-        if (esC2.length > 0) empresaAtiva = esC2[0].id
-      } catch (eEC2) {}
-    }
-
-    // e.auth.email vem VAZIO no JSVM: sem ler do banco, o usuário de teste nunca
-    // é reconhecido como fixture e a tela dele não mostra as conversas de teste.
     var emailAuth = ''
     try {
       emailAuth = String($app.findRecordById('users', e.auth.id).get('email') || '')
@@ -313,6 +278,39 @@ routerAdd(
     const colConv = $app.findCollectionByNameOrId('whatsapp_conversas')
     const colSin = $app.findCollectionByNameOrId('whatsapp_sinais')
     const colConexoes = $app.findCollectionByNameOrId('whatsapp_conexoes')
+    // ---------- empresa ativa (CA-3-88) ----------
+    // `X-Empresa` sem grant -> 403. Sem header, usa a empresa do grant; o dono
+    // (escopo '*') pode qualquer uma.
+    var empresaAtiva = ''
+    var temTudoC = false
+    var empDoGrantC = []
+    for (const gEmpC of meus) {
+      var saC = lerLista(gEmpC.get('scope_accounts'))
+      if (Array.isArray(saC) && saC.indexOf('*') >= 0) temTudoC = true
+      var empGC = ''
+      try {
+        empGC = String(gEmpC.get('empresa') || '')
+      } catch (eGEC) {}
+      if (empGC !== '' && empDoGrantC.indexOf(empGC) < 0) empDoGrantC.push(empGC)
+    }
+    var pedidaC = ''
+    try {
+      pedidaC = String(e.request.header.get('X-Empresa') || '')
+    } catch (ePC) {}
+    if (pedidaC !== '') {
+      if (!temTudoC && empDoGrantC.indexOf(pedidaC) < 0) {
+        return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+      }
+      empresaAtiva = pedidaC
+    } else if (empDoGrantC.length > 0) {
+      empresaAtiva = empDoGrantC[0]
+    } else {
+      try {
+        const esC2 = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esC2.length > 0) empresaAtiva = esC2[0].id
+      } catch (eEC2) {}
+    }
+
     // LIMITE 200 SEM ORDENAÇÃO — corrigido em 05/11 (relato do dono: "no
     // celular do vendedor não aparece e no sistema ele não consegue
     // responder"). O PocketBase devolvia 200 conversas ARBITRÁRIAS de 207 e a
