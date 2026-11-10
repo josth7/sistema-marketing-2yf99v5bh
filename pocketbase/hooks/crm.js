@@ -930,6 +930,7 @@ routerAdd(
       0,
     )
     var temManage = false
+    var temLeituraConv = false
     for (const g of meus) {
       const de = String(g.get('valid_from') || '')
       const ate = String(g.get('valid_until') || '')
@@ -946,10 +947,14 @@ routerAdd(
           acts = raw || []
         }
       } catch (e2) {}
+      // RN-196 (10/11): o vendedor registra a conversão de um lead DELE.
+      // Antes só manage_leads passava, e o vendedor só tem read_leads — dava
+      // 403 numa venda da própria carteira (relato da Anézia).
       if (acts.indexOf('manage_leads') >= 0) temManage = true
+      if (acts.indexOf('read_leads') >= 0) temLeituraConv = true
     }
-    if (!temManage) {
-      return e.json(403, { ok: false, erro: 'sem permissão para gerir leads (manage_leads)' })
+    if (!temManage && !temLeituraConv) {
+      return e.json(403, { ok: false, erro: 'sem permissão para registrar conversão' })
     }
     let lead
     try {
