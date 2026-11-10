@@ -43,9 +43,13 @@ routerAdd(
 
     var msgs = []
     try {
+      const desde = new Date(new Date().getTime() - 6 * 3600000)
+        .toISOString()
+        .replace('T', ' ')
+        .slice(0, 19)
       msgs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('whatsapp_mensagens'),
-        "direcao='entrada'",
+        "direcao='entrada' && created>='" + desde + "'",
         '',
         3000,
         0,
