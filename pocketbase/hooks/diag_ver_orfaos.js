@@ -1,1 +1,1 @@
-// removido 10/11: cron wa_orfaos registrado e confirmado
+// removido 10/11
