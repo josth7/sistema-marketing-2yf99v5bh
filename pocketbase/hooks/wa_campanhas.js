@@ -408,12 +408,56 @@ routerAdd(
   (e) => {
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
 
+    // ---------- empresa ativa (CA-3-88) ----------
+    var empresaAtiva = ''
+    try {
+      var pedidaC2 = String(e.request.header.get('X-Empresa') || '')
+      var gsC2 = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empGrantC2 = []
+      var ehDonoC2 = false
+      for (const gC2 of gsC2) {
+        var empGC2 = ''
+        try {
+          empGC2 = String(gC2.get('empresa') || '')
+        } catch (eGC2) {}
+        if (empGC2 !== '' && empGrantC2.indexOf(empGC2) < 0) empGrantC2.push(empGC2)
+        var saC2 = []
+        try {
+          var rawC2 = gC2.get('scope_accounts')
+          saC2 =
+            Array.isArray(rawC2) && rawC2.length > 0 && typeof rawC2[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rawC2))
+              : typeof rawC2 === 'string'
+                ? JSON.parse(rawC2)
+                : rawC2 || []
+        } catch (eSAC2) {}
+        if (Array.isArray(saC2) && saC2.indexOf('*') >= 0) ehDonoC2 = true
+      }
+      if (pedidaC2 !== '') {
+        if (!ehDonoC2 && empGrantC2.indexOf(pedidaC2) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtiva = pedidaC2
+      } else if (empGrantC2.length > 0) {
+        empresaAtiva = empGrantC2[0]
+      } else {
+        const esC2b = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esC2b.length > 0) empresaAtiva = esC2b[0].id
+      }
+    } catch (eEmpC2) {}
+
     const out = { ok: true, total: 0, itens: [] }
     var camps = []
     try {
       camps = $app.findRecordsByFilter(
         $app.findCollectionByNameOrId('campanhas'),
-        'fixture=false',
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         200,
         0,
