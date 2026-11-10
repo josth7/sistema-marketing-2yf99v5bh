@@ -52,6 +52,18 @@ routerAdd(
       )
     } catch (e1) {
       out.erro += ' msgs: ' + String(e1).slice(0, 120)
+      // mostra a mensagem MAIS RECENTE da central (para saber a janela real)
+      var maisRecente = 0
+      for (const m of msgs) {
+        const cx = String(m.get('conexao') || '')
+        if (cxPapel[cx] !== 'central') continue
+        var qq = new Date(String(m.get('enviada_em') || '')).getTime()
+        if (!(qq > 0)) qq = new Date(String(m.get('created') || '')).getTime()
+        if (qq > maisRecente) maisRecente = qq
+      }
+      out.mais_recente_central_horas =
+        maisRecente > 0 ? Math.round((agora - maisRecente) / 3600000) : -1
+
       return e.json(200, out)
     }
     out.total_msgs = msgs.length
@@ -114,6 +126,18 @@ routerAdd(
         })
       }
     }
+
+    // mostra a mensagem MAIS RECENTE da central (para saber a janela real)
+    var maisRecente = 0
+    for (const m of msgs) {
+      const cx = String(m.get('conexao') || '')
+      if (cxPapel[cx] !== 'central') continue
+      var qq = new Date(String(m.get('enviada_em') || '')).getTime()
+      if (!(qq > 0)) qq = new Date(String(m.get('created') || '')).getTime()
+      if (qq > maisRecente) maisRecente = qq
+    }
+    out.mais_recente_central_horas =
+      maisRecente > 0 ? Math.round((agora - maisRecente) / 3600000) : -1
 
     return e.json(200, out)
   },
