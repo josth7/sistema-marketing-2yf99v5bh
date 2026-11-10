@@ -193,6 +193,25 @@ export default function Esperando() {
                       Chamar no WhatsApp
                     </a>
                   )}
+                  {/* CA-3-113: tira o cliente da lista até ele mandar algo novo */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await pb.send('/backend/v1/gestao/esperando/resolver', {
+                          method: 'POST',
+                          body: JSON.stringify({ conversa: i.id }),
+                          headers: { 'Content-Type': 'application/json' },
+                        })
+                        await carregar()
+                      } catch (e) {
+                        setErro(e instanceof Error ? e.message : String(e))
+                      }
+                    }}
+                  >
+                    Resolvida
+                  </Button>
                   <Dica texto="Há quanto tempo o cliente espera resposta">
                     <Badge
                       variant={
