@@ -78,19 +78,34 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
       }
     }
 
-    // ---------- mensagens de cliente nas últimas 2h ----------
     const agora = new Date().getTime()
+    // ---------- mensagens de cliente recentes ----------
+    // BUG (10/11): ler 4000 mensagens SEM filtro de data trazia as antigas e
+    // deixava as de hoje FORA (o banco devolve em ordem arbitrária). Aqui se
+    // filtra pela data DIRETO no banco: só o que interessa.
     var msgs = []
+    const desde = new Date(agora - 6 * 3600000).toISOString().replace('T', ' ').slice(0, 19)
     try {
       msgs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('whatsapp_mensagens'),
-        "direcao='entrada'",
+        "direcao='entrada' && created>='" + desde + "'",
         '',
-        4000,
+        3000,
         0,
       )
     } catch (e2) {
-      return
+      // se o filtro de data falhar, cai no antigo (sem data) para não parar
+      try {
+        msgs = app.findRecordsByFilter(
+          app.findCollectionByNameOrId('whatsapp_mensagens'),
+          "direcao='entrada'",
+          '',
+          4000,
+          0,
+        )
+      } catch (e2b) {
+        return
+      }
     }
 
     const colEnv = app.findCollectionByNameOrId('whatsapp_envios')
