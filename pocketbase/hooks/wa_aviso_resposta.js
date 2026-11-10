@@ -69,14 +69,21 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
     } catch (e1) {}
     if (!central) return
 
-    // número do dono
+    // número do dono: o campo `numero` da conexão do vendedor (não o id!)
     const numeroDoDono = {}
-    for (const id in cxVend) {
-      const v = cxVend[id]
-      if (v !== '' && cxPapel[id] === 'vendedor') {
-        numeroDoDono[v] = String(cxVend[id] || '')
+    try {
+      for (const c of app.findRecordsByFilter(
+        app.findCollectionByNameOrId('whatsapp_conexoes'),
+        "papel='vendedor' && ativo=true",
+        '',
+        60,
+        0,
+      )) {
+        const u = String(c.get('vendedor_user') || '')
+        const num = String(c.get('numero') || '').replace(/[^0-9]/g, '')
+        if (u !== '' && num !== '') numeroDoDono[u] = num
       }
-    }
+    } catch (eNum) {}
 
     const agora = new Date().getTime()
     // ---------- mensagens de cliente recentes ----------
