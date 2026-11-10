@@ -87,7 +87,31 @@ migrate(
         }
       }
     }
-    console.log('0166: corrigidos=' + corrigidos + ' sobraram=' + sobraram)
+    // 2a passada: registros NOVOS entram enquanto a migração roda (o webhook
+    // está ativo). Reler e corrigir de novo fecha a janela.
+    var corrigidos2 = 0
+    for (let volta = 0; volta < 3; volta++) {
+      var faltouNesta = 0
+      for (const nome of NEGOCIO) {
+        var regs2 = []
+        try {
+          regs2 = app.findRecordsByFilter(nome, '', '', 200000, 0)
+        } catch (e3) {
+          continue
+        }
+        for (const r of regs2) {
+          if (String(r.get('empresa') || '') !== '') continue
+          faltouNesta++
+          try {
+            r.set('empresa', idHaisan)
+            app.save(r)
+            corrigidos2++
+          } catch (e4) {}
+        }
+      }
+      if (faltouNesta === 0) break
+    }
+    console.log('0166: corrigidos=' + corrigidos + ' + ' + corrigidos2 + ' sobraram=' + sobraram)
   },
   (app) => {
     console.log('0166 revertida')
