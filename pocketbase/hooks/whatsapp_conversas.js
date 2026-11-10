@@ -71,41 +71,45 @@ routerAdd(
       return e.json(403, { ok: false, erro: 'sem permissão para ler conversas (read_conversas)' })
     }
 
-    // ---------- empresa ativa (CA-3-88) ----------
-    // `X-Empresa` sem grant -> 403. Sem header, usa a empresa do grant (ou a
-    // primeira ativa quando o usuário é dono com escopo '*').
-    var empresaAtiva = ''
-    try {
-      var pedidaC = String(e.request.header.get('X-Empresa') || '')
-      var empDoGrant = []
-      for (const gEmp of meus) {
-        var empG2 = ''
-        try {
-          empG2 = String(gEmp.get('empresa') || '')
-        } catch (eGE) {}
-        if (empG2 !== '' && empDoGrant.indexOf(empG2) < 0) empDoGrant.push(empG2)
-      }
-      if (pedidaC !== '') {
-        if (!temTudoLeads && empDoGrant.indexOf(pedidaC) < 0) {
-          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
-        }
-        empresaAtiva = pedidaC
-      } else if (empDoGrant.length > 0) {
-        empresaAtiva = empDoGrant[0]
-      } else {
-        try {
-          const esC = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
-          if (esC.length > 0) empresaAtiva = esC[0].id
-        } catch (eEC) {}
-      }
-    } catch (eEmpC) {}
-
     let lead
     try {
       lead = $app.findRecordById('crm_leads', e.request.pathValue('id'))
     } catch (_) {
       return e.json(404, { ok: false, erro: 'lead não encontrado' })
     }
+    // ---------- empresa ativa (CA-3-88) ----------
+    // `X-Empresa` sem grant -> 403. Sem header, usa a empresa do grant; o dono
+    // (escopo '*') pode qualquer uma.
+    var empresaAtiva = ''
+    var temTudoC = false
+    var empDoGrantC = []
+    for (const gEmpC of meus) {
+      var saC = lerLista(gEmpC.get('scope_accounts'))
+      if (Array.isArray(saC) && saC.indexOf('*') >= 0) temTudoC = true
+      var empGC = ''
+      try {
+        empGC = String(gEmpC.get('empresa') || '')
+      } catch (eGEC) {}
+      if (empGC !== '' && empDoGrantC.indexOf(empGC) < 0) empDoGrantC.push(empGC)
+    }
+    var pedidaC = ''
+    try {
+      pedidaC = String(e.request.header.get('X-Empresa') || '')
+    } catch (ePC) {}
+    if (pedidaC !== '') {
+      if (!temTudoC && empDoGrantC.indexOf(pedidaC) < 0) {
+        return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+      }
+      empresaAtiva = pedidaC
+    } else if (empDoGrantC.length > 0) {
+      empresaAtiva = empDoGrantC[0]
+    } else {
+      try {
+        const esC2 = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esC2.length > 0) empresaAtiva = esC2[0].id
+      } catch (eEC2) {}
+    }
+
     // e.auth.email vem VAZIO no JSVM: sem ler do banco, o usuário de teste nunca
     // é reconhecido como fixture e a tela dele não mostra as conversas de teste.
     var emailAuth = ''
