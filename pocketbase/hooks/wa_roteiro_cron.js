@@ -767,10 +767,55 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 ),
               ]
             } else {
+              // ---------- CORREÇÃO 11/11 (piloto) ----------
+              // ANTES: qualquer resposta que não fosse "já sou cliente"
+              // TRANSFERIA na hora. O teste do 41 8436-5165 mostrou o defeito:
+              // o cliente respondeu "2" (ampliando) e recebeu "o Fábio vai te
+              // atender" sem nunca ter escolhido a linha de produto.
+              //
+              // AGORA: confirma o que ele quer antes de passar ao vendedor —
+              // o "filtrar conversa" que a gestão pediu.
+              novoEtapa = 'e3c'
+              motivo = 'confirmar_necessidade'
+              respostas = [
+                tx(
+                  'confirma_necessidade',
+                  'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de *poltrona/cadeira*, *lavatório*, *maca*, *móvel para manicure* ou *espelho e recepção*?',
+                ),
+              ]
+            }
+          } else if (etapaAtual === 'e3c') {
+            // ---------- e3c (novo, 11/11): confirma a necessidade e SÓ ENTÃO
+            // transfere, com o contexto do que o cliente quer ----------
+            var temNecessidade =
+              contem(texto, [
+                'poltrona',
+                'cadeira',
+                'lavatorio',
+                'lavatório',
+                'maca',
+                'manicure',
+                'espelho',
+                'recepcao',
+                'recepção',
+                'sofa',
+                'sofá',
+                'banco',
+                'mocho',
+              ]) || String(texto).replace(/[^0-9]/g, '').length >= 1
+            if (temNecessidade) {
               novoEtapa = 'e4'
               motivo = 'primeiro_contato'
               transfere = true
               respostas = [TXT_CONSULTOR, HORARIO]
+            } else {
+              motivo = 'necessidade_nao_entendida'
+              respostas = [
+                tx(
+                  'necessidade_nao_entendida',
+                  'Sem problema! 😊 Você quer ver *poltronas*, *lavatórios*, *macas*, *móveis de manicure* ou *recepção*? Qualquer uma dessas eu já te encaminho.',
+                ),
+              ]
             }
           } else if (etapaAtual === 'e5' || etapaAtual === 'manut1') {
             var digs = String(texto).replace(/[^0-9]/g, '')
