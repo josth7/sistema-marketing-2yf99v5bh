@@ -57,16 +57,42 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     //   ligado=false     -> nao responde ninguem
     //   usar_horario     -> fora do horario, nao responde
     //   janela_min       -> mensagem mais velha que isso fica para a equipe
+    // BUG CORRIGIDO (11/11): antes pegava a config de MAIOR versão do sistema.
+    // Quando a Gol 7 nasceu (v12, ligado=false), o robô da HAISAN passou a ler
+    // a config da Gol 7 e sair por "desligado" — ficou 1 dia sem responder
+    // ninguém. Agora filtra pela empresa da CONEXÃO CENTRAL (que é a empresa
+    // que este cron atende).
     var cfg = null
     try {
       const colCfg = $app.findCollectionByNameOrId('atendimento_config')
-      const vs = $app.findRecordsByFilter(colCfg, '', '', 200, 0)
+      var empDaCentral = ''
+      try {
+        empDaCentral = String(central.get('empresa') || '')
+      } catch (eEmpC) {}
+      const vs = $app.findRecordsByFilter(
+        colCfg,
+        empDaCentral !== '' ? "empresa='" + empDaCentral + "'" : '',
+        '',
+        200,
+        0,
+      )
       var maior = -1
       for (const v of vs) {
         const n = Number(v.get('versao') || 0)
         if (n > maior) {
           maior = n
           cfg = v
+        }
+      }
+      // central sem empresa definida? cai na maior versão (compatibilidade)
+      if (!cfg) {
+        const vs2 = $app.findRecordsByFilter(colCfg, '', '', 200, 0)
+        for (const v of vs2) {
+          const n = Number(v.get('versao') || 0)
+          if (n > maior) {
+            maior = n
+            cfg = v
+          }
         }
       }
     } catch (eCfg) {}
