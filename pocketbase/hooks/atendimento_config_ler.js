@@ -74,10 +74,63 @@ routerAdd(
         criado: String(rec.get('created') || ''),
       }
     }
+    // ---------- CA-3-88/CA-3-92 (11/11): só a config DA EMPRESA ATIVA ----------
+    // BUG CORRIGIDO: esta rota pegava TODAS as configs e escolhia a de maior
+    // versão. Quando a Gol 7 nasceu (v12, vazia), o painel da Haisan passou a
+    // mostrar a config da Gol 7 — 0 textos, 0 FAQ, 0 palavras. A Anézia abriria
+    // o painel e veria tudo vazio, achando que a Haisan perdeu a configuração.
+    var empresaAtivaCfg = ''
+    try {
+      var pedCfg = String(e.request.header.get('X-Empresa') || '')
+      var gsCfg = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var empCfg = []
+      var donoCfg = false
+      for (const gCfg of gsCfg) {
+        var eGC = ''
+        try {
+          eGC = String(gCfg.get('empresa') || '')
+        } catch (eGCx) {}
+        if (eGC !== '' && empCfg.indexOf(eGC) < 0) empCfg.push(eGC)
+        var scCfg = []
+        try {
+          const rSC = gCfg.get('scope_accounts')
+          scCfg =
+            Array.isArray(rSC) && rSC.length > 0 && typeof rSC[0] === 'number'
+              ? JSON.parse(String.fromCharCode.apply(null, rSC))
+              : typeof rSC === 'string'
+                ? JSON.parse(rSC)
+                : rSC || []
+        } catch (eSCx) {}
+        if (Array.isArray(scCfg) && scCfg.indexOf('*') >= 0) donoCfg = true
+      }
+      if (pedCfg !== '') {
+        if (!donoCfg && empCfg.indexOf(pedCfg) < 0) {
+          return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+        }
+        empresaAtivaCfg = pedCfg
+      } else if (empCfg.length > 0) {
+        empresaAtivaCfg = empCfg[0]
+      } else {
+        const esCfg = $app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)
+        if (esCfg.length > 0) empresaAtivaCfg = esCfg[0].id
+      }
+    } catch (eEmpCfg) {}
+
     var versoes = []
     try {
       const col = $app.findCollectionByNameOrId('atendimento_config')
-      versoes = $app.findRecordsByFilter(col, '', '', 500, 0)
+      const filtroCfg = empresaAtivaCfg !== '' ? "empresa='" + empresaAtivaCfg + "'" : 'empresa=""'
+      versoes = $app.findRecordsByFilter(col, filtroCfg, '', 500, 0)
+      // empresa sem config própria? usa a da Haisan (a única com conteúdo hoje)
+      if (versoes.length === 0 && empresaAtivaCfg !== '') {
+        versoes = $app.findRecordsByFilter(col, "empresa!='" + empresaAtivaCfg + "'", '', 500, 0)
+      }
     } catch (eC) {
       versoes = []
     }
