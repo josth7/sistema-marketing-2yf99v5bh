@@ -89,7 +89,7 @@ const TEXTOS: { chave: string; rotulo: string; dica?: string }[] = [
   {
     chave: 'transferencia_consultor',
     rotulo: 'Transferência para o vendedor',
-    dica: 'Use {nome} e {numero}: o sistema troca pelo vendedor dono do lead.',
+    dica: 'Use {nome}, {numero} e {link}: o sistema troca pelo vendedor dono do lead. {link} abre o WhatsApp do vendedor; se o texto não tiver {link}, o link vai numa linha no fim (é ele que dispara a apresentação automática do vendedor).',
   },
   {
     chave: 'transferencia_consultor_sem_numero',
@@ -104,7 +104,7 @@ const TEXTOS: { chave: string; rotulo: string; dica?: string }[] = [
   {
     chave: 'horario',
     rotulo: 'Aviso de horário de atendimento',
-    dica: 'Vai junto em toda transferência.',
+    dica: 'Vai junto na transferência só fora do horário de atendimento.',
   },
 ]
 

@@ -591,7 +591,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               'Oi, ' + String(cons.nome || '').split(' ')[0] + '! Vim do atendimento da Haisan',
             )
         }
-        const TXT_CONSULTOR = (
+        const TXT_CONSULTOR_BASE = (
           linkVendedor !== ''
             ? tx(
                 'transferencia_consultor',
@@ -608,6 +608,20 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           .join(cons.numero || '')
           .split('{link}')
           .join(linkVendedor)
+        // 11/11 (teste da gestão: 20 min sem a mensagem do vendedor): a
+        // apresentação automática (`wa_apresentacao_cron`) só dispara quando a
+        // frase de transferência tem o link wa.me do vendedor. A tela
+        // Atendimento só ensinava {nome} e {numero}, e o texto salvo ficou sem
+        // link — a apresentação nunca saía. Sem {link} no texto, o link vai
+        // numa linha no fim (o cliente também pode tocar e chamar o vendedor).
+        const TXT_CONSULTOR =
+          linkVendedor !== '' && TXT_CONSULTOR_BASE.indexOf('wa.me/') < 0
+            ? TXT_CONSULTOR_BASE +
+              '\n👉 Fala direto com ' +
+              (String(cons.nome || '').split(' ')[0] || 'o vendedor') +
+              ' por aqui: ' +
+              linkVendedor
+            : TXT_CONSULTOR_BASE
 
         if (contem(texto, SINAIS_HUMANO)) {
           novoEtapa = 'humano'
