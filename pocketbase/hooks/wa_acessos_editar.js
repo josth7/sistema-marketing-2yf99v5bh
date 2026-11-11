@@ -300,6 +300,50 @@ routerAdd(
     const antes = grantAlvo ? lerLista(grantAlvo.get('actions')) : []
     const papelAtual = grantAlvo ? String(grantAlvo.get('role') || 'vendedor') : 'vendedor'
 
+    // ---------- CA-3-90 (11/11): só o DONO tem as duas empresas ----------
+    // Decisão do consultor (aval 10/11): "a Haisan e a Gol 7 não compartilham
+    // nenhum funcionário; SÓ OS DONOS têm as duas e trocam no topo". A tela não
+    // pode conceder isso a mais ninguém — nem por engano.
+    //
+    // `escopo === 'todos'` aqui significa acesso a TODAS as empresas (é o que
+    // o helper lê como `*`). Quem recebe isso passa a ver as duas.
+    try {
+      if (escopo === 'todos') {
+        // o alvo é dono? (já tem `*` hoje, ou é o próprio Josth)
+        var alvoEhDono = false
+        var alvoEmail = ''
+        try {
+          const uAlvo = app.findRecordById('users', alvoId)
+          alvoEmail = String(uAlvo.get('email') || '').toLowerCase()
+        } catch (eUA) {}
+        // donos conhecidos: o e-mail do Josth e quem JÁ tem '*' num grant ativo
+        if (alvoEmail.indexOf('josth') >= 0) alvoEhDono = true
+        if (!alvoEhDono) {
+          try {
+            const gsAlvo = app.findRecordsByFilter(
+              colG,
+              "user_id='" + alvoId + "' && revoked_at=''",
+              '',
+              20,
+              0,
+            )
+            for (const gA of gsAlvo) {
+              const scA = lerLista(gA.get('scope_accounts'))
+              if (Array.isArray(scA) && scA.indexOf('*') >= 0) alvoEhDono = true
+            }
+          } catch (eGA) {}
+        }
+        if (!alvoEhDono) {
+          return e.json(422, {
+            ok: false,
+            erro: 'segunda empresa só para os donos',
+            detalhe:
+              'a decisão é que funcionário é de uma empresa só; só os donos têm as duas e trocam no topo',
+          })
+        }
+      }
+    } catch (eDono) {}
+
     // ---------- grava (edita o MESMO registro, respeitando o UNIQUE) ----------
     var grantId = ''
     try {
