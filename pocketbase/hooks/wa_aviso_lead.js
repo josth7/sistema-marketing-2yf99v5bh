@@ -123,7 +123,60 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
     const idsValidos = {}
     for (const v of vendedores) idsValidos[String(v.id || '')] = true
 
+    // ---------- 11/11: o robô está atendendo? ----------
+    // Relato da gestão (11/11, teste da Manu): o robô mandou o menu, e antes
+    // de a cliente responder chegou "Quem vai te atender é Fábio… nos próximos
+    // minutos" e as perguntas pararam. Causa: este cron (a cada 5 min) dava
+    // dono a TODO lead sem dono — inclusive o que o robô ainda estava
+    // perguntando — e a transferência marca a conversa como `transferida`,
+    // que tira a conversa do robô. Agora, com o robô LIGADO, o lead que tem
+    // conversa na central em triagem com mensagem nos últimos 60 min fica com
+    // o robô, que transfere ao fim das perguntas. Passados 60 min sem
+    // resposta, ele entra no rodízio como antes (ninguém fica sem dono).
+    // Config lida pela empresa da CENTRAL (a da Gol 7 nasceu desligada).
+    var roboLigado = false
+    var idCentral = ''
+    try {
+      const cxCs = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('whatsapp_conexoes'),
+        "papel='central' && ativo=true",
+        '',
+        10,
+        0,
+      )
+      var centralReal = null
+      for (const cC of cxCs) {
+        if (String(cC.get('fixture')) !== 'true' && !centralReal) centralReal = cC
+      }
+      if (centralReal) {
+        idCentral = centralReal.id
+        var empC = ''
+        try {
+          empC = String(centralReal.get('empresa') || '')
+        } catch (eEmpC) {}
+        const cfgsC = $app.findRecordsByFilter(
+          $app.findCollectionByNameOrId('atendimento_config'),
+          empC !== '' ? "empresa='" + empC + "'" : '',
+          '',
+          200,
+          0,
+        )
+        var maiorVC = -1
+        var cfgC = null
+        for (const cf of cfgsC) {
+          const nV = Number(cf.get('versao') || 0)
+          if (nV > maiorVC) {
+            maiorVC = nV
+            cfgC = cf
+          }
+        }
+        roboLigado = !!cfgC && cfgC.get('ligado') === true
+      }
+    } catch (eRobo) {}
+    console.log('wa_aviso_lead_novo: robo ligado = ' + roboLigado)
+
     var distribuidos = 0
+    var esperandoRobo = 0
     for (const l of todos) {
       const ow = String(l.get('owner_id') || '')
       // sem dono OU com dono que não atende
@@ -136,6 +189,30 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
       if (!(idade >= 0) || idade > 30 * 86400000) {
         console.log('wa_aviso_lead_novo: lead fora da janela de 30d -> ' + l.id)
         continue
+      }
+
+      // 11/11: o robô ainda está fazendo as perguntas? então ele transfere
+      if (roboLigado && idCentral !== '') {
+        var emTriagem = false
+        try {
+          const convsT = $app.findRecordsByFilter(
+            $app.findCollectionByNameOrId('whatsapp_conversas'),
+            "lead='" + l.id + "' && conexao='" + idCentral + "' && estado='triagem'",
+            '',
+            5,
+            0,
+          )
+          for (const cvT of convsT) {
+            const ultT = new Date(
+              String(cvT.get('ultima_mensagem_em') || '').replace(' ', 'T'),
+            ).getTime()
+            if (ultT > 0 && agora - ultT < 60 * 60000) emTriagem = true
+          }
+        } catch (eTri) {}
+        if (emTriagem) {
+          esperandoRobo++
+          continue
+        }
       }
 
       // já avisado? (dedupe por lead)
@@ -274,7 +351,12 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
     }
 
     console.log(
-      'wa_aviso_lead_novo: fim, distribuidos = ' + distribuidos + ' de ' + todos.length + ' lidos',
+      'wa_aviso_lead_novo: fim, distribuidos = ' +
+        distribuidos +
+        ' de ' +
+        todos.length +
+        ' lidos; com o robo = ' +
+        esperandoRobo,
     )
   } catch (eTop) {}
 })

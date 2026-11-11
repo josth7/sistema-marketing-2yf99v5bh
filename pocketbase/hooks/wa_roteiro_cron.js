@@ -983,6 +983,46 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             }
           } catch (eOwn) {}
         }
+        // ---------- 11/11: aviso de horário SÓ fora do expediente ----------
+        // Relato da gestão (11/11, 13h28 de quarta): a central mandou "Nossa
+        // equipe comercial está disponível de segunda a sexta, das 8h às
+        // 17h30…" em pleno horário comercial. O texto `horario` ia junto de
+        // TODA transferência. Agora ele só sai fora do expediente do painel
+        // (dias + hora_inicio/hora_fim; padrão seg–sex 08:00–17:30, Brasília).
+        var foraExpediente = false
+        try {
+          var agBRh = new Date(new Date().getTime() - 3 * 3600 * 1000)
+          var hmH =
+            String(agBRh.getUTCHours()).padStart(2, '0') +
+            ':' +
+            String(agBRh.getUTCMinutes()).padStart(2, '0')
+          var diasH = [1, 2, 3, 4, 5]
+          var iniH = '08:00'
+          var fimH = '17:30'
+          if (cfg) {
+            try {
+              const rawDH = cfg.get('dias')
+              const dP =
+                Array.isArray(rawDH) && rawDH.length > 0 && typeof rawDH[0] === 'number'
+                  ? JSON.parse(String.fromCharCode.apply(null, rawDH))
+                  : typeof rawDH === 'string'
+                    ? JSON.parse(rawDH)
+                    : rawDH
+              if (Array.isArray(dP) && dP.length > 0) diasH = dP
+            } catch (eDH) {}
+            if (String(cfg.get('hora_inicio') || '') !== '') iniH = String(cfg.get('hora_inicio'))
+            if (String(cfg.get('hora_fim') || '') !== '') fimH = String(cfg.get('hora_fim'))
+          }
+          foraExpediente = diasH.indexOf(agBRh.getUTCDay()) < 0 || hmH < iniH || hmH > fimH
+        } catch (eFH) {}
+        if (!foraExpediente) {
+          var semHorario = []
+          for (var rH = 0; rH < respostas.length; rH++) {
+            if (respostas[rH] !== HORARIO) semHorario.push(respostas[rH])
+          }
+          respostas = semHorario
+        }
+
         // ---------- enfileira (so quando o envio estiver ligado) ----------
         var enfileirados = 0
         for (var k = 0; k < respostas.length; k++) {

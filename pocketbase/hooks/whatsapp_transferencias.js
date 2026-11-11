@@ -638,7 +638,20 @@ onRecordAfterCreateSuccess((e) => {
       var dentroHorario = true
       var aberturaTxt = ''
       try {
-        const cfgA = $app.findRecordsByFilter('atendimento_config', '', '', 50, 0)
+        // 11/11: config da empresa da CENTRAL. Sem o filtro, a config da Gol 7
+        // (outra empresa) podia ser a de maior versão e decidir o horário da
+        // Haisan — o mesmo defeito que desligou o robô em 11/11.
+        var empCentralA = ''
+        try {
+          empCentralA = String(central.get('empresa') || '')
+        } catch (eEA) {}
+        const cfgA = $app.findRecordsByFilter(
+          'atendimento_config',
+          empCentralA !== '' ? "empresa='" + empCentralA + "'" : '',
+          '',
+          200,
+          0,
+        )
         var cfgAt = null
         for (const c of cfgA) {
           if (!cfgAt || Number(c.get('versao') || 0) > Number(cfgAt.get('versao') || 0)) cfgAt = c
