@@ -19,6 +19,28 @@ routerAdd(
   'GET',
   '/backend/v1/alert-criteria',
   (e) => {
+    // CA-3-88 (11/11): esta rota listava os critérios SEM filtrar por empresa.
+    // Com a GOO7 ativa, um usuário dela veria os critérios da Haisan.
+    // O Maestro chama com `uuid` (que é único) — nesse caso o filtro de empresa
+    // não atrapalha; sem `uuid`, filtra pela empresa do usuário.
+    var empresaC = ''
+    try {
+      var gsC = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      for (const gC of gsC) {
+        var eC = ''
+        try {
+          eC = String(gC.get('empresa') || '')
+        } catch (eCx) {}
+        if (eC !== '' && empresaC === '') empresaC = eC
+      }
+    } catch (eGc) {}
+
     const col = $app.findCollectionByNameOrId('alert_criteria')
     let filtro = ''
     const qUuid = e.request.url.query().get('uuid') || ''
@@ -26,6 +48,11 @@ routerAdd(
     if (qUuid) filtro += "uuid='" + qUuid.replace(/'/g, '') + "'"
     if (qUuid && qState) filtro += ' && '
     if (qState) filtro += "state='" + qState.replace(/'/g, '') + "'"
+    // sem uuid (consulta livre) → só a empresa do usuário
+    if (qUuid === '' && empresaC !== '') {
+      if (filtro !== '') filtro += ' && '
+      filtro += "empresa='" + empresaC + "'"
+    }
     const registros = $app.findRecordsByFilter(col, filtro, '-created', 200, 0)
     const itens = []
     for (const r of registros) {
