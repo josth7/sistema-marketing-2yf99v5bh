@@ -72,7 +72,12 @@ cronAdd('diag_visibilidade', '*/5 * * * *', () => {
       0,
     )
     console.log(
-      'diag_vis: conversas=' + convs.length + ' leads=' + ls.length + ' vendedores=' + vendedores.length,
+      'diag_vis: conversas=' +
+        convs.length +
+        ' leads=' +
+        ls.length +
+        ' vendedores=' +
+        vendedores.length,
     )
 
     for (const uid of vendedores) {
