@@ -1,1 +1,1 @@
-// removido 11/11: prova do robo parando
+// removido 11/11: correcoes aplicadas
