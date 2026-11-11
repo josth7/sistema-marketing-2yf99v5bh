@@ -64,6 +64,8 @@ type Conversa = {
   id: string
   conexao: string
   numero_nome: string
+  /** 11/11: cliente do usuário que falou pelo número de outro vendedor */
+  outro_numero?: boolean
   contato_nome: string
   contato_telefone: string
   lead: string
@@ -682,7 +684,17 @@ export default function Conversas() {
                     )}
                   </span>
                   <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">{c.numero_nome}</span>
+                    {c.outro_numero ? (
+                      <Badge
+                        variant="outline"
+                        className="px-1 py-0 text-xs"
+                        title="O cliente é seu; ele conversou pelo número de outro vendedor"
+                      >
+                        Seu cliente · conversa no número de {c.numero_nome}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{c.numero_nome}</span>
+                    )}
                     {c.estado && c.estado !== 'triagem' && (
                       <Badge variant="outline" className="px-1 py-0 text-xs">
                         {c.estado.replace('_', ' ')}

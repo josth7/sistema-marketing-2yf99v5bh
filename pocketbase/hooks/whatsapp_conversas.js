@@ -405,14 +405,25 @@ routerAdd(
       }
       if (!pode) continue
       let nomeNumero = ''
+      // 11/11 (relato da gestão): a vendedora via conversas com o nome do
+      // Fábio, da Adriana ou do Douglas e não sabia se a venda era dela. São
+      // clientes DELA (dono do lead, regra do dono de 09/11) que falaram pelo
+      // número de um colega — 10 a 17 por vendedor, medido em produção.
+      // A tela passa a marcar: "Seu cliente · conversa no número de X".
+      var deOutroVendedor = false
       try {
         const cx = $app.findRecordById('whatsapp_conexoes', String(c.get('conexao')))
         nomeNumero = String(cx.get('nome_exibicao') || '')
+        deOutroVendedor =
+          !temTudoLeads &&
+          String(cx.get('papel') || '') === 'vendedor' &&
+          String(cx.get('vendedor_user') || '') !== e.auth.id
       } catch (eN) {}
       itens.push({
         id: c.id,
         conexao: c.get('conexao'),
         numero_nome: nomeNumero,
+        outro_numero: deOutroVendedor,
         contato_nome: c.get('contato_nome'),
         contato_telefone: c.get('contato_telefone'),
         lead: c.get('lead'),
@@ -495,6 +506,7 @@ routerAdd(
         ja.id = it.id
         ja.conexao = it.conexao
         ja.numero_nome = it.numero_nome
+        ja.outro_numero = it.outro_numero
         ja.ultima_previa = it.ultima_previa
         ja.ultima_mensagem_em = it.ultima_mensagem_em
         ja.ultimo_autor = it.ultimo_autor
