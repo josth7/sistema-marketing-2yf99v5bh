@@ -285,11 +285,14 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       const resp = $http.send({
         url: url,
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: auth,
-          'X-Fixture-Secret': ehFixture ? auth : '',
-        },
+        headers: (function () {
+          // BUG (10/11): mandar `X-Fixture-Secret: ''` (string vazia) fazia o
+          // gateway responder **405 Not Allowed** em HTML — era o erro dos
+          // avisos ao vendedor. Header só entra quando é fixture de verdade.
+          var h = { 'Content-Type': 'application/json', Authorization: auth }
+          if (ehFixture) h['X-Fixture-Secret'] = auth
+          return h
+        })(),
         body: JSON.stringify(corpo),
         timeout: 20,
       })
