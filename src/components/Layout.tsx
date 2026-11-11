@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { VERSAO_SISTEMA } from '@/lib/versao'
+import { SeletorEmpresa } from '@/components/base/seletor-empresa'
 import type { Sessao } from '@/App'
 
 /**
@@ -89,6 +90,8 @@ export default function Layout({ sessao }: { sessao: Sessao }) {
           <span className="font-semibold text-base md:text-lg tracking-tight truncate">
             Sistema Marketing
           </span>
+          {/* CA-3-90: só o dono com duas empresas vê o seletor */}
+          <SeletorEmpresa />
         </div>
         <nav
           className="flex items-center gap-0.5 md:gap-1 overflow-x-auto"
