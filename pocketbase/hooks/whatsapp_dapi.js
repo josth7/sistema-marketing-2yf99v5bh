@@ -631,7 +631,11 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
             'ultima_previa',
             String(data.message || (data.media_data || {}).caption || 'Mensagem').slice(0, 160),
           )
-          cvI.set('ultimo_autor', data.fromMe === true ? 'equipe_central' : 'equipe_central')
+          // BUG CORRIGIDO (11/11): os dois lados do ternário davam
+          // 'equipe_central'. Quando o CLIENTE escrevia, a conversa passava a
+          // dizer que a equipe respondeu — e o robô deixava de agir (ou agia
+          // sobre conversa que parecia atendida).
+          cvI.set('ultimo_autor', data.fromMe === true ? 'equipe_central' : 'cliente')
           cvI.set('total_mensagens', Number(cvI.get('total_mensagens') || 0) + 1)
           $app.save(cvI)
         } catch (eUpI) {}
@@ -809,6 +813,11 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
       const novo = new Record(colLeads)
       novo.set('nome', nomeLead)
       novo.set('telefone', telefone)
+      // CA-3-89: o lead nasce na empresa da conexão que recebeu
+      try {
+        const empCx2 = String(conexao.get('empresa') || '')
+        if (empCx2 !== '') novo.set('empresa', empCx2)
+      } catch (eEmpL) {}
       novo.set('origem', donoDaCarteira !== '' ? 'carteira' : 'whatsapp')
       // `novo` NAO EXISTE no funil de 10 etapas (mig 0097 renomeou para
       // `entrada_lead`). O set falhava no save e o catch vazio engolia: TODO
@@ -1158,6 +1167,13 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
           nc.set('total_mensagens', 0)
           nc.set('estado', papelConexao === 'vendedor' ? 'sem_ia' : 'triagem')
           nc.set('fixture', ehFixture)
+          // CA-3-89 (11/11): a conversa nasce na empresa DA CONEXÃO que recebeu.
+          // Antes ficava sem empresa e só o cron preenchia depois — no
+          // multiempresa isso significa mensagem da Gol 7 na Haisan por minutos.
+          try {
+            const empCx = String(conexao.get('empresa') || '')
+            if (empCx !== '') nc.set('empresa', empCx)
+          } catch (eEmpC) {}
           $app.save(nc)
           conversa = nc
         } catch (eNC) {}

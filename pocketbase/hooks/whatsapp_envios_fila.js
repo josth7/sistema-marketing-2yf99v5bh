@@ -365,7 +365,14 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
         }
         if (cvUp) {
           const motivoUp = String(env.get('motivo') || '')
-          cvUp.set('ultimo_autor', motivoUp.indexOf('ia_') === 0 ? 'equipe_central' : 'vendedor')
+          // BUG CORRIGIDO (11/11): a condição estava INVERTIDA. `ia_resposta` é
+          // o motivo do ROBÔ, mas ela marcava `equipe_central` — e então a
+          // conversa parecia ter sido respondida por um humano. Resultado: o
+          // robô seguia falando (não pausava) e as conversas ficavam em
+          // triagem com "ultimo_autor" de gente.
+          // Agora: robô -> 'ia'; vendedor/central -> 'vendedor'/'equipe_central'.
+          if (motivoUp.indexOf('ia_') === 0) cvUp.set('ultimo_autor', 'ia')
+          else if (String(env.get('conexao') || '') !== '') cvUp.set('ultimo_autor', 'vendedor')
           cvUp.set('ultima_previa', String(env.get('texto') || '').slice(0, 160))
           cvUp.set('ultima_mensagem_em', new Date().toISOString())
           $app.save(cvUp)
