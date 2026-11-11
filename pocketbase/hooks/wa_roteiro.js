@@ -654,15 +654,62 @@ routerAdd(
           },
         })
       }
-      // primeiro contato: transfere com o consultor do rodizio
+      // CORREÇÃO 11/11 (piloto): ANTES transferia direto — o cliente recebia
+      // "o Fábio vai te atender" sem nunca dizer o que precisa. O teste do
+      // 41 8436-5165 mostrou isso. Agora vai para a etapa de confirmação.
       return e.json(200, {
         ok: true,
         saida: {
-          etapa: 'e4',
-          motivo: 'primeiro_contato',
-          transferir: true,
+          etapa: 'e3c',
+          motivo: 'confirmar_necessidade',
+          transferir: false,
           consultor: consultor,
-          respostas: [TXT_TRANSFERE_CONSULTOR, HORARIO],
+          respostas: [
+            'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de *poltrona/cadeira*, *lavatório*, *maca*, *móvel para manicure* ou *espelho e recepção*?',
+          ],
+        },
+      })
+    }
+
+    if (etapa === 'e3c') {
+      // etapa nova (11/11): confirma o que o cliente precisa e SÓ ENTÃO passa
+      var temNec = contemAlgum(texto, [
+        'poltrona',
+        'cadeira',
+        'lavatorio',
+        'lavatório',
+        'maca',
+        'manicure',
+        'espelho',
+        'recepcao',
+        'recepção',
+        'sofa',
+        'sofá',
+        'banco',
+        'mocho',
+      ])
+      if (temNec) {
+        return e.json(200, {
+          ok: true,
+          saida: {
+            etapa: 'e4',
+            motivo: 'primeiro_contato',
+            transferir: true,
+            consultor: consultor,
+            respostas: [TXT_TRANSFERE_CONSULTOR, HORARIO],
+          },
+        })
+      }
+      return e.json(200, {
+        ok: true,
+        saida: {
+          etapa: 'e3c',
+          motivo: 'necessidade_nao_entendida',
+          transferir: false,
+          consultor: consultor,
+          respostas: [
+            'Sem problema! 😊 Você quer ver *poltronas*, *lavatórios*, *macas*, *móveis de manicure* ou *recepção*? Qualquer uma dessas eu já te encaminho.',
+          ],
         },
       })
     }
