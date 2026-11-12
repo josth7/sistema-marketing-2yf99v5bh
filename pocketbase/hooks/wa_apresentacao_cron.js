@@ -45,7 +45,28 @@ cronAdd('wa_apresentacao_15min', '*/2 * * * *', () => {
   var quandoAp = 'amanhã'
   var iniAp = '08:00'
   try {
-    const cfgAp = $app.findRecordsByFilter('atendimento_config', '', '', 50, 0)
+    // ITEM 4 (12/11): esta rotina lia a config de MAIOR VERSÃO DO SISTEMA —
+    // o mesmo defeito que desligou o robô em 11/11, quando a Gol 7 nasceu
+    // (v12, ligado=false). Agora filtra pela empresa da CONEXÃO CENTRAL, como
+    // já está no wa_roteiro_cron.
+    var empAp = ''
+    try {
+      const cxAp = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('whatsapp_conexoes'),
+        "papel='central' && ativo=true && fixture=false",
+        '',
+        1,
+        0,
+      )
+      if (cxAp.length > 0) empAp = String(cxAp[0].get('empresa') || '')
+    } catch (eCxAp) {}
+    const cfgAp = $app.findRecordsByFilter(
+      'atendimento_config',
+      empAp !== '' ? "empresa='" + empAp + "'" : '',
+      '',
+      50,
+      0,
+    )
     var cfgApv = null
     for (const ca of cfgAp) {
       if (!cfgApv || Number(ca.get('versao') || 0) > Number(cfgApv.get('versao') || 0)) cfgApv = ca
