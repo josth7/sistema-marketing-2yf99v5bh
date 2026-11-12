@@ -160,12 +160,39 @@ routerAdd(
         continue
       }
 
-      const valor = Number(
-        String(valorTxt)
-          .replace(/[^0-9,.-]/g, '')
-          .replace(/\./g, '')
-          .replace(',', '.'),
-      )
+      // BUG CORRIGIDO (12/11): a 1a versao removia TODO ponto (tratando como
+      // separador de milhar) e depois trocava a virgula. Com "2000.00" isso
+      // virava 200000 — as vendas do teste entraram 100x maiores.
+      // Agora decide o separador decimal pelo formato:
+      //   "2000.00" ou "1.234,56"  -> decimal virgula ou ponto no fim
+      //   "2.000"                  -> milhar
+      function paraNumero(txt) {
+        var t = String(txt || '').replace(/[^0-9,.-]/g, '')
+        if (t === '') return NaN
+        const temVirgula = t.indexOf(',') >= 0
+        const temPonto = t.indexOf('.') >= 0
+        if (temVirgula && temPonto) {
+          // formato brasileiro 1.234,56
+          t = t.replace(/\./g, '').replace(',', '.')
+        } else if (temVirgula) {
+          // 1234,56
+          t = t.replace(',', '.')
+        } else if (temPonto) {
+          // so ponto: e decimal se houver 1-2 digitos depois do ULTIMO ponto
+          const partes = t.split('.')
+          const ultima = partes[partes.length - 1]
+          if (ultima.length <= 2) {
+            // decimal: mantem o ponto, remove os anteriores (milhar)
+            const dec = partes.pop()
+            t = partes.join('') + '.' + dec
+          } else {
+            // milhar: 2.000 -> 2000
+            t = partes.join('')
+          }
+        }
+        return Number(t)
+      }
+      const valor = paraNumero(valorTxt)
       if (!Number.isFinite(valor) || valor <= 0) {
         out.ignoradas++
         out.motivos.push('linha ' + i + ': valor invalido (' + (nome || '?') + ')')
