@@ -3,26 +3,26 @@
  * IMPORTAR VENDAS ANTIGAS (12/11) — CA-3-76, SPEC-3-013.
  *
  * **Para que serve:** as vendas de 01/01 a 05/11 viram **histórico** no CRM.
- * Esse histórico é o que aponta **qual vendedor atende cada cliente** (RN-157e,
+ * Esse histórico aponta **qual vendedor atende cada cliente** (RN-157e,
  * planilha que a Anézia mandou em 05/11). Sem ele, quando o cliente escrever, o
  * sistema não sabe que já é cliente dele.
  *
- * **O CSV** (cabeçalho obrigatório, ordem livre):
+ * **CSV** (cabeçalho obrigatório, ordem livre):
  *   `cliente,telefone,data,vendedor,valor`
  *
- * **O casamento por telefone** (com e sem o 9, DDD do vendedor quando faltar):
- *   - telefone casa com lead existente  → ATUALIZA
- *   - não casa e o telefone é válido    → CRIA
- *   - nome repetido sem telefone        → IGNORA com motivo
+ * **Casamento por telefone — por CHAVE CANÔNICA, não por string:**
+ * o banco guarda o mesmo número em formatos diferentes (com/sem 55, com/sem o
+ * 9). Comparar variantes uma a uma falhou nos testes. Aqui se reduz cada número
+ * a uma chave: `DDD + assinante sem o 9`. Assim `558899898584` e `55889898584`
+ * dão a mesma chave (`889898584`) e casam com o mesmo lead.
  *
  * **Travas:**
  *   - **não** manda nada para a fila de conversões (senão a Meta recebe venda
- *     de janeiro como se fosse de hoje);
- *   - reimportar **não muda nada** (dedupe por cliente+data+valor).
+ *     de janeiro como se fosse de hoje) — decisão do CA-3-76;
+ *   - reimportar **não muda nada** (mesmo valor = pula).
  *
  * POST /backend/v1/crm/vendas/importar
- *   body: { csv: "cliente,telefone,...\n...", confirmar: true }
- *   sem `confirmar` → só relatório (simulação)
+ *   body: { csv: "...", confirmar: true }   (sem `confirmar` = simulação)
  */
 routerAdd(
   'POST',
@@ -46,10 +46,24 @@ routerAdd(
       criadas: 0,
       ignoradas: 0,
       motivos: [],
-      detalhes: [],
     }
 
-    // ---------- parser simples de CSV ----------
+    // ---------- chave canônica do telefone ----------
+    // DDD + assinante, sem o 55 do país e sem o 9 de celular.
+    function chaveTel(v) {
+      var d = String(v || '').replace(/[^0-9]/g, '')
+      if (d === '') return ''
+      // tira o 55 do país quando sobra tamanho de número nacional
+      if (d.length >= 12 && d.slice(0, 2) === '55') d = d.slice(2)
+      if (d.length < 10) return ''
+      var ddd = d.slice(0, 2)
+      var assinante = d.slice(2)
+      if (assinante.length === 9 && assinante.slice(0, 1) === '9') assinante = assinante.slice(1)
+      if (assinante.length !== 8) return ''
+      return ddd + assinante
+    }
+
+    // ---------- parser do CSV ----------
     const linhas = csv.split(/\r?\n/).filter(function (l) {
       return String(l).trim() !== ''
     })
@@ -76,55 +90,7 @@ routerAdd(
       })
     }
 
-    // ---------- utilidades ----------
-    function digitos(v) {
-      return String(v || '').replace(/[^0-9]/g, '')
-    }
-    // variantes do telefone: com e sem o 9 depois do DDD
-    // BUG CORRIGIDO (12/11): minha 1a versao prefixava '55' no telefone de 11
-    // digitos (5555889898584) em vez de INSERIR o 9 depois do DDD. Com isso o
-    // telefone "sem o 9" nunca casava com o lead. Agora trata os 4 formatos:
-    //   55 DD 9XXXX-XXXX (13)  ·  55 DD XXXX-XXXX (12)
-    //      DD 9XXXX-XXXX (11)  ·     DD XXXX-XXXX (10)
-    function variantes(tel) {
-      const d = digitos(tel)
-      const out = []
-      if (d === '') return out
-
-      var ddd = ''
-      var resto = ''
-      if (d.length === 13) {
-        ddd = d.slice(2, 4)
-        resto = d.slice(4)
-      } else if (d.length === 12) {
-        ddd = d.slice(2, 4)
-        resto = d.slice(4)
-      } else if (d.length === 11) {
-        ddd = d.slice(0, 2)
-        resto = d.slice(2)
-      } else if (d.length === 10) {
-        ddd = d.slice(0, 2)
-        resto = d.slice(2)
-      } else {
-        out.push(d)
-        return out
-      }
-
-      // com o 9 e sem o 9, cada um nas duas formas (com e sem o 55)
-      var sem9 = resto
-      if (resto.length === 9 && resto.slice(0, 1) === '9') sem9 = resto.slice(1)
-      var com9 = resto
-      if (resto.length === 8) com9 = '9' + resto
-
-      out.push('55' + ddd + com9)
-      out.push('55' + ddd + sem9)
-      out.push(ddd + com9)
-      out.push(ddd + sem9)
-      out.push(d)
-      return out
-    }
-
-    // mapa de vendedores por nome (sem acento, minusculo)
+    // ---------- vendedores por primeiro nome (sem acento) ----------
     const vendedores = {}
     try {
       for (const u of app.findRecordsByFilter(
@@ -140,9 +106,29 @@ routerAdd(
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '')
           .split(' ')[0]
-        if (chave !== '') vendedores[chave] = u.id
+        if (chave !== '' && !vendedores[chave]) vendedores[chave] = u.id
       }
     } catch (e0) {}
+
+    // ---------- mapa dos leads existentes por chave canônica ----------
+    // Uma consulta só: 2 mil leads. Evita N buscas e resolve os formatos.
+    const mapa = {}
+    try {
+      const todos = app.findRecordsByFilter(
+        app.findCollectionByNameOrId('crm_leads'),
+        'fixture=false',
+        '',
+        20000,
+        0,
+      )
+      for (const l of todos) {
+        const k = chaveTel(l.get('telefone'))
+        if (k !== '' && !mapa[k]) mapa[k] = l
+      }
+      out.leads_no_mapa = Object.keys(mapa).length
+    } catch (e1) {
+      return e.json(200, { ok: false, erro: 'ler leads: ' + String(e1).slice(0, 120) })
+    }
 
     const colL = app.findCollectionByNameOrId('crm_leads')
     const colEv = app.findCollectionByNameOrId('crm_lead_events')
@@ -160,9 +146,9 @@ routerAdd(
       const vend = cel('vendedor')
       const valorTxt = cel('valor')
 
-      const d = digitos(telBruto)
-      // ---------- linha sem telefone utilizavel → IGNORA ----------
-      if (d.length < 10) {
+      const k = chaveTel(telBruto)
+      // ---------- não deu telefone utilizável → IGNORA ----------
+      if (k === '') {
         out.ignoradas++
         out.motivos.push('linha ' + i + ': sem telefone valido (' + (nome || '?') + ')')
         continue
@@ -189,28 +175,15 @@ routerAdd(
         .split(' ')[0]
       if (chaveVend !== '' && vendedores[chaveVend]) donoId = vendedores[chaveVend]
 
-      // ---------- acha o lead ----------
-      var lead = null
-      const vs = variantes(telBruto)
-      for (const v of vs) {
-        try {
-          const achados = app.findRecordsByFilter(colL, "telefone='" + v + "'", '', 1, 0)
-          if (achados && achados.length > 0) {
-            lead = achados[0]
-            break
-          }
-        } catch (e1) {}
-      }
-
-      const jaEhVenda =
-        lead &&
-        String(lead.get('status') || '') === 'venda_realizada' &&
-        Number(lead.get('valor') || 0) > 0
+      const lead = mapa[k] || null
 
       // ---------- ATUALIZA ----------
       if (lead) {
-        // já é venda com o mesmo valor? não muda nada (reimportacao)
-        if (jaEhVenda && Number(lead.get('valor') || 0) === valor) {
+        // já é venda com este valor? reimportação: não muda nada
+        if (
+          String(lead.get('status') || '') === 'venda_realizada' &&
+          Number(lead.get('valor') || 0) === valor
+        ) {
           continue
         }
         out.atualizadas++
@@ -227,7 +200,6 @@ routerAdd(
               lead.set('owner_id', donoId)
             }
             app.save(lead)
-            // trilha
             try {
               const ev = new Record(colEv)
               ev.set('lead_id', lead.id)
@@ -241,6 +213,7 @@ routerAdd(
               app.save(ev)
             } catch (eEv) {}
           } catch (eU) {
+            out.atualizadas--
             out.motivos.push('linha ' + i + ': falhou atualizar -> ' + String(eU).slice(0, 60))
           }
         }
@@ -252,8 +225,9 @@ routerAdd(
       if (confirmar) {
         try {
           const novo = new Record(colL)
-          novo.set('nome', nome !== '' ? nome.slice(0, 200) : 'Cliente final ' + d.slice(-4))
-          novo.set('telefone', d)
+          const dNum = String(telBruto).replace(/[^0-9]/g, '')
+          novo.set('nome', nome !== '' ? nome.slice(0, 200) : 'Cliente final ' + dNum.slice(-4))
+          novo.set('telefone', dNum)
           novo.set('status', 'venda_realizada')
           novo.set('valor', valor)
           novo.set('origem', 'importacao')
@@ -265,6 +239,8 @@ routerAdd(
           }
           novo.set('fixture', false)
           app.save(novo)
+          // entra no mapa para a mesma planilha não criar duas vezes
+          mapa[k] = novo
           try {
             const ev = new Record(colEv)
             ev.set('lead_id', novo.id)
@@ -282,7 +258,7 @@ routerAdd(
     }
 
     out.total_linhas = linhas.length - 1
-    // NADA vai para a fila de conversões — decisão do card (CA-3-76)
+    // NADA vai para a fila de conversões — decisão do CA-3-76
     out.conversoes_enviadas = 0
     out.aviso = confirmar ? 'aplicado' : 'simulação — envie confirmar:true para gravar'
 
