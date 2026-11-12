@@ -50,14 +50,20 @@ routerAdd(
 
     // ---------- chave canônica do telefone ----------
     // DDD + assinante, sem o 55 do país e sem o 9 de celular.
+    // BUG CORRIGIDO (12/11): com 11 digitos eu tratava o '55' do PAIS como DDD,
+    // gerando chave errada (5588989858 em vez de 889898584). O 55 tem de sair
+    // SEMPRE que o que sobra ainda parece numero nacional.
+    //   com pais: 55 DD 9XXXXXXXX (12) ou 55 DD XXXXXXXX (11)
+    //   sem pais:    DD 9XXXXXXXX (11) ou    DD XXXXXXXX (10)
     function chaveTel(v) {
       var d = String(v || '').replace(/[^0-9]/g, '')
       if (d === '') return ''
-      // tira o 55 do país quando sobra tamanho de número nacional
-      if (d.length >= 12 && d.slice(0, 2) === '55') d = d.slice(2)
-      if (d.length < 10) return ''
+      // remove o 55 do pais quando o resto continua com tamanho nacional
+      if (d.slice(0, 2) === '55' && (d.length === 12 || d.length === 13)) d = d.slice(2)
+      if (d.length !== 10 && d.length !== 11) return ''
       var ddd = d.slice(0, 2)
       var assinante = d.slice(2)
+      // celular: o 9 nao faz parte da identidade
       if (assinante.length === 9 && assinante.slice(0, 1) === '9') assinante = assinante.slice(1)
       if (assinante.length !== 8) return ''
       return ddd + assinante
