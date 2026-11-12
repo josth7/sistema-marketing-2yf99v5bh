@@ -130,8 +130,12 @@ migrate(
         novo.set('emailVisibility', true)
         novo.set('name', 'Sabrina — Gol 7')
         novo.set('verified', true)
-        // LIÇÃO 29/10: em migração é setPassword, nunca set('password')
-        novo.setPassword('Gol7@2026')
+        // ITEM 5 (12/11): NUNCA escrever senha em arquivo. A senha desta conta
+        // estava escrita aqui literalmente — removida. Agora o usuário nasce
+        // com senha ALEATÓRIA e é trocada pela tela (ou pelo dono, Minha senha).
+        // A migração só cria a conta; quem define a senha é a pessoa.
+        const senhaTemp = $security.randomString(24) + 'Aa1!'
+        novo.setPassword(senhaTemp)
         app.save(novo)
         idSab = novo.id
         console.log('0170: usuario da Sabrina criado (goo7.ecmm@gmail.com)')
