@@ -277,7 +277,24 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
         env.set('estado', 'pendente')
         env.set('tentativas', 0)
         env.set('fixture', false)
-        env.set('dedupe_key', chave + '|' + String(Math.floor(q / 60000)))
+        // ITEM 3 (12/11) — "Value must be unique" dezenas de vezes por minuto.
+        // A chave usava o MINUTO da mensagem: duas rodadas do cron no mesmo
+        // minuto geravam a mesma chave e a segunda estourava no índice UNIQUE
+        // do banco. Agora, antes de gravar, confere se a chave já existe e
+        // simplesmente PULA — sem logar erro.
+        const chaveFinal = chave + '|' + String(Math.floor(q / 60000))
+        var jaExiste = false
+        try {
+          const ex = app.findRecordsByFilter(colEnv, "dedupe_key='" + chaveFinal + "'", '', 1, 0)
+          if (ex && ex.length > 0) jaExiste = true
+        } catch (eCh) {
+          // se a consulta falhar, segue: o catch do save trata
+        }
+        if (jaExiste) {
+          jaAvisado[tel] = true
+          continue
+        }
+        env.set('dedupe_key', chaveFinal)
         app.save(env)
         enviados++
         jaAvisado[tel] = true
