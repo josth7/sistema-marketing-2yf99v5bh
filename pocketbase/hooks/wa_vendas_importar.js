@@ -81,21 +81,46 @@ routerAdd(
       return String(v || '').replace(/[^0-9]/g, '')
     }
     // variantes do telefone: com e sem o 9 depois do DDD
+    // BUG CORRIGIDO (12/11): minha 1a versao prefixava '55' no telefone de 11
+    // digitos (5555889898584) em vez de INSERIR o 9 depois do DDD. Com isso o
+    // telefone "sem o 9" nunca casava com o lead. Agora trata os 4 formatos:
+    //   55 DD 9XXXX-XXXX (13)  ·  55 DD XXXX-XXXX (12)
+    //      DD 9XXXX-XXXX (11)  ·     DD XXXX-XXXX (10)
     function variantes(tel) {
       const d = digitos(tel)
       const out = []
       if (d === '') return out
+
+      var ddd = ''
+      var resto = ''
+      if (d.length === 13) {
+        ddd = d.slice(2, 4)
+        resto = d.slice(4)
+      } else if (d.length === 12) {
+        ddd = d.slice(2, 4)
+        resto = d.slice(4)
+      } else if (d.length === 11) {
+        ddd = d.slice(0, 2)
+        resto = d.slice(2)
+      } else if (d.length === 10) {
+        ddd = d.slice(0, 2)
+        resto = d.slice(2)
+      } else {
+        out.push(d)
+        return out
+      }
+
+      // com o 9 e sem o 9, cada um nas duas formas (com e sem o 55)
+      var sem9 = resto
+      if (resto.length === 9 && resto.slice(0, 1) === '9') sem9 = resto.slice(1)
+      var com9 = resto
+      if (resto.length === 8) com9 = '9' + resto
+
+      out.push('55' + ddd + com9)
+      out.push('55' + ddd + sem9)
+      out.push(ddd + com9)
+      out.push(ddd + sem9)
       out.push(d)
-      if (d.length === 13 && d.slice(4, 5) === '9') {
-        // 55 41 9XXXX-XXXX -> sem o 9
-        out.push(d.slice(0, 4) + d.slice(5))
-      }
-      if (d.length === 12) {
-        // sem o 9 -> com o 9
-        out.push(d.slice(0, 4) + '9' + d.slice(4))
-      }
-      if (d.length === 11) out.push('55' + d)
-      if (d.length === 10) out.push('55' + d)
       return out
     }
 
