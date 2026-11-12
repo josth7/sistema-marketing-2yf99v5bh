@@ -226,11 +226,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           }
         } catch (eG) {}
         if (!vd || gt) continue
-        vendedores.push({ id: u.id, nome: nm || em, carga: carga[u.id] || 0 })
+        vendedores.push({ id: u.id, email: em.toLowerCase(), nome: nm, carga: carga[u.id] || 0 })
       }
-      vendedores.sort(function (a, b) {
-        return a.carga - b.carga
-      })
     } catch (e1) {}
 
     var cxsVend = []
@@ -238,17 +235,86 @@ cronAdd('wa_roteiro', '* * * * *', () => {
       cxsVend = $app.findRecordsByFilter(colCx, "papel='vendedor' && ativo=true", '', 20, 0)
     } catch (e2) {}
 
+    // 12/11 (cliente recebeu "direcionado para rodrigo@adapta.org"): o nome
+    // anunciado vinha de uma lista própria (menor carga, qualquer conta com
+    // read_leads; nome vazio caía no e-mail). A transferência real usa outra
+    // regra (só vendedor com conexão ativa, ordem fixa em ciclo) e deu o lead
+    // ao Fábio. Agora o robô anuncia o MESMO vendedor que o ponto único
+    // (`whatsapp_transferencias`) vai escolher: só quem tem conexão de
+    // vendedor ativa, na ordem fixa, o próximo depois do último rodízio
+    // concluído. Nunca mostra e-mail ao cliente.
+    try {
+      const comCx = []
+      for (const v of vendedores) {
+        var cxV = null
+        for (const c of cxsVend) {
+          if (String(c.get('vendedor_user') || '') === v.id) cxV = c
+        }
+        if (!cxV) continue
+        const pubV = String(cxV.get('vendedor_nome_publico') || '')
+        v.nome = pubV !== '' ? pubV : String(v.nome || '')
+        if (v.nome.indexOf('@') >= 0) v.nome = ''
+        v.cx = cxV
+        comCx.push(v)
+      }
+      const ORDEM_FIXA_R = [
+        'adriana@haisan.com.br',
+        'douglasrenato@haisan.com.br',
+        'elisangela@haisan.com.br',
+        'fabio@haisan.com.br',
+      ]
+      const ordemR = []
+      for (const em2 of ORDEM_FIXA_R) {
+        for (const v of comCx) {
+          if (v.email === em2) ordemR.push(v)
+        }
+      }
+      for (const v of comCx) {
+        if (ordemR.indexOf(v) < 0) ordemR.push(v)
+      }
+      var ultimoR = ''
+      try {
+        const antR = $app.findRecordsByFilter(
+          $app.findCollectionByNameOrId('whatsapp_transferencias'),
+          "regra='rodizio' && estado='concluida'",
+          '',
+          400,
+          0,
+        )
+        var maiorR = ''
+        for (const t of antR) {
+          const vR = String(t.get('vendedor_user') || '')
+          const qR = String(t.get('created') || '')
+          if (vR === '' || qR === '') continue
+          if (qR > maiorR) {
+            maiorR = qR
+            ultimoR = vR
+          }
+        }
+      } catch (eUltR) {}
+      vendedores = ordemR
+      if (ordemR.length > 0 && ultimoR !== '') {
+        var posR = -1
+        for (var iR = 0; iR < ordemR.length; iR++) {
+          if (ordemR[iR].id === ultimoR) posR = iR
+        }
+        if (posR >= 0) vendedores = ordemR.slice(posR + 1).concat(ordemR.slice(0, posR + 1))
+      }
+    } catch (eOrdR) {
+      vendedores = []
+    }
+
     if (vendedores.length > 0) {
       consultor.id = vendedores[0].id
       consultor.nome = vendedores[0].nome
-      for (const c of cxsVend) {
-        if (String(c.get('vendedor_user') || '') !== consultor.id) continue
-        const nd = String(c.get('numero') || '').replace(/[^0-9]/g, '')
-        if (nd.length === 13)
-          consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 9) + '-' + nd.slice(9)
-        else if (nd.length === 12)
-          consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 8) + '-' + nd.slice(8)
-      }
+      const nd = String(
+        (vendedores[0].cx ? vendedores[0].cx.get('numero') : '') || '',
+      ).replace(/[^0-9]/g, '')
+      if (nd.length === 13 || nd.length === 12) consultor.digitos = nd
+      if (nd.length === 13)
+        consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 9) + '-' + nd.slice(9)
+      else if (nd.length === 12)
+        consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 8) + '-' + nd.slice(8)
     }
 
     // ---------- conversas da central em triagem ----------
@@ -383,7 +449,12 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         // dele que o cliente tem de receber na transferência — e não o vendedor
         // de menor carga neste minuto (antes o cliente ouvia um nome e o lead
         // ficava com outro vendedor).
-        var cons = { id: consultor.id, nome: consultor.nome, numero: consultor.numero }
+        var cons = {
+          id: consultor.id,
+          nome: consultor.nome,
+          numero: consultor.numero,
+          digitos: consultor.digitos || '',
+        }
         if (lead && String(lead.get('owner_id') || '') !== '') {
           const donoId = String(lead.get('owner_id'))
           var donoNome = ''
@@ -407,8 +478,9 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             else if (ndd.length === 12)
               donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 8) + '-' + ndd.slice(8)
           }
-          if (donoNome !== '')
-            cons = { id: donoId, nome: donoNome, numero: donoNumero, digitos: donoDigitos }
+          // 12/11: nunca anunciar e-mail; dono sem nome público vira "nosso time"
+          if (donoNome.indexOf('@') >= 0) donoNome = ''
+          cons = { id: donoId, nome: donoNome, numero: donoNumero, digitos: donoDigitos }
         }
 
         // ---------- SPAM: nunca responde ----------
@@ -588,7 +660,11 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             digitosVend +
             '?text=' +
             encodeURIComponent(
-              'Oi, ' + String(cons.nome || '').split(' ')[0] + '! Vim do atendimento da Haisan',
+              'Oi' +
+                (String(cons.nome || '').split(' ')[0] !== ''
+                  ? ', ' + String(cons.nome || '').split(' ')[0]
+                  : '') +
+                '! Vim do atendimento da Haisan',
             )
         }
         const TXT_CONSULTOR_BASE = (
