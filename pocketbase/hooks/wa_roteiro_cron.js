@@ -307,9 +307,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     if (vendedores.length > 0) {
       consultor.id = vendedores[0].id
       consultor.nome = vendedores[0].nome
-      const nd = String(
-        (vendedores[0].cx ? vendedores[0].cx.get('numero') : '') || '',
-      ).replace(/[^0-9]/g, '')
+      const nd = String((vendedores[0].cx ? vendedores[0].cx.get('numero') : '') || '').replace(
+        /[^0-9]/g,
+        '',
+      )
       if (nd.length === 13 || nd.length === 12) consultor.digitos = nd
       if (nd.length === 13)
         consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 9) + '-' + nd.slice(9)
