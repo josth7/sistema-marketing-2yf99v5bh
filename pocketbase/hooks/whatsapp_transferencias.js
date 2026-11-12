@@ -686,19 +686,33 @@ onRecordAfterCreateSuccess((e) => {
         }
       } catch (eHor) {}
 
+      // DEFEITO CORRIGIDO (12/11): o `wa_apresentacao_cron` procura as frases
+      // de transferencia pelo marcador `wa.me/` no texto — porque e por esse
+      // link que ele acha o lead, o dono e o numero. A frase NUNCA teve esse
+      // link, entao a saudacao do vendedor JAMAIS era enfileirada. Era isso
+      // que fazia "a saudacao nao chegar" desde sempre, independente da Meta.
+      const linkVendedor = (function () {
+        var d = String(numeroVendedor || '').replace(/[^0-9]/g, '')
+        if (d === '') return ''
+        if (d.length <= 11) d = '55' + d
+        return 'https://wa.me/' + d
+      })()
+
       const textoCliente = dentroHorario
         ? 'Quem vai te atender é *' +
           vendedorNome +
           '*, do nosso time de vendas. Nos próximos minutos você recebe uma mensagem' +
           (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
-          '. Pode salvar como *Haisan Vendas*! 😊'
+          '. Pode salvar como *Haisan Vendas*! 😊' +
+          (linkVendedor ? '\n\n' + linkVendedor : '')
         : 'Quem vai te atender é *' +
           vendedorNome +
           '*, do nosso time de vendas. Você recebe a mensagem' +
           (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
           ' ' +
           aberturaTxt +
-          '. Pode salvar como *Haisan Vendas*! 😊'
+          '. Pode salvar como *Haisan Vendas*! 😊' +
+          (linkVendedor ? '\n\n' + linkVendedor : '')
       const id = enfileirar(
         central,
         telefoneCliente,
