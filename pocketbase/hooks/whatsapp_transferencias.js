@@ -537,6 +537,20 @@ onRecordAfterCreateSuccess((e) => {
       env.set('destino_telefone', destino)
       env.set('motivo', motivoEnvio)
       env.set('variaveis', variaveis)
+      // DEFEITO CORRIGIDO (13/11): a fila monta o `bodyVariables` do template a
+      // partir do campo `legenda` (separado por |). Esta funcao NUNCA gravava
+      // `legenda`, entao o template ia SEM variavel nenhuma e a Meta recusava
+      // em silencio. Era a causa real de a saudacao do vendedor nunca chegar —
+      // o modelo esta APPROVED e a ordem dele e: {{1}} nome do cliente,
+      // {{2}} nome do VENDEDOR (conferido na WABA em 13/11).
+      try {
+        if (String(modelo || '') !== '' && variaveis) {
+          const partes = []
+          partes.push(String(variaveis.nome || variaveis.cliente || ''))
+          partes.push(String(variaveis.vendedor || variaveis.telefone || ''))
+          env.set('legenda', partes.join('|'))
+        }
+      } catch (eLeg) {}
       env.set('dedupe_key', chave)
       env.set('tentativas', 0)
       env.set('fixture', ehFixture)
@@ -618,9 +632,17 @@ onRecordAfterCreateSuccess((e) => {
           'apresentacao_vendedor',
           textoVendedor,
           modeloApresentacao,
-          // variáveis do modelo, na ordem: {{1}} nome, {{2}} telefone, {{3}} canal
+          // VARIÁVEIS DO MODELO — conferidas na WABA em 13/11:
+          //   texto aprovado: "Olá, {{1}}! ... Sou {{2}} e é um prazer..."
+          //   logo {{1}} = nome do CLIENTE e {{2}} = nome do VENDEDOR.
+          //
+          // Antes daqui vinham nome/telefone/canal, o que nao bate com o
+          // template aprovado. Mantive os campos extras (telefone/canal) para
+          // nao quebrar quem os leia, mas a ordem do template usa os dois
+          // primeiros: cliente e vendedor.
           {
             nome: String(lead.get('nome') || ''),
+            vendedor: vendedorNome,
             telefone: telefoneCliente,
             canal: String(lead.get('origem') || 'whatsapp'),
           },
