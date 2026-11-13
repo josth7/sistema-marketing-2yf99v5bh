@@ -74,6 +74,16 @@ routerAdd(
       }
     } catch (e0) {}
 
+    // 13/11 (vazamento Gol 7): `*` no escopo também é "vê tudo DENTRO da
+    // empresa" (cargo gestão criado pela tela). Sozinho ele não faz dono.
+    // Dono é só quem o dono decidiu em 11/11: Josth e Anezia.
+    try {
+      const meuEmailD = String(e.auth.get('email') || '').toLowerCase()
+      if (ehDono && meuEmailD !== 'anezia@haisan.com.br' && meuEmailD.indexOf('josth') < 0) {
+        ehDono = false
+      }
+    } catch (eDn) {}
+
     // dono vê todas as empresas ativas
     var todas = []
     try {
@@ -157,6 +167,14 @@ routerAdd(
       }
     } catch (e0) {}
 
+    // 13/11: mesma regra de dono da rota acima
+    try {
+      const meuEmailA = String(e.auth.get('email') || '').toLowerCase()
+      if (ehDono && meuEmailA !== 'anezia@haisan.com.br' && meuEmailA.indexOf('josth') < 0) {
+        ehDono = false
+      }
+    } catch (eDa) {}
+
     var pedida = ''
     try {
       pedida = String(e.request.header.get('X-Empresa') || '')
@@ -166,6 +184,9 @@ routerAdd(
     }
 
     var ativa = pedida
+    // 13/11: sem header, vale a empresa do grant da pessoa (antes caía na
+    // primeira empresa ativa — a Haisan — para qualquer um)
+    if (ativa === '' && ids.length > 0) ativa = ids[0]
     if (ativa === '') {
       try {
         const es = app.findRecordsByFilter('empresas', 'ativa=true', '', 1, 0)

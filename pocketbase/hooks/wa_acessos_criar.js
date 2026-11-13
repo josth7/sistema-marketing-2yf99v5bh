@@ -149,6 +149,9 @@ routerAdd(
         'request_analysis',
       ],
       financeiro: ['read_metrics', 'read_reports'],
+      // 13/11 (pedido da gestão): agência de marketing vê só campanhas e
+      // métricas — sem leads, conversas, análises da gestão nem relatórios
+      agencia: ['read_metrics', 'read_alerts'],
       gestao: [
         'read_metrics',
         'read_leads',
@@ -173,8 +176,8 @@ routerAdd(
     if (!CARGOS[cargo]) {
       return e.json(400, {
         ok: false,
-        erro: 'cargo inválido — use vendedor, marketing, financeiro ou gestao',
-        cargos: ['vendedor', 'marketing', 'financeiro', 'gestao'],
+        erro: 'cargo inválido — use vendedor, marketing, financeiro, agencia ou gestao',
+        cargos: ['vendedor', 'marketing', 'financeiro', 'agencia', 'gestao'],
       })
     }
     const acoes = CARGOS[cargo]
@@ -193,7 +196,9 @@ routerAdd(
     } catch (e2) {}
 
     // ---------- 1. conta com senha provisória ----------
-    const SENHA = 'Haisan@2026'
+    // 13/11: a senha provisória era a mesma para todo mundo e estava escrita
+    // aqui. Agora é aleatória por pessoa (a tela continua mostrando).
+    const SENHA = 'Hs' + $security.randomString(10) + '#7'
     var pessoa = null
     try {
       const u = new Record(colU)
@@ -216,6 +221,9 @@ routerAdd(
       g.set('actions', JSON.stringify(acoes))
       g.set('scope_accounts', JSON.stringify(escopo))
       g.set('scope_channels', JSON.stringify([]))
+      // 13/11 (vazamento Gol 7): a pessoa nasce na empresa de quem cadastrou.
+      // Antes nascia sem empresa e o cron colocava a Haisan.
+      g.set('empresa', empresaAtiva)
       g.set('valid_from', '')
       // validade da senha provisória: 72h (o grant não expira)
       g.set('valid_until', '')

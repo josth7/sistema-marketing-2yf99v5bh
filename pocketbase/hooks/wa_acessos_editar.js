@@ -362,6 +362,8 @@ routerAdd(
         novo.set('actions', JSON.stringify(limpas))
         novo.set('scope_accounts', JSON.stringify(escopo === 'todos' ? ['*'] : []))
         novo.set('scope_channels', JSON.stringify([]))
+        // 13/11: grant novo nasce na empresa de quem está editando
+        novo.set('empresa', empresaAtiva)
         novo.set('valid_from', '')
         novo.set('valid_until', String(body.validade || '').slice(0, 10))
         novo.set('approved_by', e.auth.id)

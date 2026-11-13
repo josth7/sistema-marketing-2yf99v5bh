@@ -513,6 +513,7 @@ export default function Acessos() {
                     Marketing — painel, critérios, alertas, relatórios
                   </option>
                   <option value="financeiro">Financeiro — painel e relatórios</option>
+                  <option value="agencia">Agência — só campanhas e métricas</option>
                   <option value="gestao">Gestão — tudo, inclusive acessos</option>
                 </select>
               </div>

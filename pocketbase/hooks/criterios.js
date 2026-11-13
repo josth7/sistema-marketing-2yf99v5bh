@@ -301,6 +301,14 @@ routerAdd(
     if (body.responsible_user !== undefined)
       rec.set('responsible_user', body.responsible_user || null)
 
+    // 13/11 (vazamento Gol 7): o critério nasce na empresa de quem cria.
+    // Antes nascia sem empresa e o cron carimbava Haisan em tudo.
+    try {
+      if (empresaAtiva !== '' && String(rec.get('empresa') || '') === '') {
+        rec.set('empresa', empresaAtiva)
+      }
+    } catch (eEmpC) {}
+
     let hist = []
     try {
       const h = rec.get('history')

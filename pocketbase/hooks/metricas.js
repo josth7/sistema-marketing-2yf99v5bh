@@ -59,6 +59,19 @@ routerAdd(
     } catch (eEmpW) {}
 
     if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+    // 13/11 (vazamento Gol 7): só o dono (Josth/Anezia) troca de empresa pelo
+    // header; quem tem `*` de gestão fica na empresa do próprio grant
+    try {
+      const emD = String(e.auth.get('email') || '').toLowerCase()
+      const donoD = emD === 'anezia@haisan.com.br' || emD.indexOf('josth') >= 0
+      if (!donoD && empresaAtiva !== '' && empGrantW.indexOf(empresaAtiva) < 0) {
+        return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+      }
+    } catch (eDn) {}
+    if (empresaAtiva === '') {
+      return e.json(403, { ok: false, erro: 'sem empresa definida para este acesso' })
+    }
     const hoje = new Date().toISOString().slice(0, 10)
     const colG = $app.findCollectionByNameOrId('access_grants')
     const meus = $app.findRecordsByFilter(
@@ -131,7 +144,14 @@ routerAdd(
       })
     }
     const colM = $app.findCollectionByNameOrId('metricas_diarias')
-    const registros = $app.findRecordsByFilter(colM, '', '-data', 500, 0)
+    // 13/11: antes lia as métricas de TODAS as empresas
+    const registros = $app.findRecordsByFilter(
+      colM,
+      "empresa='" + String(empresaAtiva).replace(/'/g, '') + "'",
+      '-data',
+      500,
+      0,
+    )
     const itens = []
     for (const m of registros) {
       if (!temTudo) {

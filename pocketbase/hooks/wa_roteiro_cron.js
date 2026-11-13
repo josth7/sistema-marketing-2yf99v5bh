@@ -753,6 +753,13 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 break
               }
             }
+            // 13/11 (gestão): guarda a linha escolhida para a pergunta de
+            // necessidade só oferecer o que serve para ela
+            if (linhaA) {
+              try {
+                cv.set('linha', linhaA.chave)
+              } catch (eLn) {}
+            }
             if (!linhaA && etapaAtual === 'menu_r') {
               // 2ª resposta que o robô não entende: passa para o vendedor, como o
               // agente antigo fazia com o que fugia do roteiro (antes repetia o
@@ -868,11 +875,32 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               // o "filtrar conversa" que a gestão pediu.
               novoEtapa = 'e3c'
               motivo = 'confirmar_necessidade'
+              // 13/11 (gestão): quem disse "barbearia" não recebe "maca" nem
+              // "manicure". As opções seguem a linha do menu; sem linha
+              // guardada (conversa antiga), vale a pergunta completa.
+              var linhaCv = ''
+              try {
+                linhaCv = String(cv.get('linha') || '')
+              } catch (eLc) {}
+              const OPC_LINHA = {
+                barbearia: '*poltrona/cadeira*, *lavatório* ou *espelho e recepção*',
+                salao:
+                  '*poltrona/cadeira*, *lavatório*, *móvel para manicure* ou *espelho e recepção*',
+                podologia: '*maca*, *poltrona/cadeira* ou *recepção*',
+                manicure: '*móvel para manicure*, *poltrona/cadeira* ou *espelho e recepção*',
+              }
               respostas = [
-                tx(
-                  'confirma_necessidade',
-                  'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de *poltrona/cadeira*, *lavatório*, *maca*, *móvel para manicure* ou *espelho e recepção*?',
-                ),
+                OPC_LINHA[linhaCv]
+                  ? tx(
+                      'confirma_necessidade_' + linhaCv,
+                      'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de ' +
+                        OPC_LINHA[linhaCv] +
+                        '?',
+                    )
+                  : tx(
+                      'confirma_necessidade',
+                      'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de *poltrona/cadeira*, *lavatório*, *maca*, *móvel para manicure* ou *espelho e recepção*?',
+                    ),
               ]
             }
           } else if (etapaAtual === 'e3c') {
@@ -901,11 +929,29 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               respostas = [TXT_CONSULTOR, HORARIO]
             } else {
               motivo = 'necessidade_nao_entendida'
+              // 13/11: a repergunta também segue a linha do menu
+              var linhaCv2 = ''
+              try {
+                linhaCv2 = String(cv.get('linha') || '')
+              } catch (eLc2) {}
+              const OPC_LINHA2 = {
+                barbearia: '*poltronas*, *lavatórios* ou *espelho e recepção*',
+                salao: '*poltronas*, *lavatórios*, *móveis de manicure* ou *recepção*',
+                podologia: '*macas*, *poltronas* ou *recepção*',
+                manicure: '*móveis de manicure*, *poltronas* ou *recepção*',
+              }
               respostas = [
-                tx(
-                  'necessidade_nao_entendida',
-                  'Sem problema! 😊 Você quer ver *poltronas*, *lavatórios*, *macas*, *móveis de manicure* ou *recepção*? Qualquer uma dessas eu já te encaminho.',
-                ),
+                OPC_LINHA2[linhaCv2]
+                  ? tx(
+                      'necessidade_nao_entendida_' + linhaCv2,
+                      'Sem problema! 😊 Você quer ver ' +
+                        OPC_LINHA2[linhaCv2] +
+                        '? Qualquer uma dessas eu já te encaminho.',
+                    )
+                  : tx(
+                      'necessidade_nao_entendida',
+                      'Sem problema! 😊 Você quer ver *poltronas*, *lavatórios*, *macas*, *móveis de manicure* ou *recepção*? Qualquer uma dessas eu já te encaminho.',
+                    ),
               ]
             }
           } else if (etapaAtual === 'e5' || etapaAtual === 'manut1') {

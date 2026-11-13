@@ -53,6 +53,18 @@ routerAdd('GET', '/backend/v1/analises', (e) => {
   } catch (eEmpW) {}
 
   if (!e.auth) return e.json(401, { ok: false, erro: 'autenticação obrigatória' })
+
+  // 13/11 (vazamento Gol 7): só o dono troca de empresa pelo header
+  try {
+    const emD = String(e.auth.get('email') || '').toLowerCase()
+    const donoD = emD === 'anezia@haisan.com.br' || emD.indexOf('josth') >= 0
+    if (!donoD && empresaAtiva !== '' && empGrantW.indexOf(empresaAtiva) < 0) {
+      return e.json(403, { ok: false, erro: 'sem acesso a esta empresa' })
+    }
+  } catch (eDn) {}
+  if (empresaAtiva === '') {
+    return e.json(403, { ok: false, erro: 'sem empresa definida para este acesso' })
+  }
   const app = $app
   const parseTol = function (raw) {
     try {
@@ -107,7 +119,14 @@ routerAdd('GET', '/backend/v1/analises', (e) => {
     return e.json(403, { ok: false, erro: 'sem permissão de read_analyses' })
   }
   const colA = app.findCollectionByNameOrId('analyses')
-  const registros = app.findRecordsByFilter(colA, '', '-created', 100, 0)
+  // 13/11: antes listava as análises de TODAS as empresas
+  const registros = app.findRecordsByFilter(
+    colA,
+    "empresa='" + String(empresaAtiva).replace(/'/g, '') + "'",
+    '-created',
+    100,
+    0,
+  )
   const itens = []
   for (const a of registros) {
     if (!temTudo) {
