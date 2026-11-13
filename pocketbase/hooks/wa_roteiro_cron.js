@@ -226,8 +226,11 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           }
         } catch (eG) {}
         if (!vd || gt) continue
-        vendedores.push({ id: u.id, email: em.toLowerCase(), nome: nm, carga: carga[u.id] || 0 })
+        vendedores.push({ id: u.id, nome: nm || em, carga: carga[u.id] || 0 })
       }
+      vendedores.sort(function (a, b) {
+        return a.carga - b.carga
+      })
     } catch (e1) {}
 
     var cxsVend = []
@@ -235,87 +238,17 @@ cronAdd('wa_roteiro', '* * * * *', () => {
       cxsVend = $app.findRecordsByFilter(colCx, "papel='vendedor' && ativo=true", '', 20, 0)
     } catch (e2) {}
 
-    // 12/11 (cliente recebeu "direcionado para rodrigo@adapta.org"): o nome
-    // anunciado vinha de uma lista própria (menor carga, qualquer conta com
-    // read_leads; nome vazio caía no e-mail). A transferência real usa outra
-    // regra (só vendedor com conexão ativa, ordem fixa em ciclo) e deu o lead
-    // ao Fábio. Agora o robô anuncia o MESMO vendedor que o ponto único
-    // (`whatsapp_transferencias`) vai escolher: só quem tem conexão de
-    // vendedor ativa, na ordem fixa, o próximo depois do último rodízio
-    // concluído. Nunca mostra e-mail ao cliente.
-    try {
-      const comCx = []
-      for (const v of vendedores) {
-        var cxV = null
-        for (const c of cxsVend) {
-          if (String(c.get('vendedor_user') || '') === v.id) cxV = c
-        }
-        if (!cxV) continue
-        const pubV = String(cxV.get('vendedor_nome_publico') || '')
-        v.nome = pubV !== '' ? pubV : String(v.nome || '')
-        if (v.nome.indexOf('@') >= 0) v.nome = ''
-        v.cx = cxV
-        comCx.push(v)
-      }
-      const ORDEM_FIXA_R = [
-        'adriana@haisan.com.br',
-        'douglasrenato@haisan.com.br',
-        'elisangela@haisan.com.br',
-        'fabio@haisan.com.br',
-      ]
-      const ordemR = []
-      for (const em2 of ORDEM_FIXA_R) {
-        for (const v of comCx) {
-          if (v.email === em2) ordemR.push(v)
-        }
-      }
-      for (const v of comCx) {
-        if (ordemR.indexOf(v) < 0) ordemR.push(v)
-      }
-      var ultimoR = ''
-      try {
-        const antR = $app.findRecordsByFilter(
-          $app.findCollectionByNameOrId('whatsapp_transferencias'),
-          "regra='rodizio' && estado='concluida'",
-          '',
-          400,
-          0,
-        )
-        var maiorR = ''
-        for (const t of antR) {
-          const vR = String(t.get('vendedor_user') || '')
-          const qR = String(t.get('created') || '')
-          if (vR === '' || qR === '') continue
-          if (qR > maiorR) {
-            maiorR = qR
-            ultimoR = vR
-          }
-        }
-      } catch (eUltR) {}
-      vendedores = ordemR
-      if (ordemR.length > 0 && ultimoR !== '') {
-        var posR = -1
-        for (var iR = 0; iR < ordemR.length; iR++) {
-          if (ordemR[iR].id === ultimoR) posR = iR
-        }
-        if (posR >= 0) vendedores = ordemR.slice(posR + 1).concat(ordemR.slice(0, posR + 1))
-      }
-    } catch (eOrdR) {
-      vendedores = []
-    }
-
     if (vendedores.length > 0) {
       consultor.id = vendedores[0].id
       consultor.nome = vendedores[0].nome
-      const nd = String((vendedores[0].cx ? vendedores[0].cx.get('numero') : '') || '').replace(
-        /[^0-9]/g,
-        '',
-      )
-      if (nd.length === 13 || nd.length === 12) consultor.digitos = nd
-      if (nd.length === 13)
-        consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 9) + '-' + nd.slice(9)
-      else if (nd.length === 12)
-        consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 8) + '-' + nd.slice(8)
+      for (const c of cxsVend) {
+        if (String(c.get('vendedor_user') || '') !== consultor.id) continue
+        const nd = String(c.get('numero') || '').replace(/[^0-9]/g, '')
+        if (nd.length === 13)
+          consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 9) + '-' + nd.slice(9)
+        else if (nd.length === 12)
+          consultor.numero = '(' + nd.slice(2, 4) + ') ' + nd.slice(4, 8) + '-' + nd.slice(8)
+      }
     }
 
     // ---------- conversas da central em triagem ----------
@@ -393,6 +326,14 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         try {
           // vinculo por conexao + telefone: whatsapp_mensagens NAO tem campo
           // `conversa` (era a causa do "invalid filter expression", 03/11)
+          // BUG CORRIGIDO (13/11): o limite era 12 e o PocketBase, SEM sort,
+          // devolve os registros MAIS ANTIGOS. Numa conversa com mais de 12
+          // mensagens (a do teste tinha 13+), `ultimas[0]` depois de ordenar em
+          // JS continuava sendo uma mensagem velha — e o robô decidia com base
+          // no texto errado, parando de responder. Era o "atendimento parou no
+          // 2" do print de 13/11.
+          // Agora leio MAIS mensagens (120) e ordeno em JS: a mais recente
+          // entra sempre.
           ultimas = $app.findRecordsByFilter(
             colMsg,
             "conexao='" +
@@ -401,7 +342,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               String(cv.get('contato_telefone') || '') +
               "'",
             '',
-            12,
+            120,
             0,
           )
         } catch (e4) {
@@ -450,12 +391,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         // dele que o cliente tem de receber na transferência — e não o vendedor
         // de menor carga neste minuto (antes o cliente ouvia um nome e o lead
         // ficava com outro vendedor).
-        var cons = {
-          id: consultor.id,
-          nome: consultor.nome,
-          numero: consultor.numero,
-          digitos: consultor.digitos || '',
-        }
+        var cons = { id: consultor.id, nome: consultor.nome, numero: consultor.numero }
         if (lead && String(lead.get('owner_id') || '') !== '') {
           const donoId = String(lead.get('owner_id'))
           var donoNome = ''
@@ -479,9 +415,8 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             else if (ndd.length === 12)
               donoNumero = '(' + ndd.slice(2, 4) + ') ' + ndd.slice(4, 8) + '-' + ndd.slice(8)
           }
-          // 12/11: nunca anunciar e-mail; dono sem nome público vira "nosso time"
-          if (donoNome.indexOf('@') >= 0) donoNome = ''
-          cons = { id: donoId, nome: donoNome, numero: donoNumero, digitos: donoDigitos }
+          if (donoNome !== '')
+            cons = { id: donoId, nome: donoNome, numero: donoNumero, digitos: donoDigitos }
         }
 
         // ---------- SPAM: nunca responde ----------
@@ -661,14 +596,10 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             digitosVend +
             '?text=' +
             encodeURIComponent(
-              'Oi' +
-                (String(cons.nome || '').split(' ')[0] !== ''
-                  ? ', ' + String(cons.nome || '').split(' ')[0]
-                  : '') +
-                '! Vim do atendimento da Haisan',
+              'Oi, ' + String(cons.nome || '').split(' ')[0] + '! Vim do atendimento da Haisan',
             )
         }
-        const TXT_CONSULTOR_BASE = (
+        const TXT_CONSULTOR = (
           linkVendedor !== ''
             ? tx(
                 'transferencia_consultor',
@@ -685,20 +616,6 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           .join(cons.numero || '')
           .split('{link}')
           .join(linkVendedor)
-        // 11/11 (teste da gestão: 20 min sem a mensagem do vendedor): a
-        // apresentação automática (`wa_apresentacao_cron`) só dispara quando a
-        // frase de transferência tem o link wa.me do vendedor. A tela
-        // Atendimento só ensinava {nome} e {numero}, e o texto salvo ficou sem
-        // link — a apresentação nunca saía. Sem {link} no texto, o link vai
-        // numa linha no fim (o cliente também pode tocar e chamar o vendedor).
-        const TXT_CONSULTOR =
-          linkVendedor !== '' && TXT_CONSULTOR_BASE.indexOf('wa.me/') < 0
-            ? TXT_CONSULTOR_BASE +
-              '\n👉 Fala direto com ' +
-              (String(cons.nome || '').split(' ')[0] || 'o vendedor') +
-              ' por aqui: ' +
-              linkVendedor
-            : TXT_CONSULTOR_BASE
 
         if (contem(texto, SINAIS_HUMANO)) {
           novoEtapa = 'humano'
@@ -752,13 +669,6 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 linhaA = LINHAS[l2]
                 break
               }
-            }
-            // 13/11 (gestão): guarda a linha escolhida para a pergunta de
-            // necessidade só oferecer o que serve para ela
-            if (linhaA) {
-              try {
-                cv.set('linha', linhaA.chave)
-              } catch (eLn) {}
             }
             if (!linhaA && etapaAtual === 'menu_r') {
               // 2ª resposta que o robô não entende: passa para o vendedor, como o
@@ -875,32 +785,11 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               // o "filtrar conversa" que a gestão pediu.
               novoEtapa = 'e3c'
               motivo = 'confirmar_necessidade'
-              // 13/11 (gestão): quem disse "barbearia" não recebe "maca" nem
-              // "manicure". As opções seguem a linha do menu; sem linha
-              // guardada (conversa antiga), vale a pergunta completa.
-              var linhaCv = ''
-              try {
-                linhaCv = String(cv.get('linha') || '')
-              } catch (eLc) {}
-              const OPC_LINHA = {
-                barbearia: '*poltrona/cadeira*, *lavatório* ou *espelho e recepção*',
-                salao:
-                  '*poltrona/cadeira*, *lavatório*, *móvel para manicure* ou *espelho e recepção*',
-                podologia: '*maca*, *poltrona/cadeira* ou *recepção*',
-                manicure: '*móvel para manicure*, *poltrona/cadeira* ou *espelho e recepção*',
-              }
               respostas = [
-                OPC_LINHA[linhaCv]
-                  ? tx(
-                      'confirma_necessidade_' + linhaCv,
-                      'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de ' +
-                        OPC_LINHA[linhaCv] +
-                        '?',
-                    )
-                  : tx(
-                      'confirma_necessidade',
-                      'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de *poltrona/cadeira*, *lavatório*, *maca*, *móvel para manicure* ou *espelho e recepção*?',
-                    ),
+                tx(
+                  'confirma_necessidade',
+                  'Perfeito! 😊 Para eu te passar a pessoa certa, me conta: você precisa de *poltrona/cadeira*, *lavatório*, *maca*, *móvel para manicure* ou *espelho e recepção*?',
+                ),
               ]
             }
           } else if (etapaAtual === 'e3c') {
@@ -929,29 +818,11 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               respostas = [TXT_CONSULTOR, HORARIO]
             } else {
               motivo = 'necessidade_nao_entendida'
-              // 13/11: a repergunta também segue a linha do menu
-              var linhaCv2 = ''
-              try {
-                linhaCv2 = String(cv.get('linha') || '')
-              } catch (eLc2) {}
-              const OPC_LINHA2 = {
-                barbearia: '*poltronas*, *lavatórios* ou *espelho e recepção*',
-                salao: '*poltronas*, *lavatórios*, *móveis de manicure* ou *recepção*',
-                podologia: '*macas*, *poltronas* ou *recepção*',
-                manicure: '*móveis de manicure*, *poltronas* ou *recepção*',
-              }
               respostas = [
-                OPC_LINHA2[linhaCv2]
-                  ? tx(
-                      'necessidade_nao_entendida_' + linhaCv2,
-                      'Sem problema! 😊 Você quer ver ' +
-                        OPC_LINHA2[linhaCv2] +
-                        '? Qualquer uma dessas eu já te encaminho.',
-                    )
-                  : tx(
-                      'necessidade_nao_entendida',
-                      'Sem problema! 😊 Você quer ver *poltronas*, *lavatórios*, *macas*, *móveis de manicure* ou *recepção*? Qualquer uma dessas eu já te encaminho.',
-                    ),
+                tx(
+                  'necessidade_nao_entendida',
+                  'Sem problema! 😊 Você quer ver *poltronas*, *lavatórios*, *macas*, *móveis de manicure* ou *recepção*? Qualquer uma dessas eu já te encaminho.',
+                ),
               ]
             }
           } else if (etapaAtual === 'e5' || etapaAtual === 'manut1') {
@@ -1120,46 +991,6 @@ cronAdd('wa_roteiro', '* * * * *', () => {
             }
           } catch (eOwn) {}
         }
-        // ---------- 11/11: aviso de horário SÓ fora do expediente ----------
-        // Relato da gestão (11/11, 13h28 de quarta): a central mandou "Nossa
-        // equipe comercial está disponível de segunda a sexta, das 8h às
-        // 17h30…" em pleno horário comercial. O texto `horario` ia junto de
-        // TODA transferência. Agora ele só sai fora do expediente do painel
-        // (dias + hora_inicio/hora_fim; padrão seg–sex 08:00–17:30, Brasília).
-        var foraExpediente = false
-        try {
-          var agBRh = new Date(new Date().getTime() - 3 * 3600 * 1000)
-          var hmH =
-            String(agBRh.getUTCHours()).padStart(2, '0') +
-            ':' +
-            String(agBRh.getUTCMinutes()).padStart(2, '0')
-          var diasH = [1, 2, 3, 4, 5]
-          var iniH = '08:00'
-          var fimH = '17:30'
-          if (cfg) {
-            try {
-              const rawDH = cfg.get('dias')
-              const dP =
-                Array.isArray(rawDH) && rawDH.length > 0 && typeof rawDH[0] === 'number'
-                  ? JSON.parse(String.fromCharCode.apply(null, rawDH))
-                  : typeof rawDH === 'string'
-                    ? JSON.parse(rawDH)
-                    : rawDH
-              if (Array.isArray(dP) && dP.length > 0) diasH = dP
-            } catch (eDH) {}
-            if (String(cfg.get('hora_inicio') || '') !== '') iniH = String(cfg.get('hora_inicio'))
-            if (String(cfg.get('hora_fim') || '') !== '') fimH = String(cfg.get('hora_fim'))
-          }
-          foraExpediente = diasH.indexOf(agBRh.getUTCDay()) < 0 || hmH < iniH || hmH > fimH
-        } catch (eFH) {}
-        if (!foraExpediente) {
-          var semHorario = []
-          for (var rH = 0; rH < respostas.length; rH++) {
-            if (respostas[rH] !== HORARIO) semHorario.push(respostas[rH])
-          }
-          respostas = semHorario
-        }
-
         // ---------- enfileira (so quando o envio estiver ligado) ----------
         var enfileirados = 0
         for (var k = 0; k < respostas.length; k++) {
