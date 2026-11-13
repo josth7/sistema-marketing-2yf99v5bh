@@ -333,6 +333,50 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
         $app.save(env)
       } catch (e8) {}
 
+      // DEFEITO CORRIGIDO (13/11): a mensagem enviada NAO era gravada no
+      // historico da conversa. Quem fazia isso era o webhook no evento
+      // `messages.sent` — e a D-API NAO envia esse evento (confirmado: 0 em
+      // 430+ eventos de hoje). Resultado: o vendedor abria a tela de Conversas
+      // e via APENAS as mensagens do cliente, nunca o que o robo respondeu.
+      // Agora a propria fila grava a saida usando o `wa_message_id` (dedupe).
+      try {
+        const colMsgF = $app.findCollectionByNameOrId('whatsapp_mensagens')
+        var jaTem = false
+        if (idEnviado !== '') {
+          try {
+            const exM = $app.findRecordsByFilter(
+              colMsgF,
+              "wa_message_id='" + idEnviado.replace(/'/g, '') + "'",
+              '',
+              1,
+              0,
+            )
+            if (exM && exM.length > 0) jaTem = true
+          } catch (eJa) {}
+        }
+        if (!jaTem) {
+          const motivoM = String(env.get('motivo') || '')
+          var autorM = 'sistema'
+          if (motivoM.indexOf('ia_') === 0) autorM = 'ia'
+          else if (motivoM.indexOf('vendedor_') === 0) autorM = 'vendedor'
+          else if (motivoM === 'aviso_cliente') autorM = 'equipe_central'
+          const m = new Record(colMsgF)
+          m.set('conexao', String(env.get('conexao') || ''))
+          m.set('contato_telefone', String(env.get('destino_telefone') || ''))
+          m.set('direcao', 'saida')
+          m.set('autor', autorM)
+          m.set('texto', String(env.get('texto') || '').slice(0, 4000))
+          m.set('status', 'enviado')
+          try {
+            m.set('wa_message_id', idEnviado)
+          } catch (eWid) {}
+          try {
+            m.set('fixture', ehFixture)
+          } catch (eFix) {}
+          $app.save(m)
+        }
+      } catch (eMsgF) {}
+
       // CA-3-70 (05/11) — AO ENVIAR, A CONVERSA PASSA A "RESPONDIDA".
       // Antes disto só o webhook atualizava `ultimo_autor`, e quando o evento
       // de volta não chegava a conversa continuava marcada como "não lida"
