@@ -19,6 +19,7 @@
  * coleções passam a `null` = só superusuário pela API; o acesso das pessoas
  * continua pelas rotas `/backend/v1/...`, que já filtram por empresa e grant.
  * Não apaga nem altera nenhum registro.
+ * (Reenvio 16/11: a 1ª tentativa de subir esta migração pegou 502 da Skip Cloud.)
  */
 migrate(
   (app) => {

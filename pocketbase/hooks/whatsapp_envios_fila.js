@@ -448,7 +448,7 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
     // 16/11: o 5xx também guarda a RESPOSTA da D-API (mascarada), igual ao 4xx.
     // Antes ficava só "dapi_http_5xx" e não dava para saber por que a
     // apresentação pelo número do vendedor era recusada. O log leva até 240
-    // caracteres; o campo, 60. Telefone e token nunca entram.
+    // caracteres; o campo, 60. Telefone e token nunca entram. (reenvio 16/11)
     var motivo5xx = status === 429 ? 'dapi_http_429' : 'dapi_http_5xx'
     try {
       var limpo5 = corpoResp
