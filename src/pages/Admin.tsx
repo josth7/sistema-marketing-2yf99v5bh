@@ -217,7 +217,10 @@ export default function Admin() {
           texto = String(qualquer.data.erro || '')
           if (qualquer.data.detalhe) texto += ' — ' + String(qualquer.data.detalhe)
         }
-      } catch (eLer) {}
+      } catch (eLer) {
+        // leitura da resposta falhou (corpo nao-JSON): segue com a mensagem
+        // de erro original, que ja vem em `e`
+      }
       if (texto === '') texto = e instanceof Error ? e.message : String(e)
       setErroApres(texto)
     }
