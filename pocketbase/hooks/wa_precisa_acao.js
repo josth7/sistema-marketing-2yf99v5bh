@@ -112,7 +112,8 @@ routerAdd(
     try {
       fila = app.findRecordsByFilter(
         app.findCollectionByNameOrId('precisa_acao'),
-        'resolvido=false && fixture=false',
+        'resolvido=false && fixture=false' +
+          (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         4000,
         0,

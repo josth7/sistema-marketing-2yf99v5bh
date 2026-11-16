@@ -184,7 +184,7 @@ routerAdd(
     try {
       convs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('whatsapp_conversas'),
-        'fixture=false',
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         8000,
         0,

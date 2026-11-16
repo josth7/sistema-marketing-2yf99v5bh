@@ -125,7 +125,7 @@ routerAdd(
     try {
       leads = app.findRecordsByFilter(
         app.findCollectionByNameOrId('crm_leads'),
-        'fixture=false',
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
         '',
         6000,
         0,

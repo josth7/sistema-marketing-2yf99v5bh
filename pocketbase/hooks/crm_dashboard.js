@@ -120,7 +120,9 @@ routerAdd(
     const colL = $app.findCollectionByNameOrId('crm_leads')
     const leads = $app.findRecordsByFilter(
       colL,
-      'fixture=' + (ehFixture ? 'true' : 'false'),
+      'fixture=' +
+        (ehFixture ? 'true' : 'false') +
+        (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
       '',
       2000,
       0,
@@ -152,7 +154,9 @@ routerAdd(
     const colConv = $app.findCollectionByNameOrId('conversion_events')
     const convsTodas = $app.findRecordsByFilter(
       colConv,
-      'fixture=' + (ehFixture ? 'true' : 'false'),
+      'fixture=' +
+        (ehFixture ? 'true' : 'false') +
+        (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
       '',
       2000,
       0,

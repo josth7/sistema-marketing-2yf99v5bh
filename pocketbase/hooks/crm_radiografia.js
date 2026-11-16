@@ -113,7 +113,13 @@ routerAdd(
     const colL = $app.findCollectionByNameOrId('crm_leads')
     var leads = []
     try {
-      leads = $app.findRecordsByFilter(colL, 'fixture=false', '', 6000, 0)
+      leads = $app.findRecordsByFilter(
+        colL,
+        'fixture=false' + (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
+        '',
+        6000,
+        0,
+      )
     } catch (eL) {}
 
     const status = {}
