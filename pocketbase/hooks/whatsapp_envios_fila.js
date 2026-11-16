@@ -366,7 +366,11 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
           m.set('direcao', 'saida')
           m.set('autor', autorM)
           m.set('texto', String(env.get('texto') || '').slice(0, 4000))
-          m.set('status', 'enviado')
+          // BUG CORRIGIDO (16/11): o select `status` de whatsapp_mensagens aceita
+          // 'enviada' (feminino, com a) — eu gravava 'enviado' e o save era
+          // RECUSADO, com o catch engolindo. Resultado: 0 mensagens de saida no
+          // historico hoje, mesmo com 5 envios aceitos pela D-API.
+          m.set('status', 'enviada')
           try {
             m.set('wa_message_id', idEnviado)
           } catch (eWid) {}
