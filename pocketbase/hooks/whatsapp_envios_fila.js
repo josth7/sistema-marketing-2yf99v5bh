@@ -445,7 +445,24 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
       continue
     }
 
-    env.set('ultimo_erro', status === 429 ? 'dapi_http_429' : 'dapi_http_5xx')
+    // 16/11: o 5xx também guarda a RESPOSTA da D-API (mascarada), igual ao 4xx.
+    // Antes ficava só "dapi_http_5xx" e não dava para saber por que a
+    // apresentação pelo número do vendedor era recusada. O log leva até 240
+    // caracteres; o campo, 60. Telefone e token nunca entram.
+    var motivo5xx = status === 429 ? 'dapi_http_429' : 'dapi_http_5xx'
+    try {
+      var limpo5 = corpoResp
+      limpo5 = limpo5.replace(/[0-9]{10,}/g, '***')
+      limpo5 = limpo5.replace(/"(api[_-]?key|token|authorization)"\s*:\s*"[^"]*"/gi, '"$1":"***"')
+      if (limpo5 !== '') motivo5xx = status + ' ' + limpo5.slice(0, 240)
+    } catch (eLimpo5) {}
+    console.log(
+      'whatsapp_envios_fila: ' +
+        String(env.get('motivo') || '') +
+        ' -> resposta ' +
+        motivo5xx.slice(0, 240),
+    )
+    env.set('ultimo_erro', motivo5xx.slice(0, 60))
     env.set('estado', tentativas >= 3 ? 'erro_definitivo' : 'erro')
     try {
       $app.save(env)
