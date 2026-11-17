@@ -17,6 +17,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Vendas sem valor (04/11).
@@ -133,13 +134,13 @@ export default function VendasSemValor() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Vendas sem valor"
-        descricao="Vendas que ficaram sem o valor registrado. Enquanto estiverem assim, o faturamento e a taxa de conversão ficam menores do que a realidade."
+        subtitulo="Vendas que ficaram sem o valor registrado. Enquanto estiverem assim, o faturamento e a taxa de conversão ficam menores do que a realidade."
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+        <div className="rounded-cartao border bg-muted/40 px-4 py-2 text-sm">
           Faltam <strong>{itens.length}</strong> de {itens.length + preenchidas}
           {preenchidas > 0 && (
             <span className="ml-2 text-emerald-700">

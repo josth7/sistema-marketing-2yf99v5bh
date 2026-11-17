@@ -24,6 +24,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 import pb from '@/lib/pocketbase/client'
 import {
   TIPOS_OBS,
@@ -154,13 +155,13 @@ export default function Concorrentes() {
 
   return (
     <div className="flex-1 p-6 md:p-10 space-y-6">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Concorrentes"
-        descricao="Monitoração manual dos concorrentes — preço, lançamento, promoção e produto observados (sem scraping)."
+        subtitulo="Monitoração manual dos concorrentes — preço, lançamento, promoção e produto observados (sem scraping)."
       />
 
       {user && (
-        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
+        <div className="flex items-center justify-between rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
           <span>
             Conectado como <strong>{user.email}</strong>
           </span>
@@ -207,7 +208,7 @@ export default function Concorrentes() {
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setFiltro('todos')}
-          className={`rounded-lg border px-3 py-1.5 text-sm ${filtro === 'todos' ? 'border-primary bg-primary/5 font-medium' : 'border-border'}`}
+          className={`rounded-cartao border px-3 py-1.5 text-sm ${filtro === 'todos' ? 'border-primary bg-primary/5 font-medium' : 'border-border'}`}
         >
           Todos: <strong>{itens.length}</strong>
         </button>
@@ -215,7 +216,7 @@ export default function Concorrentes() {
           <button
             key={c}
             onClick={() => setFiltro(filtro === c ? 'todos' : c)}
-            className={`rounded-lg border px-3 py-1.5 text-sm ${filtro === c ? 'border-primary bg-primary/5 font-medium' : 'border-border'}`}
+            className={`rounded-cartao border px-3 py-1.5 text-sm ${filtro === c ? 'border-primary bg-primary/5 font-medium' : 'border-border'}`}
           >
             {c}: <strong>{contagem[c] ?? 0}</strong>
           </button>
@@ -226,7 +227,7 @@ export default function Concorrentes() {
       </div>
 
       {msg && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+        <p className="rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           {msg}
         </p>
       )}

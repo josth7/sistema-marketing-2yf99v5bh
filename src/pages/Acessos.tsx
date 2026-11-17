@@ -18,6 +18,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Tela Equipe e acessos (SPEC-3-006, CA-3-30).
@@ -299,9 +300,9 @@ export default function Acessos() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Equipe e acessos"
-        descricao="Quem é quem, o que cada pessoa vê e por qual número de WhatsApp."
+        subtitulo="Quem é quem, o que cada pessoa vê e por qual número de WhatsApp."
       />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -513,7 +514,6 @@ export default function Acessos() {
                     Marketing — painel, critérios, alertas, relatórios
                   </option>
                   <option value="financeiro">Financeiro — painel e relatórios</option>
-                  <option value="agencia">Agência — só campanhas e métricas</option>
                   <option value="gestao">Gestão — tudo, inclusive acessos</option>
                 </select>
               </div>
@@ -579,7 +579,7 @@ export default function Acessos() {
                 value={novaSenha}
                 onChange={(ev) => setNovaSenha(ev.target.value)}
                 placeholder="nova senha (mín. 8)"
-                className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                className="flex-1 rounded-campo border border-input bg-background px-2 py-1 text-xs"
               />
               <Button size="sm" variant="outline" onClick={() => void redefinirSenha()}>
                 Redefinir

@@ -27,6 +27,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { lerErroCustom } from '@/lib/marketing/erros-custom'
@@ -234,13 +235,13 @@ export default function Criterios() {
 
   return (
     <div className="flex-1 p-6 md:p-10 space-y-6">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Critérios de alerta"
-        descricao="Cadastro em rascunho — preparação para o workshop de limiares com a Anézia (22/10). Nenhuma regra nasce aprovada: aprovar exige outro responsável e todos os campos obrigatórios."
+        subtitulo="Cadastro em rascunho — preparação para o workshop de limiares com a Anézia (22/10). Nenhuma regra nasce aprovada: aprovar exige outro responsável e todos os campos obrigatórios."
       />
 
       {user && (
-        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
+        <div className="flex items-center justify-between rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
           <span>
             Logado como <strong>{String(user.email ?? '')}</strong>
             {String(user.email ?? '').startsWith('criterios.fixture.criador') &&
@@ -293,7 +294,7 @@ export default function Criterios() {
       )}
 
       {aviso && (
-        <div className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <div className="rounded-cartao border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           {aviso}
         </div>
       )}
@@ -503,7 +504,7 @@ export default function Criterios() {
               {itens.map((it) => (
                 <div
                   key={it.id}
-                  className="rounded-lg border border-gray-200 bg-white p-4 space-y-2"
+                  className="rounded-cartao border border-gray-200 bg-white p-4 space-y-2"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     {badgeEstado(it.state)}

@@ -10,6 +10,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Conversas esperando resposta (06/11).
@@ -93,9 +94,9 @@ export default function Esperando() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Conversas esperando"
-        descricao="A última mensagem é do cliente e ninguém respondeu. Ordenado de quem espera há mais tempo."
+        subtitulo="A última mensagem é do cliente e ninguém respondeu. Ordenado de quem espera há mais tempo."
       />
 
       {erro && <EstadoErro mensagem={erro} onTentarNovamente={() => void carregar()} />}
@@ -104,25 +105,25 @@ export default function Esperando() {
       {!carregando && !erro && dados && (
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border p-3">
               <p className="text-xs text-muted-foreground">Esperando</p>
               <p className="text-2xl font-semibold">{dados.total}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border p-3">
               <DicaNumero texto="Cliente escreveu e ainda não passou uma hora">
                 <p className="text-xs text-muted-foreground">Até 1h</p>
               </DicaNumero>
               <p className="text-2xl font-semibold">{dados.faixas.ate_1h}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border p-3">
               <p className="text-xs text-muted-foreground">Até 24h</p>
               <p className="text-2xl font-semibold text-amber-600">{dados.faixas.ate_24h}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border p-3">
               <p className="text-xs text-muted-foreground">Até 7 dias</p>
               <p className="text-2xl font-semibold text-red-600">{dados.faixas.ate_7d}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border p-3">
               <DicaNumero texto="Passou de uma semana — o cliente provavelmente já buscou outra empresa">
                 <p className="text-xs text-muted-foreground">Mais de 7 dias</p>
               </DicaNumero>

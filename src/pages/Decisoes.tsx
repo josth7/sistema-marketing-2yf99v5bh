@@ -12,6 +12,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { rotuloEstado } from '@/lib/marketing/decisoes'
@@ -221,13 +222,13 @@ export default function Decisoes() {
 
   return (
     <div className="flex-1 p-6 md:p-10 space-y-6">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Decisões com revisão agendada"
-        descricao="Toda decisão precisa de responsável e data de revisão futura — o servidor recusa decisão sem prazo."
+        subtitulo="Toda decisão precisa de responsável e data de revisão futura — o servidor recusa decisão sem prazo."
       />
 
       {user && (
-        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
+        <div className="flex items-center justify-between rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
           <span>
             Logado como <strong>{String(user.email ?? '')}</strong>
           </span>
@@ -272,13 +273,13 @@ export default function Decisoes() {
       )}
 
       {aviso && (
-        <div className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <div className="rounded-cartao border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           {aviso}
         </div>
       )}
 
       {origemAnalise && (
-        <div className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
+        <div className="flex items-center gap-2 rounded-cartao border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
           <BrainCircuit className="h-4 w-4" aria-hidden="true" />
           Registrando decisão a partir da análise <strong>{origemAnalise}</strong> — a referência
           será gravada na decisão.
@@ -390,7 +391,7 @@ export default function Decisoes() {
               {itens.map((it) => (
                 <div
                   key={it.id}
-                  className="rounded-lg border border-gray-200 bg-white p-4 space-y-2"
+                  className="rounded-cartao border border-gray-200 bg-white p-4 space-y-2"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     {badgeEstado(it.state)}

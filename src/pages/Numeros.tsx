@@ -10,6 +10,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Tela Números — WhatsApp (SPEC-3-005, CA-3-11 e CA-3-17).
@@ -112,9 +113,9 @@ export default function Numeros() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Números do WhatsApp"
-        descricao="Números conectados pela D-API. Nenhum valor de segredo aparece aqui."
+        subtitulo="Números conectados pela D-API. Nenhum valor de segredo aparece aqui."
         acoes={
           <Button size="sm" variant="outline" onClick={() => void carregar()}>
             Atualizar

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Activity, LogIn, RefreshCw, ShieldCheck, ShieldAlert } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { CabecalhoPagina, EstadoCarregando, EstadoErro } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Saúde do canal Maestro↔sistema (SPEC-3-001, card 6b8c8de9, CA-3-01).
@@ -40,7 +41,7 @@ function Cartao(props: {
         ? 'border-amber-300 bg-amber-50'
         : 'border-border bg-white'
   return (
-    <div className={'rounded-lg border p-4 ' + borda}>
+    <div className={'rounded-cartao border p-4 ' + borda}>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {props.titulo}
       </p>
@@ -109,11 +110,11 @@ export default function Saude() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md px-4 py-10">
-        <CabecalhoPagina
+        <CabecalhoTela
           titulo="Saúde do canal"
-          descricao="Estado vivo do canal de análise entre o agente de IA e o sistema"
+          subtitulo="Estado vivo do canal de análise entre o agente de IA e o sistema"
         />
-        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-cartao border border-border bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <LogIn className="h-4 w-4 text-primary" />
             <p className="font-medium">Entrar para ver o estado do canal</p>
@@ -162,9 +163,9 @@ export default function Saude() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Saúde do canal"
-        descricao="Estado vivo do canal assinado entre o agente de IA (Maestro) e o sistema — recusas, consumo e segredo"
+        subtitulo="Estado vivo do canal assinado entre o agente de IA (Maestro) e o sistema — recusas, consumo e segredo"
         acoes={
           <>
             <button
@@ -186,7 +187,7 @@ export default function Saude() {
         }
       />
 
-      <div className="mt-4 mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+      <div className="mt-4 mb-4 rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
         Logado como <strong>{String(user.email ?? '')}</strong>
       </div>
 
@@ -197,7 +198,7 @@ export default function Saude() {
         <>
           <div
             className={
-              'mb-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ' +
+              'mb-4 flex items-center gap-2 rounded-cartao border px-4 py-3 text-sm ' +
               (segredoOk
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
                 : 'border-amber-300 bg-amber-50 text-amber-900')

@@ -7,6 +7,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Análises da IA (SPEC-3-001 + SPEC-3-002, CA-3-02/03/05).
@@ -232,11 +233,11 @@ export default function Analises() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md px-4 py-10">
-        <CabecalhoPagina
+        <CabecalhoTela
           titulo="Análises"
-          descricao="Diagnósticos e pareceres gerados pela IA sobre os períodos fechados"
+          subtitulo="Diagnósticos e pareceres gerados pela IA sobre os períodos fechados"
         />
-        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-cartao border border-border bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <LogIn className="h-4 w-4 text-primary" />
             <p className="font-medium">Entrar para ver as análises</p>
@@ -287,9 +288,9 @@ export default function Analises() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Análises"
-        descricao="Diagnósticos e pareceres gerados pela IA sobre períodos fechados — sempre com a evidência citada"
+        subtitulo="Diagnósticos e pareceres gerados pela IA sobre períodos fechados — sempre com a evidência citada"
         acoes={
           <>
             <button
@@ -318,12 +319,12 @@ export default function Analises() {
         }
       />
 
-      <div className="mt-4 mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+      <div className="mt-4 mb-4 rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
         Logado como <strong>{String(user.email ?? '')}</strong>
       </div>
 
       {avisoPedido && (
-        <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
+        <div className="mb-3 rounded-cartao border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
           {avisoPedido}
         </div>
       )}
@@ -366,7 +367,7 @@ export default function Analises() {
       ) : (
         <div className="space-y-3">
           {itensFiltrados.map((item) => (
-            <div key={item.id} className="rounded-lg border border-border bg-white p-4">
+            <div key={item.id} className="rounded-cartao border border-border bg-white p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">
                   Gerado por IA — validar antes de decidir

@@ -10,6 +10,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Clientes para recontatar (CA-3-47, RN-139, 05/11).
@@ -108,13 +109,13 @@ export default function Recontato() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Clientes para recontatar"
-        descricao="Leads que entraram depois de 31/10 e nunca receberam um oi de um vendedor. Chame pelo WhatsApp e marque como contatado — a lista esvazia conforme você chama."
+        subtitulo="Leads que entraram depois de 31/10 e nunca receberam um oi de um vendedor. Chame pelo WhatsApp e marque como contatado — a lista esvazia conforme você chama."
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+        <div className="rounded-cartao border bg-muted/40 px-4 py-2 text-sm">
           <strong>{itens.length}</strong> cliente(s) esperando o primeiro contato
         </div>
         <Button size="sm" variant="ghost" onClick={() => void carregar()}>

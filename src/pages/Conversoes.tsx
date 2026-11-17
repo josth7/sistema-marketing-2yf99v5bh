@@ -9,6 +9,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Conversões — o que foi enviado para a Meta e para o Google (CA-3-65).
@@ -111,21 +112,21 @@ export default function Conversoes() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Conversões"
-        descricao="Cada venda que foi (ou tentou ir) para a Meta e para o Google, com o estado e o motivo da falha."
+        subtitulo="Cada venda que foi (ou tentou ir) para a Meta e para o Google, com o estado e o motivo da falha."
       />
 
       <div className="flex flex-wrap gap-2">
-        <div className="rounded-lg border px-3 py-2 text-sm">
+        <div className="rounded-cartao border px-3 py-2 text-sm">
           <span className="text-muted-foreground">Pendentes: </span>
           <strong>{contagem.pendente}</strong>
         </div>
-        <div className="rounded-lg border px-3 py-2 text-sm">
+        <div className="rounded-cartao border px-3 py-2 text-sm">
           <span className="text-muted-foreground">Enviadas: </span>
           <strong className="text-emerald-700">{contagem.enviado}</strong>
         </div>
-        <div className="rounded-lg border px-3 py-2 text-sm">
+        <div className="rounded-cartao border px-3 py-2 text-sm">
           <DicaNumero texto="A Meta recusou o evento — o anúncio não recebeu esta venda">
             <span className="text-muted-foreground">Com erro: </span>
           </DicaNumero>

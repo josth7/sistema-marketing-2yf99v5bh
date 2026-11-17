@@ -8,6 +8,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Caixa de entrada (SPEC-2-004, card a70d5ab8, CA-2-11).
@@ -198,11 +199,11 @@ export default function Caixa() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md px-4 py-10">
-        <CabecalhoPagina
+        <CabecalhoTela
           titulo="Caixa de entrada"
-          descricao="Relatórios executivos entregues para você"
+          subtitulo="Relatórios executivos entregues para você"
         />
-        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-cartao border border-border bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <LogIn className="h-4 w-4 text-primary" />
             <p className="font-medium">Entrar para ver sua caixa</p>
@@ -247,9 +248,9 @@ export default function Caixa() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Caixa de entrada"
-        descricao="Relatórios executivos entregues para você"
+        subtitulo="Relatórios executivos entregues para você"
         acoes={
           <>
             <button
@@ -271,7 +272,7 @@ export default function Caixa() {
       />
 
       {user && (
-        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+        <div className="mb-4 rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
           Logado como <strong>{String(user.email ?? '')}</strong>
         </div>
       )}
@@ -291,7 +292,7 @@ export default function Caixa() {
             <div
               key={item.id}
               className={
-                'rounded-lg border bg-white p-4 ' +
+                'rounded-cartao border bg-white p-4 ' +
                 (item.read_at ? 'border-border' : 'border-primary/40')
               }
             >
@@ -417,7 +418,7 @@ export default function Caixa() {
             </div>
             {/* Resumo de IA (SPEC-3-003) — rótulo + registro de revisão + PAINEL DE REVISÃO */}
             {aberto.resumo && (
-              <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <div className="mb-4 rounded-cartao border border-amber-300 bg-amber-50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
                     {aberto.resumo.rotulo}
@@ -484,7 +485,7 @@ export default function Caixa() {
             {typeof aberto.dados.resumo_publicado === 'string' &&
               aberto.dados.resumo_publicado.length > 0 &&
               !aberto.resumo && (
-                <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <div className="mb-4 rounded-cartao border border-amber-300 bg-amber-50 p-3">
                   <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
                     Gerado por IA — validar antes de decidir
                   </span>
@@ -505,7 +506,7 @@ export default function Caixa() {
                 typeof aberto.dados.resumo_publicado === 'string' &&
                 aberto.dados.resumo_publicado.length > 0
               ) && (
-                <p className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+                <p className="mb-4 rounded-cartao border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
                   {aberto.dados.resumo_revisao_registro}
                 </p>
               )}

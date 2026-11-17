@@ -16,6 +16,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Precisa de ação (CA-3-69, RN-134, 05/11).
@@ -139,13 +140,13 @@ export default function PrecisaAcao() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Precisa de ação"
-        descricao="Clientes esperando uma decisão da gestão — hoje, a carteira de quem saiu da empresa. O cliente não troca de mãos sozinho: você escolhe para quem vai."
+        subtitulo="Clientes esperando uma decisão da gestão — hoje, a carteira de quem saiu da empresa. O cliente não troca de mãos sozinho: você escolhe para quem vai."
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+        <div className="rounded-cartao border bg-muted/40 px-4 py-2 text-sm">
           <strong>{itens.length}</strong> cliente(s) esperando decisão
         </div>
         <Button size="sm" variant="ghost" onClick={() => void carregar()}>
@@ -172,7 +173,7 @@ export default function PrecisaAcao() {
         donos.map((k) => {
           const grupo = porDono[k]
           return (
-            <div key={k} className="space-y-2 rounded-lg border p-3">
+            <div key={k} className="space-y-2 rounded-cartao border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="flex items-center gap-2 text-sm font-semibold">
                   {grupo.nome}

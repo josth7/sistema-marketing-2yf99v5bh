@@ -12,6 +12,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Administração — avisos liga/desliga (CA-3-48, SPEC-3-010, 06/11).
@@ -228,9 +229,9 @@ export default function Admin() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Administração"
-        descricao="Liga e desliga os avisos do sistema. Cada alteração vira uma versão com autor e pode ser desfeita."
+        subtitulo="Liga e desliga os avisos do sistema. Cada alteração vira uma versão com autor e pode ser desfeita."
       />
 
       {aviso && (
@@ -251,7 +252,7 @@ export default function Admin() {
           )}
 
           {/* ---------- aviso por e-mail ---------- */}
-          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+          <div className="space-y-3 rounded-cartao border bg-muted/30 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">Aviso por e-mail</p>
@@ -290,7 +291,7 @@ export default function Admin() {
           </div>
 
           {/* ---------- resumo no WhatsApp ---------- */}
-          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+          <div className="space-y-3 rounded-cartao border bg-muted/30 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">Resumo no WhatsApp</p>
@@ -359,7 +360,7 @@ export default function Admin() {
           </div>
 
           {/* ---------- quem responde pelo sistema ---------- */}
-          <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+          <div className="space-y-2 rounded-cartao border bg-muted/30 p-3">
             <p className="text-sm font-semibold">Quem pode responder pelo sistema</p>
             <p className="text-xs text-muted-foreground">
               Libera a pessoa a responder o cliente pela tela Conversas, com texto e mídia.
@@ -384,7 +385,7 @@ export default function Admin() {
           </div>
 
           {/* ---------- apresentação por número (CA-3-80) ---------- */}
-          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+          <div className="space-y-3 rounded-cartao border bg-muted/30 p-3">
             <div>
               <p className="text-sm font-semibold">Apresentação automática do vendedor</p>
               <p className="text-xs text-muted-foreground">

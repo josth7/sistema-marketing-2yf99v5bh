@@ -26,6 +26,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { tickTeste } from '@/lib/marketing/caixa'
@@ -369,12 +370,12 @@ export default function Relatorios() {
 
   return (
     <div className="flex-1 p-6 md:p-10 space-y-6">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Relatório executivo (prévia)"
-        descricao="Resumo factual da quinzena fechada — sem IA; comparação só quando as janelas são comparáveis; nada é enviado nesta fase (envio automático é o próximo card)."
+        subtitulo="Resumo factual da quinzena fechada — sem IA; comparação só quando as janelas são comparáveis; nada é enviado nesta fase (envio automático é o próximo card)."
       />
 
-      <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+      <div className="flex items-start gap-2 rounded-cartao border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Envio automático: <strong>DESATIVADO</strong> — aguarda confirmação do calendário e dos
@@ -390,13 +391,13 @@ export default function Relatorios() {
       </div>
 
       {tickResultado && (
-        <p className="rounded-lg border border-border bg-white px-4 py-2 text-sm">
+        <p className="rounded-cartao border border-border bg-white px-4 py-2 text-sm">
           {tickResultado}
         </p>
       )}
 
       {user && (
-        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
+        <div className="flex items-center justify-between rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
           <span>
             Conectado como <strong>{user.email}</strong>
           </span>
@@ -489,7 +490,7 @@ export default function Relatorios() {
                 {itens.map((it) => (
                   <div
                     key={it.id}
-                    className="rounded-lg border border-gray-200 bg-white p-4 space-y-2"
+                    className="rounded-cartao border border-gray-200 bg-white p-4 space-y-2"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">rascunho</Badge>
@@ -556,7 +557,7 @@ export default function Relatorios() {
                   }
                 />
                 {resumo && (
-                  <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2">
+                  <div className="mt-4 rounded-cartao border border-amber-300 bg-amber-50 p-4 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge className="bg-amber-200 text-amber-900">{resumo.rotulo}</Badge>
                       <Badge variant="secondary">{resumo.estado}</Badge>
@@ -720,7 +721,7 @@ function TemplateRelatorio(props: {
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 p-3">
+        <div className="rounded-cartao border border-gray-200 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Cobertura por fonte
           </p>
@@ -733,7 +734,7 @@ function TemplateRelatorio(props: {
             ))}
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 p-3">
+        <div className="rounded-cartao border border-gray-200 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Comparação com a quinzena anterior
           </p>
@@ -755,7 +756,7 @@ function TemplateRelatorio(props: {
       </div>
 
       {warnings.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="rounded-cartao border border-amber-200 bg-amber-50 p-3">
           <p className="flex items-start gap-1 text-xs text-amber-700">
             <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             {warnings.join(' ')}
@@ -774,7 +775,7 @@ function TemplateRelatorio(props: {
         />
       </div>
 
-      <div className="rounded-lg border border-gray-200 p-3">
+      <div className="rounded-cartao border border-gray-200 p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Decisões em aberto
         </p>
@@ -795,7 +796,7 @@ function TemplateRelatorio(props: {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 p-3">
+      <div className="rounded-cartao border border-gray-200 p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Alertas
         </p>
@@ -811,7 +812,7 @@ function TemplateRelatorio(props: {
 
 function MiniValor(props: { rotulo: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
+    <div className="rounded-cartao border border-gray-200 p-3">
       <p className="text-xs text-muted-foreground">{props.rotulo}</p>
       <p className="text-lg font-semibold">{props.valor}</p>
     </div>

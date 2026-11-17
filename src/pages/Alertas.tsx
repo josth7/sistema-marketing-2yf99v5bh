@@ -14,6 +14,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 import { formatarInteiro, formatarVariacao } from '@/lib/marketing/types'
 
 /**
@@ -135,8 +136,8 @@ export default function Alertas() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md px-4 py-10">
-        <CabecalhoPagina titulo="Alertas" descricao="Fila de análise dos alertas gerados" />
-        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
+        <CabecalhoTela titulo="Alertas" subtitulo="Fila de análise dos alertas gerados" />
+        <div className="rounded-cartao border border-border bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <LogIn className="h-4 w-4 text-primary" />
             <p className="font-medium">Entrar para ver a fila</p>
@@ -182,9 +183,9 @@ export default function Alertas() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Alertas"
-        descricao="Fila de análise dos alertas gerados pelas regras aprovadas — o job diário roda às 06:15 (Brasil) e só avalia janelas fechadas"
+        subtitulo="Fila de análise dos alertas gerados pelas regras aprovadas — o job diário roda às 06:15 (Brasil) e só avalia janelas fechadas"
         acoes={
           <>
             <button
@@ -205,13 +206,13 @@ export default function Alertas() {
         }
       />
 
-      <div className="mt-4 mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+      <div className="mt-4 mb-4 rounded-cartao border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
         Logado como <strong>{String(user.email ?? '')}</strong>
       </div>
 
       {erro && <EstadoErro mensagem={erro} aoTentar={() => void carregar()} />}
       {aviso && !erro && (
-        <div className="mb-4 rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <div className="mb-4 rounded-cartao border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           {aviso}
         </div>
       )}
@@ -226,7 +227,7 @@ export default function Alertas() {
       ) : (
         <div className="space-y-3">
           {itens.map((item) => (
-            <div key={item.id} className="rounded-lg border border-border bg-white p-4">
+            <div key={item.id} className="rounded-cartao border border-border bg-white p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <BadgeEstado estado={item.state} />
                 <span className="text-xs text-muted-foreground">
