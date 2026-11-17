@@ -66,11 +66,88 @@ onRecordAfterCreateSuccess((e) => {
     // dono precisar mudar mesmo (o vendedor passou o lead adiante), quem muda
     // e a gestao pela tela, que tem historico — nao o robo em silencio.
     var donoAnterior = String(lead.get('owner_id') || '')
-    if (donoAnterior !== '' && motivo !== 'manutencao') {
+
+    // ===== CORREÇÃO (17/11, pedido do dono) =====
+    // A trava acima, do jeito que estava, valia para QUALQUER dono. Isso criava
+    // um beco sem saída: lead com dono INVÁLIDO (conta da agência, da GOO7,
+    // marketing — dono que nunca atende) também ficava "protegido", o cron
+    // relia esse dono inválido e marcava o aviso como feito. O lead parava
+    // para sempre, sem chegar a nenhum vendedor.
+    //
+    // Agora a trava só vale quando o dono atual é VENDEDOR ATIVO (tem conexão
+    // papel vendedor ativa). Dono inválido NÃO protege nada: o lead vai para
+    // "Precisa de ação" para a GESTÃO escolher, e o cliente NÃO recebe aviso
+    // automático (ninguém foi anunciado).
+    var donoEhVendedorAtivo = false
+    if (donoAnterior !== '') {
+      try {
+        const cxDono = $app.findRecordsByFilter(
+          $app.findCollectionByNameOrId('whatsapp_conexoes'),
+          "vendedor_user='" + donoAnterior + "' && papel='vendedor' && ativo=true",
+          '',
+          1,
+          0,
+        )
+        donoEhVendedorAtivo = !!(cxDono && cxDono.length > 0)
+      } catch (eDonoCx) {}
+    }
+
+    if (donoAnterior !== '' && !donoEhVendedorAtivo && motivo !== 'manutencao') {
+      // dono que não atende -> Precisa de ação, sem falar com o cliente
+      var jaNaFila = false
+      try {
+        const existentes = $app.findRecordsByFilter(
+          $app.findCollectionByNameOrId('precisa_acao'),
+          "lead_id='" + leadId + "' && resolvido=false",
+          '',
+          1,
+          0,
+        )
+        jaNaFila = !!(existentes && existentes.length > 0)
+      } catch (eFila) {}
+      if (!jaNaFila) {
+        try {
+          const colPA = $app.findCollectionByNameOrId('precisa_acao')
+          const item = new Record(colPA)
+          item.set('lead_id', leadId)
+          item.set('tipo', 'dono_invalido')
+          item.set(
+            'motivo',
+            'Lead com dono que nao atende (' +
+              donoAnterior +
+              '). A gestao deve escolher o vendedor.',
+          )
+          item.set('resolvido', false)
+          item.set('fixture', ehFixture)
+          try {
+            item.set('empresa', String(lead.get('empresa') || ''))
+          } catch (eEmp) {}
+          $app.save(item)
+        } catch (ePA) {
+          console.log('transferencias: nao criei precisa_acao -> ' + String(ePA).slice(0, 120))
+        }
+      }
+      tr.set('estado', 'dono_invalido')
+      tr.set(
+        'detalhe',
+        'dono sem conexao de vendedor (' +
+          donoAnterior +
+          '): enviado a Precisa de acao, cliente NAO foi avisado',
+      )
+      try {
+        $app.save(tr)
+      } catch (eDupInv) {}
+      e.next()
+      return
+    }
+
+    if (donoAnterior !== '' && donoEhVendedorAtivo && motivo !== 'manutencao') {
       tr.set('estado', 'duplicada')
       tr.set(
         'detalhe',
-        'lead ja tinha dono (' + donoAnterior + '): nao troca nem avisa o cliente (trava 17/11)',
+        'lead ja tinha dono VENDEDOR (' +
+          donoAnterior +
+          '): nao troca nem avisa o cliente (trava 17/11)',
       )
       try {
         $app.save(tr)

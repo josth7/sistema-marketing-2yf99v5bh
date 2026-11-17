@@ -87,6 +87,27 @@ cronAdd('wa_aviso_lead_novo', '*/5 * * * *', () => {
       // de "dono inválido" aceitava lead entregue a elas.
       if (email.indexOf('fixture') >= 0) continue
       if (nome.toLowerCase().indexOf('fixture') >= 0) continue
+
+      // ===== TRAVA (17/11) — MESMA REGRA DO RODÍZIO =====
+      // Antes bastava o GRANT de ler leads/conversas para entrar aqui como
+      // "vendedor válido". Em produção isso dava 7 "vendedores" quando os
+      // reais são 4: entravam a conta da agência (consultor), a conta da GOO7 e
+      // a de marketing. Como este cron é quem decide se o dono de um lead é
+      // VÁLIDO, um lead entregue a qualquer uma delas era considerado
+      // "com dono": nunca voltava para a distribuição e NENHUM vendedor o via
+      // no CRM — o lead ficava parado para sempre.
+      //
+      // Agora vale a mesma trava do rodízio: só é vendedor quem tem CONEXÃO
+      // de vendedor ATIVA apontando para ele.
+      const cxDoVendedor = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('whatsapp_conexoes'),
+        "vendedor_user='" + u.id + "' && papel='vendedor' && ativo=true",
+        '',
+        1,
+        0,
+      )
+      if (!cxDoVendedor || cxDoVendedor.length === 0) continue
+
       vendedores.push({ id: u.id, nome: nome || email, email: email })
     }
     console.log('wa_aviso_lead_novo: vendedores validos = ' + vendedores.length)
