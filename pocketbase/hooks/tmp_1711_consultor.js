@@ -1,112 +1,162 @@
 /// <reference path="../pb_data/types.d.ts" />
 /**
- * TEMPORÁRIO (17/11, consultor Adapta) — SÓ LEITURA. Apagar depois de rodar.
+ * TEMPORÁRIO (17/11, consultor Adapta) — apagar depois de rodar.
  *
- * A Meta disse que a empresa "está nos EUA" (erro 130497). Pergunta à D-API,
- * para cada número (central e vendedores), os dados da conexão: WABA, portfólio
- * dono, país, verificação, limite. Só loga campos de identificação/estado —
- * nunca token, chave ou segredo. Roda UMA vez entre 20:41 e 21:00 UTC.
+ * Teste pedido pelo consultor: de CADA número conectado (central + vendedores)
+ * mandar UMA mensagem para o número de teste dele (final 7791) e ver qual
+ * chega:
+ *   - central: TEXTO (o consultor falou com a central hoje: janela aberta);
+ *   - vendedor com `haisan_apresentacao_vendedor`: o MODELO;
+ *   - vendedor sem o modelo: TEXTO.
+ * Os envios entram na fila com motivo `teste_consultor` (a fila manda no
+ * próximo minuto par; a recusa da Meta volta pelo webhook e marca o envio).
+ * 1ª rodada (a partir de 20:43 UTC) cria os envios; 2ª rodada, 5 min depois,
+ * lê o resultado de cada um. Fora de 20:43–21:10 UTC não faz nada.
  */
 cronAdd('tmp_1711_consultor', '* * * * *', () => {
   const agora = new Date().getTime()
-  const ini = new Date('2026-11-17T20:41:00Z').getTime()
-  const fim = new Date('2026-11-17T21:00:00Z').getTime()
+  const ini = new Date('2026-11-17T20:43:00Z').getTime()
+  const fim = new Date('2026-11-17T21:10:00Z').getTime()
   if (agora < ini || agora > fim) return
-  try {
-    if ($app.store().get('tmp1711_v8') === true) return
-    $app.store().set('tmp1711_v8', true)
-  } catch (eSt) {
-    if (new Date().getUTCMinutes() % 10 !== 1) return
-  }
-  const P = 'tmp1711h: '
-  const BOM =
-    /waba|business|phone|country|pais|name|nome|status|quality|limit|verif|tier|account|owner|region|currency|timezone|display|id$/i
-  const RUIM = /token|secret|key|password|senha|auth|cookie|webhook|url/i
+  const P = 'tmp1711i: '
+  const DESTINO = '5511936207791'
 
-  function coleta(obj, prefixo, out, prof) {
-    if (prof > 4 || obj === null || obj === undefined) return
-    if (Array.isArray(obj)) {
-      for (var i = 0; i < obj.length && i < 5; i++)
-        coleta(obj[i], prefixo + '[' + i + ']', out, prof + 1)
-      return
-    }
-    if (typeof obj !== 'object') return
-    for (const k in obj) {
-      const v = obj[k]
-      const nome = prefixo === '' ? k : prefixo + '.' + k
-      if (RUIM.test(k)) continue
-      if (v !== null && typeof v === 'object') {
-        coleta(v, nome, out, prof + 1)
-      } else if (BOM.test(k)) {
-        var s = String(v)
-        if (/^55\d{10,11}$/.test(s.replace(/\D/g, ''))) s = '55***' + s.replace(/\D/g, '').slice(-4)
-        out.push(nome + '=' + s.slice(0, 60))
+  var criados = null
+  try {
+    criados = $app.store().get('tmp1711_v9_ids') || null
+  } catch (eSt) {}
+
+  // ---------- 2ª rodada: lê o resultado ----------
+  if (criados) {
+    var quando = 0
+    try {
+      quando = Number($app.store().get('tmp1711_v9_em') || 0)
+    } catch (eQ) {}
+    if (agora - quando < 5 * 60000) return
+    try {
+      if ($app.store().get('tmp1711_v9_lido') === true) return
+      $app.store().set('tmp1711_v9_lido', true)
+    } catch (eL) {}
+    const ids = String(criados).split(',')
+    for (const par of ids) {
+      const p = par.split('=')
+      try {
+        const en = $app.findRecordById('whatsapp_envios', p[1])
+        console.log(
+          P +
+            'RESULTADO ' +
+            p[0] +
+            ' | estado=' +
+            en.get('estado') +
+            ' | tent=' +
+            en.get('tentativas') +
+            ' | wa_id=' +
+            (String(en.get('wa_message_id') || '') !== '' ? 'sim' : 'nao') +
+            ' | erro=' +
+            String(en.get('ultimo_erro') || '')
+              .replace(/[0-9]{10,}/g, '***')
+              .slice(0, 120),
+        )
+      } catch (eR) {
+        console.log(P + 'RESULTADO ' + p[0] + ' | envio nao achado')
       }
     }
+    return
   }
+
+  // ---------- 1ª rodada: cria um envio por número ----------
+  try {
+    if ($app.store().get('tmp1711_v9') === true) return
+    $app.store().set('tmp1711_v9', true)
+  } catch (eS2) {
+    if (new Date().getUTCMinutes() % 10 !== 3) return
+  }
+  var primeiro = 'tudo bem'
+  try {
+    const ls = $app.findRecordsByFilter('crm_leads', "telefone~'36207791'", '', 1, 0)
+    if (ls.length > 0) {
+      const pn =
+        String(ls[0].get('nome') || '')
+          .trim()
+          .split(/\s+/)[0] || ''
+      if (pn !== '' && !/\d/.test(pn)) primeiro = pn
+    }
+  } catch (eLd) {}
 
   var cxs = []
   try {
     cxs = $app.findRecordsByFilter('whatsapp_conexoes', 'ativo=true && fixture=false', '', 50, 0)
   } catch (eC) {}
+  const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
+  const feitos = []
   for (const c of cxs) {
-    const nomeCx = String(c.get('nome_exibicao') || '') + '/' + String(c.get('papel') || '')
-    const sessao = String(c.get('session_id') || '')
-    var chave = ''
+    const papel = String(c.get('papel') || '')
+    const nome = String(c.get('nome_exibicao') || '') || papel
+    const modelo = String(c.get('modelo_apresentacao_vendedor') || '')
+    // a Elisângela não tem o modelo na conta (lista da D-API, 20:06): vai texto
+    const semModelo = nome.toLowerCase().indexOf('elisangela') >= 0
+    const usaModelo = papel === 'vendedor' && modelo !== '' && !semModelo
+    var nomeV = String(c.get('vendedor_nome_publico') || '').trim()
+    if (nomeV === '') nomeV = nome.split(' ')[0]
     try {
-      chave = String($secrets.get(String(c.get('nome_segredo_chave') || 'DAPI_API_KEY')) || '')
-    } catch (eK) {}
-    if (sessao === '' || chave === '') {
-      console.log(P + nomeCx + ' | sem sessao ou chave')
-      continue
-    }
-    const urls = [
-      'https://api.d-api.cloud/api/v1/connections/cloud-api/' + encodeURIComponent(sessao),
-      'https://api.d-api.cloud/api/v1/connections/' + encodeURIComponent(sessao),
-      'https://api.d-api.cloud/api/v1/connections/cloud-api/' +
-        encodeURIComponent(sessao) +
-        '/profile',
-    ]
-    var achou = false
-    const tentativas = []
-    for (const u of urls) {
-      if (achou) break
-      try {
-        const r = $http.send({
-          url: u,
-          method: 'GET',
-          headers: { Authorization: chave, Accept: 'application/json' },
-          timeout: 20,
-        })
-        const st = Number(r.statusCode || 0)
-        tentativas.push(
-          u.replace('https://api.d-api.cloud/api/v1/', '').replace(sessao, 'S') + '=' + st,
+      const env = new Record(colEnv)
+      env.set('conexao', String(c.id))
+      env.set('destino_telefone', DESTINO)
+      env.set('motivo', 'teste_consultor')
+      env.set('tentativas', 0)
+      env.set('fixture', false)
+      env.set('dedupe_key', 'teste_consultor|' + c.id + '|' + String(agora))
+      env.set('criado_por', '')
+      if (usaModelo) {
+        env.set('modo', 'modelo')
+        env.set('modelo_nome', modelo)
+        env.set('legenda', primeiro + '|' + nomeV)
+        env.set('variaveis', { 1: primeiro, 2: nomeV })
+        env.set('texto', 'TESTE do consultor 17/11: modelo ' + modelo + ' pelo número de ' + nome)
+      } else {
+        env.set('modo', 'texto')
+        env.set(
+          'texto',
+          'Teste de envio pelo número ' + nome + ' (sistema Haisan, 17/11). Pode ignorar.',
         )
-        if (st >= 200 && st < 300) {
-          var corpo = r.body
-          if (Array.isArray(corpo)) corpo = String.fromCharCode.apply(null, corpo)
-          var j = null
-          try {
-            j = JSON.parse(String(corpo))
-          } catch (eP) {}
-          const out = []
-          if (j) coleta(j, '', out, 0)
-          console.log(
-            P +
-              nomeCx +
-              ' | sessao=' +
-              sessao.slice(0, 14) +
-              ' | ' +
-              u.replace('https://api.d-api.cloud/api/v1/', '').replace(sessao, 'S') +
-              ' | ' +
-              out.join(' ; ').slice(0, 1200),
-          )
-          achou = true
-        }
-      } catch (eH) {
-        tentativas.push('erro')
       }
+      env.set('estado', 'pendente')
+      $app.save(env)
+      feitos.push(
+        nome.replace(/[=,]/g, ' ') + (usaModelo ? ' [modelo]' : ' [texto]') + '=' + env.id,
+      )
+    } catch (eE) {
+      console.log(P + 'falhou criar envio de ' + nome + ': ' + String(eE).slice(0, 120))
     }
-    if (!achou) console.log(P + nomeCx + ' | nenhuma rota respondeu: ' + tentativas.join(', '))
   }
+  try {
+    $app.store().set('tmp1711_v9_ids', feitos.join(','))
+    $app.store().set('tmp1711_v9_em', agora)
+  } catch (eS3) {}
+  console.log(P + 'envios de teste criados: ' + feitos.join(' ; '))
+
+  // respostas do robô com erro nos últimos 40 min (HTTP 400 visto às 20:40)
+  try {
+    const desde = new Date(agora - 40 * 60000).toISOString().replace('T', ' ').slice(0, 19)
+    const ers = $app.findRecordsByFilter(
+      'whatsapp_envios',
+      "motivo='ia_resposta' && created>='" +
+        desde +
+        "' && (estado='erro_definitivo' || estado='erro' || estado='bloqueado_horario')",
+      '',
+      30,
+      0,
+    )
+    const cont = {}
+    for (const e of ers) {
+      const k =
+        String(e.get('estado')) +
+        ' | ' +
+        String(e.get('ultimo_erro') || '')
+          .replace(/[0-9]{10,}/g, '***')
+          .slice(0, 90)
+      cont[k] = (cont[k] || 0) + 1
+    }
+    console.log(P + 'ia_resposta com erro (40 min) = ' + ers.length + ' | ' + JSON.stringify(cont))
+  } catch (eIa) {}
 })
