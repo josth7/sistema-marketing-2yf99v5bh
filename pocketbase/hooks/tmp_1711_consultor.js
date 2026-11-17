@@ -2,30 +2,26 @@
 /**
  * TEMPORÁRIO (17/11, consultor Adapta) — apagar depois de rodar.
  *
- * Acompanha as correções de 17/11 (wa_aviso_resposta, whatsapp_transferencias,
- * wa_roteiro_cron). Roda UMA vez entre 19:58 e 20:30 UTC de 17/11/2026:
- *   1. confere, no log, para onde iam as apresentações recusadas;
- *   2. para de tentar as apresentações que iam para o PRÓPRIO número do
- *      vendedor e libera a chave das últimas 2h — assim o wa_apresentacao_15min
- *      manda a apresentação certa ao CLIENTE (dentro da janela dele de 2h);
- *   3. avisos ao vendedor que falharam na CENTRAL FIXTURE nas últimas 2h:
- *      libera a chave para o wa_aviso_resposta (corrigido) avisar de novo pela
- *      central real (com a trava de 1 aviso por cliente a cada 15 min).
- * Nenhum telefone vai para o log.
+ * Pedido do consultor (17/11, 17h): atribuir à Elisângela o cliente de final
+ * 36207791 e FORÇAR a apresentação pelo número dela para esse cliente
+ * (modelo aprovado da conexão dela; {{1}} cliente, {{2}} vendedora).
+ * Roda UMA vez entre 20:01 e 20:28 UTC de 17/11/2026. Nenhum telefone no log.
  */
 cronAdd('tmp_1711_consultor', '* * * * *', () => {
   const agora = new Date().getTime()
-  const ini = new Date('2026-11-17T19:58:00Z').getTime()
-  const fim = new Date('2026-11-17T20:30:00Z').getTime()
+  const ini = new Date('2026-11-17T20:01:00Z').getTime()
+  const fim = new Date('2026-11-17T20:28:00Z').getTime()
   if (agora < ini || agora > fim) return
   try {
-    if ($app.store().get('tmp1711_v3') === true) return
-    $app.store().set('tmp1711_v3', true)
+    if ($app.store().get('tmp1711_v5') === true) return
+    $app.store().set('tmp1711_v5', true)
   } catch (eSt) {
-    if (new Date().getUTCMinutes() % 10 !== 0) return
+    if (new Date().getUTCMinutes() % 10 !== 1) return
   }
 
-  const P = 'tmp1711c: '
+  const P = 'tmp1711e: '
+  const ALVO = '36207791'
+  const DESTINO_PADRAO = '5511936207791'
   function dig(v) {
     return String(v || '').replace(/\D/g, '')
   }
@@ -37,128 +33,181 @@ cronAdd('tmp_1711_consultor', '* * * * *', () => {
       return []
     }
   }
-  function fmt(ms) {
-    return new Date(ms).toISOString().replace('T', ' ').slice(0, 19)
-  }
-  const duasHoras = fmt(agora - 2 * 3600000)
 
-  const cx = {}
-  for (const c of buscar('whatsapp_conexoes', '', 100)) cx[c.id] = c
-  for (const id in cx) {
-    const c = cx[id]
-    if (String(c.get('papel')) === 'central' && String(c.get('fixture')) !== 'true') {
-      console.log(
-        P +
-          'central real ' +
-          String(c.get('nome_exibicao') || '') +
-          ' | modelo_aviso_vendedor=' +
-          String(c.get('modelo_aviso_vendedor') || '(vazio)') +
-          ' | modelo_transferencia_cliente=' +
-          String(c.get('modelo_transferencia_cliente') || '(vazio)'),
-      )
-    }
+  // ---------- Elisângela e o número dela ----------
+  const us = buscar('users', "email='elisangela@haisan.com.br'", 1)
+  if (us.length === 0) {
+    console.log(P + 'Elisangela nao encontrada — nada feito')
+    return
   }
-
-  // ---------- 1 e 2. apresentações ----------
-  const ap = buscar(
-    'whatsapp_envios',
-    "motivo='apresentacao_vendedor' && created>='2026-11-16 03:00:00'",
-    2000,
+  const elis = us[0]
+  const cxs = buscar(
+    'whatsapp_conexoes',
+    "vendedor_user='" + elis.id + "' && papel='vendedor' && ativo=true && fixture=false",
+    1,
   )
-  const grupos = {}
-  var parados = 0
-  var liberados = 0
-  for (const e of ap) {
-    const c = cx[String(e.get('conexao') || '')]
-    const proprio = c ? dig(e.get('destino_telefone')) === dig(c.get('numero')) : false
-    const txt = String(e.get('texto') || '')
-    const origem =
-      txt.indexOf('Você recebeu um novo lead') === 0
-        ? 'transferencia'
-        : txt.indexOf('Apresentação de') === 0
-          ? 'cron15min'
-          : 'outro'
-    const k = origem + ' | para o proprio numero=' + proprio + ' | ' + String(e.get('estado'))
-    grupos[k] = (grupos[k] || 0) + 1
-    if (!proprio) continue
-    try {
-      var mudou = false
-      const est = String(e.get('estado') || '')
-      if (est === 'pendente' || est === 'erro') {
-        e.set('estado', 'erro_definitivo')
-        e.set('ultimo_erro', 'para o proprio numero do vendedor (17/11)')
-        mudou = true
-        parados++
-      }
-      if (
-        String(e.get('created')) >= duasHoras &&
-        String(e.get('dedupe_key') || '').indexOf('apresentacao|') === 0
-      ) {
-        e.set('dedupe_key', 'apres_proprio_numero|' + e.id)
-        mudou = true
-        liberados++
-      }
-      if (mudou) $app.save(e)
-    } catch (eS) {
-      console.log(P + 'falhou apresentacao ' + e.id + ': ' + String(eS).slice(0, 120))
-    }
+  if (cxs.length === 0) {
+    console.log(P + 'Elisangela sem conexao de vendedor ativa — nada feito')
+    return
   }
-  console.log(P + 'apresentacoes desde 16/11 = ' + ap.length + ' | ' + JSON.stringify(grupos))
-  console.log(
-    P +
-      'apresentacoes para o proprio numero: paradas=' +
-      parados +
-      ' | chave liberada (ultimas 2h)=' +
-      liberados,
-  )
+  const cxE = cxs[0]
+  const modelo =
+    String(cxE.get('modelo_apresentacao_vendedor') || '') || 'haisan_apresentacao_vendedor'
+  var nomeV = String(cxE.get('vendedor_nome_publico') || '').trim()
+  if (nomeV === '') nomeV = 'Elisangela'
 
-  // ---------- 3. avisos ao vendedor pela central de teste ----------
-  var fixCentral = ''
-  for (const id in cx) {
-    if (String(cx[id].get('papel')) === 'central' && String(cx[id].get('fixture')) === 'true')
-      fixCentral = id
-  }
-  var avParados = 0
-  var avLiberados = 0
-  if (fixCentral !== '') {
-    const av = buscar(
-      'whatsapp_envios',
-      "motivo='aviso_vendedor' && conexao='" +
-        fixCentral +
-        "' && fixture=false && created>='2026-11-17 03:00:00'",
-      2000,
-    )
-    for (const e of av) {
+  // ---------- lead do cliente ----------
+  var leads = buscar('crm_leads', "telefone~'" + ALVO + "'", 5)
+  const convs = buscar('whatsapp_conversas', "contato_telefone~'" + ALVO + "'", 20)
+  if (leads.length === 0) {
+    for (const cv of convs) {
+      const lid = String(cv.get('lead') || '')
+      if (lid === '') continue
       try {
-        var m2 = false
-        const est2 = String(e.get('estado') || '')
-        if (est2 === 'pendente' || est2 === 'erro') {
-          e.set('estado', 'erro_definitivo')
-          e.set('ultimo_erro', 'saiu pela central de teste (17/11)')
-          m2 = true
-          avParados++
-        }
-        if (
-          String(e.get('created')) >= duasHoras &&
-          String(e.get('dedupe_key') || '').indexOf('aviso_resposta|') === 0
-        ) {
-          e.set('dedupe_key', 'aviso_fixture_falhou|' + e.id)
-          m2 = true
-          avLiberados++
-        }
-        if (m2) $app.save(e)
-      } catch (eA) {
-        console.log(P + 'falhou aviso ' + e.id + ': ' + String(eA).slice(0, 120))
-      }
+        leads.push($app.findRecordById('crm_leads', lid))
+      } catch (eL) {}
+      if (leads.length > 0) break
     }
+  }
+  console.log(P + 'leads achados = ' + leads.length + ' | conversas achadas = ' + convs.length)
+  for (const cv of convs) {
     console.log(
       P +
-        'avisos pela central de teste hoje = ' +
-        av.length +
-        ' | parados=' +
-        avParados +
-        ' | chave liberada (ultimas 2h)=' +
-        avLiberados,
+        'conversa ' +
+        cv.id +
+        ' | conexao=' +
+        cv.get('conexao') +
+        ' | estado=' +
+        cv.get('estado') +
+        ' | ultimo_autor=' +
+        cv.get('ultimo_autor') +
+        ' | ultima=' +
+        String(cv.get('ultima_mensagem_em')).slice(0, 19) +
+        ' | lead=' +
+        cv.get('lead'),
     )
+  }
+  if (leads.length === 0) {
+    console.log(P + 'nenhum lead para este numero — nada atribuido nem enviado')
+    return
+  }
+
+  const lead = leads[0]
+  const donoAntes = String(lead.get('owner_id') || '')
+  var nomeAntes = '(sem dono)'
+  if (donoAntes !== '') {
+    try {
+      nomeAntes = String($app.findRecordById('users', donoAntes).get('name') || donoAntes)
+    } catch (eU) {
+      nomeAntes = donoAntes
+    }
+  }
+
+  // ---------- 1. atribui à Elisângela ----------
+  try {
+    lead.set('owner_id', elis.id)
+    lead.set('vendedor_nome', String(elis.get('name') || 'Elisangela Silva'))
+    $app.save(lead)
+    const ev = new Record($app.findCollectionByNameOrId('crm_lead_events'))
+    ev.set('lead_id', lead.id)
+    ev.set('tipo', 'status')
+    ev.set(
+      'texto',
+      'Atribuído à ' +
+        String(elis.get('name') || 'Elisangela') +
+        ' (pedido do consultor, 17/11). Antes: ' +
+        nomeAntes,
+    )
+    ev.set('user_id', '')
+    ev.set('fixture', false)
+    $app.save(ev)
+    console.log(
+      P +
+        'lead ' +
+        lead.id +
+        ' atribuido a Elisangela | antes: ' +
+        nomeAntes +
+        ' | status=' +
+        lead.get('status'),
+    )
+  } catch (eA) {
+    console.log(P + 'FALHOU atribuir: ' + String(eA).slice(0, 160))
+    return
+  }
+
+  // ---------- 2. apresentação forçada do número dela para o cliente ----------
+  var destino = dig(lead.get('telefone'))
+  if (destino.indexOf('55') !== 0 && (destino.length === 10 || destino.length === 11))
+    destino = '55' + destino
+  if (destino.length < 12 || destino.indexOf(ALVO) < 0) destino = DESTINO_PADRAO
+  if (destino === dig(cxE.get('numero'))) {
+    console.log(P + 'destino igual ao numero da Elisangela — nao enviado')
+    return
+  }
+
+  const colEnv = $app.findCollectionByNameOrId('whatsapp_envios')
+  for (const a of buscar('whatsapp_envios', "dedupe_key='apresentacao|" + lead.id + "'", 5)) {
+    try {
+      a.set('dedupe_key', 'apres_substituida|' + a.id)
+      if (String(a.get('estado')) === 'pendente' || String(a.get('estado')) === 'erro')
+        a.set('estado', 'erro_definitivo')
+      $app.save(a)
+    } catch (eD) {}
+  }
+
+  var primeiro =
+    String(lead.get('nome') || '')
+      .trim()
+      .split(/\s+/)[0] || ''
+  if (primeiro === '' || /\d/.test(primeiro)) primeiro = 'tudo bem'
+
+  try {
+    const env = new Record(colEnv)
+    env.set('lead', lead.id)
+    env.set('conexao', String(cxE.id))
+    env.set('destino_telefone', destino)
+    env.set('motivo', 'apresentacao_vendedor')
+    env.set('modo', 'modelo')
+    env.set('modelo_nome', modelo)
+    env.set('legenda', primeiro + '|' + nomeV)
+    env.set('variaveis', { 1: primeiro, 2: nomeV })
+    env.set(
+      'texto',
+      'Apresentação de ' +
+        nomeV +
+        ' (modelo ' +
+        modelo +
+        '): disparo forçado pelo consultor, 17/11',
+    )
+    env.set('estado', 'pendente')
+    env.set('tentativas', 0)
+    env.set('dedupe_key', 'apresentacao|' + lead.id)
+    env.set('criado_por', '')
+    env.set('fixture', false)
+    $app.save(env)
+    console.log(
+      P +
+        'apresentacao na fila: envio ' +
+        env.id +
+        ' | modelo=' +
+        modelo +
+        ' | variaveis=' +
+        primeiro.length +
+        ',' +
+        nomeV.length +
+        ' chars',
+    )
+  } catch (eE) {
+    console.log(P + 'FALHOU criar envio: ' + String(eE).slice(0, 160))
+  }
+
+  // conversa da central passa a "transferida"
+  for (const cv of convs) {
+    try {
+      if (String(cv.get('conexao')) === String(cxE.id)) continue
+      cv.set('estado', 'transferida')
+      cv.set('transferida_em', new Date().toISOString())
+      $app.save(cv)
+    } catch (eC) {}
   }
 })
