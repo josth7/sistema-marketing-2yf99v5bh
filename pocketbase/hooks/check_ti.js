@@ -48,6 +48,7 @@ routerAdd(
       rec.set('campanha_id', campanha)
       rec.set('campanha_nome', 'TESTE INGESTAO ' + campanha)
       rec.set('data', '2035-01-01')
+      rec.set('objetivo', 'nao_informado')
       rec.set('natureza', 'pago')
       rec.set('impressoes', 111)
       rec.set('cliques', 11)
