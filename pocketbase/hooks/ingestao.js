@@ -158,8 +158,60 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
   let token = ''
   let conta = ''
   if (fonte === 'meta_ads') {
-    token = $secrets.get('META_ACCESS_TOKEN') || ''
-    conta = $secrets.get('META_ACCOUNT_ID') || ''
+    // ===== META POR EMPRESA (17/11, item 6 do dono) =====
+    // Antes o segredo era de NOME FIXO: impossível ter a Meta da Haisan e a da
+    // GOO7 ao mesmo tempo — a segunda sobrescrevia a primeira. Agora a empresa
+    // guarda o NOME do segredo dela (`meta_token_segredo` /
+    // `meta_conta_segredo`), e a leitura resolve nesta ordem:
+    //   1. nome guardado na empresa escolhida;
+    //   2. segredo fixo antigo (META_ACCESS_TOKEN / META_ACCOUNT_ID);
+    //   3. erro claro dizendo qual nome falta.
+    var idEmpMeta = idEmpresaIngest
+    if (idEmpMeta === '') {
+      try {
+        const cTmpM = e.requestInfo().body || {}
+        if (cTmpM.empresa) idEmpMeta = String(cTmpM.empresa)
+      } catch (eBm) {}
+    }
+    if (idEmpMeta === '') {
+      try {
+        const esM = e.app.findRecordsByFilter('empresas', 'ativa=true', 'created', 1, 0)
+        if (esM.length > 0) idEmpMeta = esM[0].id
+      } catch (eEm) {}
+    }
+
+    var nomeToken = ''
+    var nomeConta = ''
+    if (idEmpMeta !== '') {
+      try {
+        const empM = e.app.findRecordById('empresas', idEmpMeta)
+        nomeToken = String(empM.get('meta_token_segredo') || '')
+        nomeConta = String(empM.get('meta_conta_segredo') || '')
+      } catch (eEmpM) {}
+    }
+
+    // 1. nome guardado na empresa
+    if (nomeToken !== '') {
+      try {
+        token = $secrets.get(nomeToken) || ''
+      } catch (eT1) {}
+    }
+    if (nomeConta !== '') {
+      try {
+        conta = $secrets.get(nomeConta) || ''
+      } catch (eC1) {}
+    }
+    // 2. segredo fixo antigo (Haisan continua funcionando sem migrar)
+    if (token === '') {
+      try {
+        token = $secrets.get('META_ACCESS_TOKEN') || ''
+      } catch (eT2) {}
+    }
+    if (conta === '') {
+      try {
+        conta = $secrets.get('META_ACCOUNT_ID') || ''
+      } catch (eC2) {}
+    }
     conta = conta.replace(/^act_/i, '') // normaliza (contrato: aceita com ou sem act_)
     if (!token || !conta) {
       gravarEstado(
@@ -531,11 +583,16 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
         rec = new Record(col)
         rec.set('origem', 'api')
         rec.set('canal', fonte)
-        if (idEmpresaIngest !== '') {
-          try {
-            rec.set('empresa', idEmpresaIngest)
-          } catch (eEmpR) {}
-        }
+      }
+      // DEFEITO CORRIGIDO (17/11): a empresa só era gravada quando o registro
+      // era NOVO, e o ramo ORGÂNICO da Meta ("Orgânico — Página") escapava
+      // porque entra na mesma lista `linhas`. Resultado: 1 registro de hoje
+      // nasceu sem empresa. Agora a empresa é carimbada SEMPRE, novo ou
+      // existente, para qualquer linha.
+      if (idEmpresaIngest !== '') {
+        try {
+          rec.set('empresa', idEmpresaIngest)
+        } catch (eEmpR) {}
       }
       const ehOrganico = r.objetivo === 'organico'
       rec.set('natureza', ehOrganico ? 'organico' : 'pago')
