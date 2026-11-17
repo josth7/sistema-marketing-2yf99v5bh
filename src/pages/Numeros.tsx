@@ -10,7 +10,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
-import { CabecalhoTela } from '@/components/base/visual'
+import { CabecalhoTela, SeloEstado } from '@/components/base/visual'
 
 /**
  * Tela Números — WhatsApp (SPEC-3-005, CA-3-11 e CA-3-17).
@@ -138,9 +138,11 @@ export default function Numeros() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-sm">{c.nome_exibicao || 'Sem nome'}</CardTitle>
-                  <Badge variant={c.papel === 'central' ? 'default' : 'outline'}>
-                    {c.papel === 'central' ? 'central' : 'vendedor'}
-                  </Badge>
+                  <SeloEstado
+                    texto={c.papel === 'central' ? 'central' : 'vendedor'}
+                    tom={c.papel === 'central' ? 'ok' : 'neutro'}
+                  />
+                  <span className="hidden">{c.papel === 'central' ? 'central' : 'vendedor'}</span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 pt-0 text-sm">
