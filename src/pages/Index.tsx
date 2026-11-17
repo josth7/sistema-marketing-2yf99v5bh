@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Rocket, BarChart3, Lock } from 'lucide-react'
+import { ArrowRight, Lock, Rocket } from 'lucide-react'
 import type { Sessao } from '@/App'
+import { Cartao } from '@/components/base/visual'
 
 /**
  * Página inicial — depois do login (30/10).
@@ -11,33 +12,36 @@ import type { Sessao } from '@/App'
  *
  * Sem permissão nenhuma de leitura, a tela diz isso com clareza em vez de
  * oferecer um botão que vai dar erro.
+ *
+ * SPEC-3-018 / CA-3-123 (17/11) — VISUAL NOVO: a tela passa a usar o padrão da
+ * RN-203 (cabeçalho, cartões `rounded-cartao`, ações em pílula preta, lista
+ * limpa em vez de blocos centrais). MESMO conteúdo e mesmos links: nada de
+ * contador, busca ou módulo que não exista hoje.
  */
 export default function Index({ sessao }: { sessao: Sessao }) {
   const atalhos = sessao.menu.filter((m) => m.para !== '/minha-senha')
-  const primeiro = atalhos.length > 0 ? atalhos[0].para : ''
 
   return (
-    <div className="flex-1 flex items-center justify-center p-6 md:p-12">
-      <div className="max-w-xl w-full text-center space-y-6">
-        {/* Marca */}
-        <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-primary/10 border border-primary/20 shadow-sm animate-fade-in">
-          <div className="h-16 w-16 rounded-xl bg-[linear-gradient(135deg,hsl(var(--marca-1)),hsl(var(--marca-2)))] flex items-center justify-center text-white shadow-md">
-            <Rocket className="h-8 w-8" aria-hidden="true" />
+    <div className="flex-1 p-4 md:p-8">
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* cabeçalho da tela (RN-203 item 1) */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-titulo-celular font-semibold tracking-tight md:text-titulo">
+              Olá, {sessao.user.nome || sessao.user.email}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sistema Marketing · o que você pode abrir hoje
+            </p>
+          </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-foreground text-background">
+            <Rocket className="h-5 w-5" aria-hidden="true" />
           </div>
         </div>
 
-        {/* Título e subtítulo */}
-        <div className="space-y-3">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            Sistema Marketing
-          </h1>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-md mx-auto">
-            Olá, {sessao.user.nome || sessao.user.email}.
-          </p>
-        </div>
-
+        {/* aviso de senha provisória — mesmo texto e mesmo link de antes */}
         {sessao.provisoria && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
+          <div className="rounded-cartao border border-[hsl(var(--warn))]/40 bg-[hsl(var(--warn))]/10 px-4 py-3 text-sm">
             <strong>Você ainda usa a senha provisória.</strong> Troque por uma senha só sua em{' '}
             <Link to="/minha-senha" className="underline">
               Minha senha
@@ -46,45 +50,52 @@ export default function Index({ sessao }: { sessao: Sessao }) {
           </div>
         )}
 
-        {primeiro !== '' ? (
-          <div className="rounded-xl border border-border bg-card p-8 sm:p-10 text-center shadow-sm space-y-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
-              <BarChart3 className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <h2 className="text-base font-semibold text-foreground">
-              {atalhos.length === 1
+        {atalhos.length > 0 ? (
+          <Cartao
+            titulo={
+              atalhos.length === 1
                 ? 'Seu módulo está disponível'
-                : atalhos.length + ' módulos disponíveis para você'}
-            </h2>
-            <div className="flex flex-wrap items-center justify-center gap-2">
+                : atalhos.length + ' módulos disponíveis para você'
+            }
+          >
+            {/* RN-203 item 7: lista limpa, sem caixa por linha */}
+            <ul className="divide-y divide-border">
               {atalhos.map((m) => (
-                <Link
-                  key={m.para}
-                  to={m.para}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
-                >
-                  {m.rotulo}
-                </Link>
+                <li key={m.para}>
+                  <Link
+                    to={m.para}
+                    className="group flex items-center justify-between gap-3 py-3 transition-colors hover:text-foreground"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{m.rotulo}</span>
+                      <span className="block text-xs text-muted-foreground">Abrir módulo</span>
+                    </span>
+                    <ArrowRight
+                      className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </li>
               ))}
-            </div>
-          </div>
+            </ul>
+          </Cartao>
         ) : (
-          <div className="rounded-xl border border-border bg-card p-8 text-center shadow-sm space-y-3">
-            <div className="h-12 w-12 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto">
-              <Lock className="h-6 w-6" aria-hidden="true" />
+          <Cartao>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Lock className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <h2 className="text-base font-semibold">Sua conta não tem módulos liberados</h2>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Fale com a gerência para liberar o acesso que você precisa. Você já pode trocar sua
+                senha em{' '}
+                <Link to="/minha-senha" className="underline">
+                  Minha senha
+                </Link>
+                .
+              </p>
             </div>
-            <h2 className="text-base font-semibold text-foreground">
-              Sua conta não tem módulos liberados
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Fale com a gerência para liberar o acesso que você precisa. Você já pode trocar sua
-              senha em{' '}
-              <Link to="/minha-senha" className="underline">
-                Minha senha
-              </Link>
-              .
-            </p>
-          </div>
+          </Cartao>
         )}
       </div>
     </div>

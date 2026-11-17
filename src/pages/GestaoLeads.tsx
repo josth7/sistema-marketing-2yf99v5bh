@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
 import { Dica, DicaNumero } from '@/components/base/dica'
+import { CabecalhoTela } from '@/components/base/visual'
 import {
   CabecalhoPagina,
   EstadoCarregando,
@@ -101,13 +102,15 @@ export default function GestaoLeads() {
   const n = dados?.numeros
 
   return (
-    <div className="space-y-4">
-      <CabecalhoPagina
+    <div className="flex-1 space-y-5 p-4 md:p-8">
+      {/* SPEC-3-018 / CA-3-123: cabeçalho no padrão novo (RN-203 item 1) */}
+      <CabecalhoTela
         titulo="Gestão de leads"
-        descricao="Quantos leads entraram, quantos estão sem dono, quantos ninguém falou ainda e como está a carteira de cada vendedora."
+        subtitulo="Quantos leads entraram, quantos estão sem dono e como está a carteira de cada vendedor."
       />
 
-      <div className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/30 p-3">
+      {/* RN-203 item 2: o filtro de datas continua em campos; o contêiner segue o cartão */}
+      <div className="flex flex-wrap items-end gap-2 rounded-cartao bg-muted p-3">
         <div className="space-y-1">
           <Label className="text-xs">De</Label>
           <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} className="h-9" />
