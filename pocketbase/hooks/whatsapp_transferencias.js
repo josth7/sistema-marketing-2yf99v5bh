@@ -54,6 +54,31 @@ onRecordAfterCreateSuccess((e) => {
       return
     }
 
+    // ---------- 0. TRAVA CONTRA TRANSFERENCIA DUPLA (17/11) ----------
+    // O defeito medido em 17/11: o robo transferia a MESMA conversa duas vezes.
+    // Na primeira, o cliente recebia "voce sera atendido por Adriana". Na
+    // segunda, o dono do lead era trocado para Fabio — e o cliente ficou
+    // esperando a Adriana, que nunca viu o lead no CRM dela. 33 leads ficaram
+    // assim (todos em entrada_lead).
+    //
+    // A regra: se o lead JA tem dono, esta transferencia nao troca o dono nem
+    // avisa o cliente de novo. So registra o pedido como `duplicada`. Se o
+    // dono precisar mudar mesmo (o vendedor passou o lead adiante), quem muda
+    // e a gestao pela tela, que tem historico — nao o robo em silencio.
+    var donoAnterior = String(lead.get('owner_id') || '')
+    if (donoAnterior !== '' && motivo !== 'manutencao') {
+      tr.set('estado', 'duplicada')
+      tr.set(
+        'detalhe',
+        'lead ja tinha dono (' + donoAnterior + '): nao troca nem avisa o cliente (trava 17/11)',
+      )
+      try {
+        $app.save(tr)
+      } catch (eDup) {}
+      e.next()
+      return
+    }
+
     // ---------- 1. qual vendedor? ----------
     var vendedorId = String(lead.get('owner_id') || '')
     var regra = 'carteira'
