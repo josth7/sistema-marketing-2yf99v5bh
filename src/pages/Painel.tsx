@@ -74,6 +74,7 @@ import {
   EstadoVazio,
   EstadoErro,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 const LABEL_CANAL: Record<Canal, string> = {
   google_ads: 'Google Ads',
@@ -526,31 +527,44 @@ export default function PainelPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-      <CabecalhoPagina
-        titulo="Painel consolidado"
-        descricao="Visão única por período, canal e objetivo — orgânico e pago sempre separados."
+      {/* SPEC-3-018 / CA-3-123: cabeçalho no padrão novo (RN-203 item 1) */}
+      <CabecalhoTela
+        titulo="Painel"
+        subtitulo="Visão única por período, canal e objetivo — orgânico e pago sempre separados."
         acoes={
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted p-0.5">
-            <Button
-              variant={!usarDemo ? 'secondary' : 'ghost'}
-              size="sm"
+          <div className="inline-flex rounded-full bg-muted p-1">
+            <button
+              type="button"
               onClick={() => setUsarDemo(false)}
+              aria-selected={!usarDemo}
+              className={
+                'inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm transition-colors ' +
+                (!usarDemo
+                  ? 'bg-primary font-medium text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground')
+              }
             >
-              <Database className="mr-1 h-4 w-4" /> Dados reais
-            </Button>
-            <Button
-              variant={usarDemo ? 'secondary' : 'ghost'}
-              size="sm"
+              <Database className="h-4 w-4" aria-hidden="true" /> Dados reais
+            </button>
+            <button
+              type="button"
               onClick={() => setUsarDemo(true)}
+              aria-selected={usarDemo}
+              className={
+                'inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm transition-colors ' +
+                (usarDemo
+                  ? 'bg-primary font-medium text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground')
+              }
             >
-              <Eye className="mr-1 h-4 w-4" /> Demonstração
-            </Button>
+              <Eye className="h-4 w-4" aria-hidden="true" /> Demonstração
+            </button>
           </div>
         }
       />
 
       {usarDemo && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-cartao border border-[hsl(var(--warn))]/40 bg-[hsl(var(--warn))]/10 px-4 py-2">
           <SeloDemonstracao />
           <span className="text-sm text-amber-900">
             Dados fictícios para avaliar organização e filtros — não representam resultados reais.
