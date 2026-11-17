@@ -10,7 +10,7 @@
 @layer base {
   :root {
     /* SISTEMA MARKETING Design System */
-    --background: 210 20% 98%;
+    --background: 150 20% 98%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -19,7 +19,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 255 90% 60%;
+    --primary: 158 74% 32%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 38 92% 50%;
@@ -28,36 +28,36 @@
     --muted: 220 14% 96%;
     --muted-foreground: 215 16% 38%;
 
-    --accent: 255 90% 96%;
-    --accent-foreground: 255 90% 50%;
+    --accent: 158 64% 94%;
+    --accent-foreground: 158 74% 26%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 255 90% 60%;
+    --ring: 158 74% 32%;
 
-    --radius: 0.5rem;
+    --radius: 0.875rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 255 90% 60%;
+    --sidebar-primary: 158 74% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 255 90% 96%;
-    --sidebar-accent-foreground: 255 90% 50%;
+    --sidebar-accent: 158 64% 94%;
+    --sidebar-accent-foreground: 158 74% 26%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 255 90% 60%;
+    --sidebar-ring: 158 74% 32%;
 
-    --chart-1: 255 90% 60%;
+    --chart-1: 158 74% 32%;
     --chart-2: 38 92% 50%;
     --chart-3: 160 84% 39%;
     --chart-4: 217 91% 60%;
     --chart-5: 0 84% 60%;
 
     /* Marca e semânticos (SPEC-2-007, CA-2-16) — única origem de cor fora do tema shadcn */
-    --marca-1: 255 90% 60%;
-    --marca-2: 271 91% 65%;
+    --marca-1: 158 74% 32%;
+    --marca-2: 172 66% 45%;
     --ok: 160 84% 39%;
     --warn: 38 92% 50%;
   }
@@ -86,6 +86,40 @@
     border-radius: 4px;
   }
 
+  /* ===== SPEC-3-018 / CA-3-121: base do visual novo ===== */
+  /* Campos e botões em PÍLULA (pedido da spec). O raio é grande o bastante
+     para arredondar de ponta a ponta em qualquer altura até 48px. */
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea,
+  [data-slot='select-trigger'] {
+    border-radius: 9999px;
+  }
+
+  /* botões: pílula de verdade, sem exceção */
+  button,
+  [role='button'],
+  a[data-pilula='sim'] {
+    border-radius: 9999px;
+  }
+
+  /* cartões e superfícies usam o raio novo do token */
+  [data-card],
+  .card-superficie {
+    border-radius: var(--radius);
+  }
+
+  /* letras: título com mais presença, sem mudar família */
+  h1 {
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+
   /* CA-2-19: alvos de toque ≥ 40px em controles interativos */
   button,
   [role='button'],
@@ -107,8 +141,9 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
+    /* SPEC-3-018: no escuro o verde sobe de luminosidade para manter contraste */
+    --primary: 158 64% 52%;
+    --primary-foreground: 158 80% 8%;
 
     --secondary: 222.2 84% 4.9%;
     --secondary-foreground: 210 40% 98%;
@@ -116,25 +151,25 @@
     --muted: 222.2 84% 4.9%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 222.2 84% 4.9%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 158 40% 16%;
+    --accent-foreground: 158 64% 70%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 222.2 84% 4.9%;
     --input: 222.2 84% 4.9%;
-    --ring: 214.3 31.8% 91.4%;
+    --ring: 158 64% 52%;
     --sidebar-background: 222.2 84% 4.9%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 222.2 84% 4.9%;
+    --sidebar-primary: 158 64% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222.2 84% 4.9%;
-    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-accent: 158 40% 16%;
+    --sidebar-accent-foreground: 158 64% 70%;
     --sidebar-border: 222.2 84% 4.9%;
-    --sidebar-ring: 222.2 84% 4.9%;
+    --sidebar-ring: 158 64% 52%;
 
-    --chart-1: 270 100% 44%;
+    --chart-1: 158 64% 52%;
     --chart-2: 164 100% 38%;
     --chart-3: 43 100% 32%;
     --chart-4: 340 100% 50%;
