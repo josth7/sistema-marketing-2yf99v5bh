@@ -10,6 +10,7 @@ import AbaAutomacoes from '@/pages/AbaAutomacoes'
 import pb from '@/lib/pocketbase/client'
 import { CabecalhoPagina, EstadoCarregando, EstadoErro } from '@/components/base/estados'
 import { ChaveEstado } from '@/components/base/chave-estado'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Tela Atendimento — governança do robô da central (SPEC-3-005, painel da
@@ -89,7 +90,7 @@ const TEXTOS: { chave: string; rotulo: string; dica?: string }[] = [
   {
     chave: 'transferencia_consultor',
     rotulo: 'Transferência para o vendedor',
-    dica: 'Use {nome}, {numero} e {link}: o sistema troca pelo vendedor dono do lead. {link} abre o WhatsApp do vendedor; se o texto não tiver {link}, o link vai numa linha no fim (é ele que dispara a apresentação automática do vendedor).',
+    dica: 'Use {nome} e {numero}: o sistema troca pelo vendedor dono do lead.',
   },
   {
     chave: 'transferencia_consultor_sem_numero',
@@ -104,7 +105,7 @@ const TEXTOS: { chave: string; rotulo: string; dica?: string }[] = [
   {
     chave: 'horario',
     rotulo: 'Aviso de horário de atendimento',
-    dica: 'Vai junto na transferência só fora do horário de atendimento.',
+    dica: 'Vai junto em toda transferência.',
   },
 ]
 
@@ -279,9 +280,9 @@ export default function Atendimento() {
 
   return (
     <div className="space-y-4">
-      <CabecalhoPagina
+      <CabecalhoTela
         titulo="Atendimento automático"
-        descricao="O robô que responde quem chama a central no WhatsApp. Toda alteração vira uma versão nova e pode ser desfeita no Histórico."
+        subtitulo="O robô que responde quem chama a central no WhatsApp. Toda alteração vira uma versão nova e pode ser desfeita "
         acoes={
           <Button size="sm" variant="outline" onClick={() => void carregar()}>
             Atualizar

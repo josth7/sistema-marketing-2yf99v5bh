@@ -18,6 +18,7 @@ import {
   EstadoErro,
   EstadoVazio,
 } from '@/components/base/estados'
+import { CabecalhoTela } from '@/components/base/visual'
 
 /**
  * Tela Conversas — WhatsApp com resposta e recado interno (SPEC-3-005).
@@ -64,8 +65,6 @@ type Conversa = {
   id: string
   conexao: string
   numero_nome: string
-  /** 11/11: cliente do usuário que falou pelo número de outro vendedor */
-  outro_numero?: boolean
   contato_nome: string
   contato_telefone: string
   lead: string
@@ -523,10 +522,11 @@ export default function Conversas() {
   if (erro) return <EstadoErro mensagem={erro} />
 
   return (
-    <div className="space-y-4">
-      <CabecalhoPagina
+    <div className="flex-1 space-y-4 p-4 md:p-8">
+      {/* SPEC-3-018 / CA-3-124: cabeçalho no padrão novo (RN-203 item 1) */}
+      <CabecalhoTela
         titulo="Conversas"
-        descricao="WhatsApp dos números da Haisan — responde por aqui e deixa recado interno para o vendedor."
+        subtitulo="WhatsApp dos números da Haisan — responde por aqui e deixa recado interno para o vendedor."
         acoes={
           robo ? (
             robo.pode ? (
@@ -684,17 +684,7 @@ export default function Conversas() {
                     )}
                   </span>
                   <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                    {c.outro_numero ? (
-                      <Badge
-                        variant="outline"
-                        className="px-1 py-0 text-xs"
-                        title="O cliente é seu; ele conversou pelo número de outro vendedor"
-                      >
-                        Seu cliente · conversa no número de {c.numero_nome}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">{c.numero_nome}</span>
-                    )}
+                    <span className="text-xs text-muted-foreground">{c.numero_nome}</span>
                     {c.estado && c.estado !== 'triagem' && (
                       <Badge variant="outline" className="px-1 py-0 text-xs">
                         {c.estado.replace('_', ' ')}
@@ -746,7 +736,7 @@ export default function Conversas() {
                     href={linkChamarWhatsapp(convAberta.contato_telefone) as string}
                     target="_blank"
                     rel="noreferrer"
-                    className="shrink-0 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                    className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
                   >
                     Chamar no WhatsApp
                   </a>
@@ -825,10 +815,12 @@ export default function Conversas() {
                         <div className={'flex ' + (minha ? 'justify-end' : 'justify-start')}>
                           <div
                             className={
-                              'max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm ' +
+                              // RN-203 item 11: bolha do cliente BRANCA com borda;
+                              // a nossa em `--accent` com texto `--accent-foreground`
+                              'max-w-[85%] rounded-cartao px-3 py-2 text-sm ' +
                               (minha
-                                ? 'bg-emerald-100 text-emerald-950 dark:bg-emerald-900/40 dark:text-emerald-50'
-                                : 'bg-muted text-foreground')
+                                ? 'bg-accent text-accent-foreground'
+                                : 'border border-border bg-card text-card-foreground')
                             }
                           >
                             <div className="mb-0.5 flex items-center gap-2 text-xs opacity-70">
