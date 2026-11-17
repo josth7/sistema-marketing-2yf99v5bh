@@ -86,6 +86,11 @@ export default {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        // SPEC-3-018 / RN-200: formas do visual novo
+        cartao: '20px',
+        janela: '24px',
+        campo: '12px',
+        lead: '16px',
       },
       transitionProperty: {
         width: 'width',
@@ -94,6 +99,20 @@ export default {
       boxShadow: {
         subtle: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
         elevation: '0 4px 20px rgba(0, 0, 0, 0.05)',
+        // SPEC-3-018: só janelas e menus suspensos têm sombra
+        janela: '0 8px 24px hsl(0 0% 0% / 0.08)',
+      },
+      fontSize: {
+        // SPEC-3-018 / RN-201
+        titulo: ['30px', { lineHeight: '1.2', letterSpacing: '-0.02em' }],
+        'titulo-celular': ['24px', { lineHeight: '1.25', letterSpacing: '-0.02em' }],
+        destaque: ['48px', { lineHeight: '1.1', letterSpacing: '-0.03em' }],
+        'destaque-celular': ['36px', { lineHeight: '1.1', letterSpacing: '-0.03em' }],
+        numero: ['28px', { lineHeight: '1.2', letterSpacing: '-0.02em' }],
+        painel: ['22px', { lineHeight: '1.25', letterSpacing: '-0.01em' }],
+        janela: ['18px', { lineHeight: '1.3' }],
+        login: ['40px', { lineHeight: '1.1', letterSpacing: '-0.03em' }],
+        'rotulo-campo': ['13px', { lineHeight: '1.3' }],
       },
       transitionTimingFunction: {
         apple: 'cubic-bezier(0.42, 0, 0.58, 1)',

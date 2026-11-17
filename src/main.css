@@ -10,56 +10,72 @@
 @layer base {
   :root {
     /* SISTEMA MARKETING Design System */
-    --background: 150 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 60 5% 95%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 9%;
 
-    --primary: 158 74% 32%;
+    --primary: 0 0% 9%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 38 92% 50%;
-    --secondary-foreground: 38 92% 18%;
+    --secondary: 0 0% 100%;
+    --secondary-foreground: 0 0% 9%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 215 16% 38%;
+    --muted: 60 4% 91%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 158 64% 94%;
-    --accent-foreground: 158 74% 26%;
+    --accent: 80 18% 91%;
+    --accent-foreground: 82 24% 24%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 158 74% 32%;
+    --border: 60 4% 88%;
+    --input: 0 0% 58%;
+    --ring: 0 0% 9%;
 
-    --radius: 0.875rem;
+    --radius: 1rem;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 158 74% 32%;
+    --sidebar-background: 60 5% 95%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 0 0% 9%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 158 64% 94%;
-    --sidebar-accent-foreground: 158 74% 26%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 158 74% 32%;
+    --sidebar-accent: 0 0% 100%;
+    --sidebar-accent-foreground: 82 24% 24%;
+    --sidebar-border: 60 4% 88%;
+    --sidebar-ring: 0 0% 9%;
 
-    --chart-1: 158 74% 32%;
-    --chart-2: 38 92% 50%;
+    --chart-1: 80 18% 55%;
+    --chart-2: 0 0% 84%;
     --chart-3: 160 84% 39%;
     --chart-4: 217 91% 60%;
     --chart-5: 0 84% 60%;
 
     /* Marca e semânticos (SPEC-2-007, CA-2-16) — única origem de cor fora do tema shadcn */
-    --marca-1: 158 74% 32%;
-    --marca-2: 172 66% 45%;
+    --marca-1: 82 24% 30%;
+    --marca-2: 80 18% 55%;
     --ok: 160 84% 39%;
     --warn: 38 92% 50%;
+    --destaque: 80 18% 55%;
+    --destaque-escuro: 82 24% 30%;
+    --destaque-medio: 82 20% 34%;
+    --interna: 45 90% 92%;
+    --interna-foreground: 35 60% 25%;
+    --chave-desligada: 0 0% 55%;
+    --etapa-1: 215 16% 45%;
+    --etapa-2: 210 70% 42%;
+    --etapa-3: 190 70% 30%;
+    --etapa-4: 160 60% 28%;
+    --etapa-5: 82 30% 33%;
+    --etapa-6: 40 90% 32%;
+    --etapa-7: 25 85% 40%;
+    --etapa-8: 0 65% 45%;
+    --etapa-9: 280 40% 45%;
+    --etapa-10: 0 0% 35%;
   }
 
   body {
@@ -86,17 +102,45 @@
     border-radius: 4px;
   }
 
+  /* ===== SPEC-3-018 / RN-203: cartão de destaque ===== */
+  .cartao-destaque {
+    background:
+      radial-gradient(circle at 20% 15%, hsl(0 0% 100% / 0.06), transparent 45%),
+      linear-gradient(135deg, hsl(var(--destaque-escuro)), hsl(var(--destaque-medio)));
+    color: hsl(0 0% 100%);
+    border-radius: var(--radius);
+  }
+  .cartao-destaque .numero-destaque {
+    font-size: 3rem; /* 48px */
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 767px) {
+    .cartao-destaque .numero-destaque {
+      font-size: 2.25rem; /* 36px */
+    }
+  }
+  /* números sempre tabulares (RN-201) */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* ===== SPEC-3-018 / CA-3-121: base do visual novo ===== */
-  /* Campos e botões em PÍLULA (pedido da spec). O raio é grande o bastante
-     para arredondar de ponta a ponta em qualquer altura até 48px. */
+  /* RN-204: CAMPO tem cantos de 12px (`rounded-campo`), 44px de altura.
+     Não é pílula: só o BOTÃO é pílula. (Eu tinha errado isto antes.) */
   input:not([type='checkbox']):not([type='radio']),
   select,
   textarea,
   [data-slot='select-trigger'] {
-    border-radius: 9999px;
+    border-radius: 12px;
+    min-height: 2.75rem; /* 44px */
+    background-color: hsl(0 0% 100%);
+    border-color: hsl(var(--input));
   }
 
-  /* botões: pílula de verdade, sem exceção */
+  /* RN-204: BOTÃO é pílula, 40px (44px nos principais de formulário) */
   button,
   [role='button'],
   a[data-pilula='sim'] {
@@ -141,9 +185,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    /* SPEC-3-018: no escuro o verde sobe de luminosidade para manter contraste */
-    --primary: 158 64% 52%;
-    --primary-foreground: 158 80% 8%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 84% 4.9%;
 
     --secondary: 222.2 84% 4.9%;
     --secondary-foreground: 210 40% 98%;
@@ -151,25 +194,25 @@
     --muted: 222.2 84% 4.9%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 158 40% 16%;
-    --accent-foreground: 158 64% 70%;
+    --accent: 222.2 84% 4.9%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 222.2 84% 4.9%;
     --input: 222.2 84% 4.9%;
-    --ring: 158 64% 52%;
+    --ring: 214.3 31.8% 91.4%;
     --sidebar-background: 222.2 84% 4.9%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 158 64% 52%;
+    --sidebar-primary: 222.2 84% 4.9%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 158 40% 16%;
-    --sidebar-accent-foreground: 158 64% 70%;
+    --sidebar-accent: 222.2 84% 4.9%;
+    --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 222.2 84% 4.9%;
-    --sidebar-ring: 158 64% 52%;
+    --sidebar-ring: 222.2 84% 4.9%;
 
-    --chart-1: 158 64% 52%;
+    --chart-1: 270 100% 44%;
     --chart-2: 164 100% 38%;
     --chart-3: 43 100% 32%;
     --chart-4: 340 100% 50%;
