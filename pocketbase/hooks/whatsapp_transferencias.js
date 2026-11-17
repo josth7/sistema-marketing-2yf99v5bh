@@ -260,7 +260,30 @@ onRecordAfterCreateSuccess((e) => {
     if (vendedorId !== '') {
       try {
         const u = $app.findRecordById('users', vendedorId)
-        vendedorNome = String(u.get('name') || u.get('email') || '')
+        // DEFEITO CORRIGIDO (17/11): usuario SEM NOME (o consultor
+        // rodrigo@adapta.org e uma conta assim) aparecia com o E-MAIL no lugar
+        // do nome — e esse e-mail foi para o registro da transferencia, que e
+        // lido pela gestao. Agora, se nao ha nome, usa o nome publico da
+        // conexao de vendedor; sem isso, um rotulo neutro. E-mail nunca mais.
+        var nomeV = String(u.get('name') || '').trim()
+        if (nomeV === '') {
+          try {
+            const cxV = $app.findRecordsByFilter(
+              $app.findCollectionByNameOrId('whatsapp_conexoes'),
+              "vendedor_user='" + vendedorId + "' && papel='vendedor'",
+              '',
+              1,
+              0,
+            )
+            if (cxV && cxV.length > 0) {
+              nomeV =
+                String(cxV[0].get('vendedor_nome_publico') || '') ||
+                String(cxV[0].get('nome_exibicao') || '')
+            }
+          } catch (eCxV) {}
+        }
+        if (nomeV === '') nomeV = 'Atendimento Haisan'
+        vendedorNome = nomeV
       } catch (eU) {}
     }
 
