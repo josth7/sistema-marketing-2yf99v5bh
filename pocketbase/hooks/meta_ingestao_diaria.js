@@ -1,7 +1,12 @@
 /**
- * Job diário de ingestão da Meta (contrato E-11 / RN-10).
+ * Job de ingestão da Meta (contrato E-11 / RN-10).
  *
- * cronAdd global, horário UTC: 0 9 * * * = 06:00 de Brasília.
+ * 17/11: o dono pediu DE 3 EM 3 HORAS (era 1×/dia às 06:00). Motivo: a
+ * campanha está ligada e com 1×/dia o painel mostrava o gasto da manhã o dia
+ * inteiro (às 18:29 o real era R$ 43,47 e o painel dizia R$ 5,24).
+ *
+ * cronAdd global, horario UTC: 0 (asterisco-barra-3) * * * = 3 em 3 horas.
+ * Em Brasília (UTC-3): 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00.
  * Reprocessa os últimos 7 dias (atualiza em vez de duplicar).
  * Lógica INLINE (JSVM não vê declarações de top-level) e duplicada da rota
  * /backend/v1/ingest conforme orientação do guia de hooks do Skip.
@@ -9,10 +14,51 @@
  * Sem rede em onBootstrap; chamadas só aqui, dentro do callback do cron.
  */
 
-cronAdd('meta_ingestao_diaria', '0 9 * * *', () => {
+cronAdd('meta_ingestao_diaria', '0 */3 * * *', () => {
   const fonte = 'meta_ads'
-  const token = $secrets.get('META_ACCESS_TOKEN') || ''
-  let conta = ($secrets.get('META_ACCOUNT_ID') || '').replace(/^act_/i, '')
+  // ===== META POR EMPRESA (17/11) =====
+  // Mesma regra da rota /ingest: o nome do segredo pode vir da empresa
+  // (`meta_token_segredo` / `meta_conta_segredo`), com queda para o nome fixo
+  // antigo — assim a Haisan segue funcionando e o GOO7 usa os dele.
+  var idEmpMetaD = ''
+  try {
+    const esMD = $app.findRecordsByFilter('empresas', 'ativa=true', 'created', 1, 0)
+    if (esMD.length > 0) idEmpMetaD = esMD[0].id
+  } catch (eEmD) {}
+
+  var nomeTokenD = ''
+  var nomeContaD = ''
+  if (idEmpMetaD !== '') {
+    try {
+      const empMD = $app.findRecordById('empresas', idEmpMetaD)
+      nomeTokenD = String(empMD.get('meta_token_segredo') || '')
+      nomeContaD = String(empMD.get('meta_conta_segredo') || '')
+    } catch (eEmpD) {}
+  }
+
+  var token = ''
+  var conta = ''
+  if (nomeTokenD !== '') {
+    try {
+      token = $secrets.get(nomeTokenD) || ''
+    } catch (eTD) {}
+  }
+  if (nomeContaD !== '') {
+    try {
+      conta = $secrets.get(nomeContaD) || ''
+    } catch (eCD) {}
+  }
+  if (token === '') {
+    try {
+      token = $secrets.get('META_ACCESS_TOKEN') || ''
+    } catch (eTD2) {}
+  }
+  if (conta === '') {
+    try {
+      conta = $secrets.get('META_ACCOUNT_ID') || ''
+    } catch (eCD2) {}
+  }
+  conta = String(conta).replace(/^act_/i, '')
 
   function gravarEstado(app, canal, estado, aviso, sucesso) {
     try {
