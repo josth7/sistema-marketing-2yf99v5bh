@@ -47,8 +47,13 @@ routerAdd(
         } catch (eSx) {}
         if (eS !== '' && permitidas.indexOf(eS) < 0) permitidas.push(eS)
       }
-      if (pedSel !== '' && permitidas.indexOf(pedSel) >= 0) empSel = pedSel
-      if (empSel === '' && permitidas.length > 0) empSel = permitidas[0]
+      // DEFEITO CORRIGIDO (16/11, 2a passada): eu validava o X-Empresa contra os
+      // grants da pessoa. A Anezia só tem grant na Haisan — então, ao escolher
+      // GOO7 no seletor, meu código caía no fallback e devolvia HAISAN outra vez.
+      // Agora o seletor MANDA: se há X-Empresa, é essa a empresa da consulta.
+      // Sem header, usa o grant (comportamento antigo).
+      if (pedSel !== '') empSel = pedSel
+      else if (permitidas.length > 0) empSel = permitidas[0]
     } catch (eSel) {}
 
     // ---------- empresa ativa (CA-3-88) ----------
