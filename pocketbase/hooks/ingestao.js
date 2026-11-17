@@ -430,7 +430,12 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
       // 962-453-3125 pelo Composio e envia as linhas no CORPO desta rota.
       // Nenhuma credencial GOOGLE_* no Skip (nem segredo, nem chamada externa).
       const corpo = e.requestInfo().body || {}
-      const contaG = String(corpo.conta_id || '9624533125').replace(/-/g, '')
+      // DEFEITO CORRIGIDO (17/11): o padrao era '9624533125' (conta da HAISAN).
+      // Quando o GOO7 mandava linhas SEM conta_id, o registro nascia com a conta
+      // da Haisan no campo — e uma consulta por conta jogaria o dado do GOO7 na
+      // Haisan. Agora, sem conta_id no corpo, o campo fica VAZIO: a empresa vem
+      // do segredo/fonte, e a conta nao mente sobre de quem e o dado.
+      const contaG = String(corpo.conta_id || (fonte === 'google_ads' ? '' : '')).replace(/-/g, '')
       const lote = corpo.linhas
       if (!Array.isArray(lote) || lote.length === 0) {
         return e.json(400, {
@@ -534,7 +539,10 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
       }
       const ehOrganico = r.objetivo === 'organico'
       rec.set('natureza', ehOrganico ? 'organico' : 'pago')
-      rec.set('conta_id', r.contaG || conta)
+      // Só grava a conta se ela existe: no Google ela identifica a empresa, e
+      // uma conta errada aqui faz a empresa errada "dona" do registro.
+      var contaParaGravar = String(r.contaG || conta || '')
+      if (contaParaGravar !== '') rec.set('conta_id', contaParaGravar)
       rec.set('campanha_id', r.campanhaId)
       rec.set('campanha_nome', r.campanhaNome)
       rec.set('objetivo', r.objetivo || 'nao_informado')
