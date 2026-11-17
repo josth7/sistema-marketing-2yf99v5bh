@@ -58,6 +58,11 @@ routerAdd(
         if (ate !== '' && ate.slice(0, 10) < hoje) continue
         const esc = lerL(g.get('scope_accounts'))
         if (Array.isArray(esc) && esc.indexOf('*') >= 0) ehGestao = true
+        // 17/11 (consultor): cargo `management` também é gestão — da empresa do
+        // grant (a empresa ativa abaixo limita os números). Antes só o escopo
+        // '*' (dono das duas empresas) entrava e a gestão de uma empresa via
+        // "Something went wrong" (404 desta rota) na tela Gestão de leads.
+        if (String(g.get('role') || '') === 'management') ehGestao = true
       }
     } catch (e0) {}
 
