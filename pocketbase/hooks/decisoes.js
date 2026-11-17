@@ -20,11 +20,39 @@ routerAdd(
   'GET',
   '/backend/v1/decisions',
   (e) => {
+    // DEFEITO CORRIGIDO (16/11): a empresa vinha do GRANT da pessoa, então o
+    // seletor de empresa não tinha efeito — quem tem grant na Haisan via dado
+    // da Haisan mesmo com GOO7 escolhido. Agora o X-Empresa vale, desde que a
+    // pessoa tenha grant naquela empresa.
+    var empSel = ''
+    try {
+      var pedSel = String(e.request.header.get('X-Empresa') || '')
+      var gsSel = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var permitidas = []
+      for (const gS of gsSel) {
+        var eS = ''
+        try {
+          eS = String(gS.get('empresa') || '')
+        } catch (eSx) {}
+        if (eS !== '' && permitidas.indexOf(eS) < 0) permitidas.push(eS)
+      }
+      if (pedSel !== '' && permitidas.indexOf(pedSel) >= 0) empSel = pedSel
+      if (empSel === '' && permitidas.length > 0) empSel = permitidas[0]
+    } catch (eSel) {}
+
     const col = $app.findCollectionByNameOrId('decisions')
     const qState = e.request.url.query().get('state') || ''
     let filtro = ''
     if (qState) filtro = "state='" + qState.replace(/'/g, '') + "'"
-    const registros = $app.findRecordsByFilter(col, filtro, '-created', 200, 0)
+    var filtroD =
+      filtro + (empSel !== '' ? (filtro !== '' ? ' && ' : '') + "empresa='" + empSel + "'" : '')
+    const registros = $app.findRecordsByFilter(col, filtroD, '-created', 200, 0)
     const itens = []
     for (const r of registros) {
       itens.push({

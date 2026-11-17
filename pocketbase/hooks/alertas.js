@@ -58,7 +58,13 @@ cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
     } catch (eF) {}
     const colU = app.findCollectionByNameOrId('users')
 
-    const criterios = app.findRecordsByFilter(colC, "state='approved'", '-updated', 50, 0)
+    const criterios = app.findRecordsByFilter(
+      colC,
+      "state='approved'" + (empSel !== '' ? " && empresa='" + empSel + "'" : ''),
+      '-updated',
+      50,
+      0,
+    )
     resumo.criterios = criterios.length
     if (!criterios || criterios.length === 0) {
       resumo.avisos.push('nenhum critério aprovado — nada a avaliar')
@@ -384,6 +390,32 @@ routerAdd(
   'POST',
   '/backend/v1/alerts/tick',
   (e) => {
+    // DEFEITO CORRIGIDO (16/11): a empresa vinha do GRANT da pessoa, então o
+    // seletor de empresa não tinha efeito — quem tem grant na Haisan via dado
+    // da Haisan mesmo com GOO7 escolhido. Agora o X-Empresa vale, desde que a
+    // pessoa tenha grant naquela empresa.
+    var empSel = ''
+    try {
+      var pedSel = String(e.request.header.get('X-Empresa') || '')
+      var gsSel = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var permitidas = []
+      for (const gS of gsSel) {
+        var eS = ''
+        try {
+          eS = String(gS.get('empresa') || '')
+        } catch (eSx) {}
+        if (eS !== '' && permitidas.indexOf(eS) < 0) permitidas.push(eS)
+      }
+      if (pedSel !== '' && permitidas.indexOf(pedSel) >= 0) empSel = pedSel
+      if (empSel === '' && permitidas.length > 0) empSel = permitidas[0]
+    } catch (eSel) {}
+
     // ---------- empresa ativa (CA-3-88) ----------
     // Lê os grants AQUI, no escopo da rota: `const meus` de dentro de um try
     // não existe fora dele (lança, o catch engole, o 403 não dispara).

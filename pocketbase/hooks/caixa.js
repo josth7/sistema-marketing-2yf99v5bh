@@ -17,6 +17,32 @@ routerAdd(
   'GET',
   '/backend/v1/inbox',
   (e) => {
+    // DEFEITO CORRIGIDO (16/11): a empresa vinha do GRANT da pessoa, então o
+    // seletor de empresa não tinha efeito — quem tem grant na Haisan via dado
+    // da Haisan mesmo com GOO7 escolhido. Agora o X-Empresa vale, desde que a
+    // pessoa tenha grant naquela empresa.
+    var empSel = ''
+    try {
+      var pedSel = String(e.request.header.get('X-Empresa') || '')
+      var gsSel = $app.findRecordsByFilter(
+        $app.findCollectionByNameOrId('access_grants'),
+        "user_id='" + e.auth.id + "' && revoked_at=''",
+        '',
+        60,
+        0,
+      )
+      var permitidas = []
+      for (const gS of gsSel) {
+        var eS = ''
+        try {
+          eS = String(gS.get('empresa') || '')
+        } catch (eSx) {}
+        if (eS !== '' && permitidas.indexOf(eS) < 0) permitidas.push(eS)
+      }
+      if (pedSel !== '' && permitidas.indexOf(pedSel) >= 0) empSel = pedSel
+      if (empSel === '' && permitidas.length > 0) empSel = permitidas[0]
+    } catch (eSel) {}
+
     // ---------- empresa ativa (CA-3-88) ----------
     // Lê os grants AQUI, no escopo da rota: `const meus` de dentro de um try
     // não existe fora dele (lança, o catch engole, o 403 não dispara).
@@ -101,7 +127,15 @@ routerAdd(
       })
     }
     const colI = $app.findCollectionByNameOrId('inbox_items')
-    const itens = $app.findRecordsByFilter(colI, "user_id='" + e.auth.id + "'", '-created', 100, 0)
+    // DEFEITO CORRIGIDO (16/11): a caixa listava os itens da pessoa em TODAS as
+    // empresas. Agora respeita a empresa do seletor.
+    const itens = $app.findRecordsByFilter(
+      colI,
+      "user_id='" + e.auth.id + "'" + (empSel !== '' ? " && empresa='" + empSel + "'" : ''),
+      '-created',
+      100,
+      0,
+    )
     const colR = $app.findCollectionByNameOrId('reports')
     const lista = []
     for (const it of itens) {
