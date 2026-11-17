@@ -103,9 +103,14 @@ routerAdd(
     }
     const ehFixture = String(e.auth.email || '').indexOf('.fixture.') >= 0
     const col = $app.findCollectionByNameOrId('whatsapp_conexoes')
+    // DEFEITO CORRIGIDO (16/11): a lista de NUMEROS trazia as conexoes de TODAS
+    // as empresas — com GOO7 ativo apareciam o Atendimento Haisan e os quatro
+    // vendedores da Haisan, com nome e numero. Agora filtra pela empresa ativa.
     const registros = $app.findRecordsByFilter(
       col,
-      'fixture=' + (ehFixture ? 'true' : 'false'),
+      'fixture=' +
+        (ehFixture ? 'true' : 'false') +
+        (empresaAtiva !== '' ? " && empresa='" + empresaAtiva + "'" : ''),
       '',
       100,
       0,
