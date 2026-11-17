@@ -907,7 +907,15 @@ routerAdd(
       })
     }
     const colA = $app.findCollectionByNameOrId('alerts')
-    const registros = $app.findRecordsByFilter(colA, '', '-created', 200, 0)
+    // DEFEITO CORRIGIDO (16/11): a lista de alertas vinha SEM filtro de empresa —
+    // era por isso que o GOO7 mostrava os alertas da Haisan.
+    const registros = $app.findRecordsByFilter(
+      colA,
+      empresaAtiva !== '' ? "empresa='" + empresaAtiva + "'" : '',
+      '-created',
+      200,
+      0,
+    )
     const itens = []
     for (const r of registros) {
       let respEmail = null
