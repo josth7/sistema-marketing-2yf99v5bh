@@ -11,7 +11,7 @@ routerAdd(
     const out = { ok: true, testes: [] }
     for (const m of app.findRecordsByFilter(
       app.findCollectionByNameOrId('metricas_diarias'),
-      "campanha_id~'teste-'",
+      "campanha_id~'t2-' || campanha_id~'teste-'",
       '',
       20,
       0,
