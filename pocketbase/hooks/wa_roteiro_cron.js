@@ -397,14 +397,18 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           var donoNome = ''
           var donoNumero = ''
           var donoDigitos = ''
-          try {
-            const ud = $app.findRecordById(colU, donoId)
-            donoNome = String(ud.get('name') || ud.get('email') || '')
-          } catch (eUd) {}
+          // DEFEITO CORRIGIDO (17/11): o nome dito AO CLIENTE vinha do usuario
+          // com fallback para o E-MAIL (`name || email`). Aconteceu com o
+          // consultor rodrigo@adapta.org: se ele fosse o dono, o cliente
+          // receberia "Quem vai te atender é rodrigo@adapta.org". Agora o nome
+          // do cliente vem SOMENTE da conexao de vendedor (nome publico); sem
+          // conexao, nao se anuncia ninguem pelo nome do usuario.
           for (const cxd of cxsVend) {
             if (String(cxd.get('vendedor_user') || '') !== donoId) continue
             const pub = String(cxd.get('vendedor_nome_publico') || '')
+            const exib = String(cxd.get('nome_exibicao') || '')
             if (pub !== '') donoNome = pub
+            else if (exib !== '') donoNome = exib
             const ndd = String(cxd.get('numero') || '').replace(/[^0-9]/g, '')
             // CA-3-44 (05/11): guarda os DIGITOS da conexao do vendedor, que é
             // o que o link wa.me precisa. `donoNumero` é a versão bonita para

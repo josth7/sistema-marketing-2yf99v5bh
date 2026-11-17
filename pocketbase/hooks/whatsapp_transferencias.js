@@ -768,21 +768,30 @@ onRecordAfterCreateSuccess((e) => {
         return 'https://wa.me/' + d
       })()
 
-      const textoCliente = dentroHorario
-        ? 'Quem vai te atender é *' +
-          vendedorNome +
-          '*, do nosso time de vendas. Nos próximos minutos você recebe uma mensagem' +
-          (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
-          '. Pode salvar como *Haisan Vendas*! 😊' +
-          (linkVendedor ? '\n\n' + linkVendedor : '')
-        : 'Quem vai te atender é *' +
-          vendedorNome +
-          '*, do nosso time de vendas. Você recebe a mensagem' +
-          (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
-          ' ' +
-          aberturaTxt +
-          '. Pode salvar como *Haisan Vendas*! 😊' +
-          (linkVendedor ? '\n\n' + linkVendedor : '')
+      // TRAVA (17/11): NUNCA citar ao cliente um nome que nao seja de um
+      // VENDEDOR com conexao ativa. O nome aqui so pode ter vindo da conexao
+      // de vendedor; se nao veio, nao ha numero e a frase sai sem nome.
+      // Isso impede que conta de gestao/consultor apareca para o cliente.
+      const nomeParaCliente = numeroVendedor !== '' && vendedorNome !== '' ? vendedorNome : ''
+
+      const textoCliente =
+        nomeParaCliente === ''
+          ? 'Certo! 😊 Ja te encaminhei pro nosso time de vendas. Voce recebe a mensagem de um vendedor nosso logo abaixo. Pode salvar como *Haisan Vendas*! 😊'
+          : dentroHorario
+            ? 'Quem vai te atender é *' +
+              vendedorNome +
+              '*, do nosso time de vendas. Nos próximos minutos você recebe uma mensagem' +
+              (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
+              '. Pode salvar como *Haisan Vendas*! 😊' +
+              (linkVendedor ? '\n\n' + linkVendedor : '')
+            : 'Quem vai te atender é *' +
+              vendedorNome +
+              '*, do nosso time de vendas. Você recebe a mensagem' +
+              (numeroVendedor ? ' pelo número *' + numeroVendedor + '*' : '') +
+              ' ' +
+              aberturaTxt +
+              '. Pode salvar como *Haisan Vendas*! 😊' +
+              (linkVendedor ? '\n\n' + linkVendedor : '')
       const id = enfileirar(
         central,
         telefoneCliente,
