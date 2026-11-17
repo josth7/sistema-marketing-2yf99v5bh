@@ -64,6 +64,8 @@ routerAdd(
         const atos = lerL(g.get('actions'))
         const esc = lerL(g.get('scope_accounts'))
         if (Array.isArray(esc) && esc.indexOf('*') >= 0) ehGestao = true
+        // 17/11: cargo management é gestão da empresa do grant (vê todos)
+        if (String(g.get('role') || '') === 'management') ehGestao = true
         if (
           Array.isArray(atos) &&
           (atos.indexOf('read_conversas') >= 0 || atos.indexOf('read_leads') >= 0)
