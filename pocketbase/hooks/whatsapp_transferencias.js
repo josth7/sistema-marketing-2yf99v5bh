@@ -784,6 +784,180 @@ onRecordAfterCreateSuccess((e) => {
         )
       }
       if (id) envios.push(id)
+
+      // ===== 17/11 (consultor): AVISO AO VENDEDOR PELA CENTRAL =====
+      // Vendedor com a APRESENTAÇÃO DESLIGADA (hoje: Adriana e Fábio — os
+      // números deles estão bloqueados pela Meta para iniciar conversa, erro
+      // 130497) recebe da CENTRAL, no número dele, o aviso com o contexto do
+      // cliente e o link wa.me para chamar o cliente pelo app do celular (pelo
+      // app não há a trava da Meta). Religar a apresentação na Administração
+      // volta ao fluxo normal (modelo pelo número do vendedor em 15 min).
+      //
+      // Envio da central para o vendedor é iniciado pela empresa: só passa se o
+      // vendedor falou com a central nas últimas 24h OU se a central tiver
+      // modelo aprovado em `modelo_aviso_vendedor` (variáveis, nesta ordem:
+      // {{1}} vendedor, {{2}} cliente, {{3}} telefone, {{4}} contexto,
+      // {{5}} link). Sem isso a Meta devolve "Re-engagement" e o envio fica
+      // com o motivo na tela.
+      if (!apresentacaoLigada && central && !ehFixture) {
+        try {
+          const chaveAv = 'aviso_vend_central|' + leadId
+          var jaAv = false
+          try {
+            const exAv = $app.findRecordsByFilter(colEnv, "dedupe_key='" + chaveAv + "'", '', 1, 0)
+            jaAv = !!(exAv && exAv.length > 0)
+          } catch (eExAv) {}
+          var dVend = String(numeroVendedor || '').replace(/\D/g, '')
+          if (dVend !== '' && dVend.indexOf('55') !== 0) dVend = '55' + dVend
+          var dCli = String(telefoneCliente || '').replace(/\D/g, '')
+          if (dCli !== '' && dCli.indexOf('55') !== 0 && (dCli.length === 10 || dCli.length === 11))
+            dCli = '55' + dCli
+          if (!jaAv && dVend.length >= 12 && dCli.length >= 12) {
+            const nomeCli = String(lead.get('nome') || '').trim() || 'Cliente'
+            var primCli = nomeCli.split(/\s+/)[0] || ''
+            if (primCli === '' || /\d/.test(primCli)) primCli = ''
+            var primVend = ''
+            try {
+              primVend =
+                String(conexaoVendedor.get('vendedor_nome_publico') || '').trim() ||
+                String(vendedorNome || '')
+                  .trim()
+                  .split(/\s+/)[0] ||
+                ''
+            } catch (ePv) {}
+            const telFmt =
+              dCli.length === 13
+                ? '(' + dCli.slice(2, 4) + ') ' + dCli.slice(4, 9) + '-' + dCli.slice(9)
+                : dCli.length === 12
+                  ? '(' + dCli.slice(2, 4) + ') ' + dCli.slice(4, 8) + '-' + dCli.slice(8)
+                  : dCli
+            const rotOrigem = {
+              meta: 'anúncio Meta',
+              google: 'anúncio Google',
+              site: 'site',
+              whatsapp: 'WhatsApp',
+              organico: 'orgânico',
+              carteira: 'carteira',
+              manual: 'cadastro manual',
+              importacao: 'importação',
+            }
+            const origemTxt =
+              rotOrigem[String(lead.get('origem') || '')] ||
+              String(lead.get('origem') || 'WhatsApp')
+
+            // contexto: resumo da IA; sem ele, as últimas mensagens do cliente na central
+            var contexto = ''
+            try {
+              contexto = String(lead.get('ia_resumo') || '').trim()
+            } catch (eRes) {}
+            if (contexto === '') {
+              try {
+                const vars = [dCli]
+                if (dCli.length === 13 && dCli.charAt(4) === '9')
+                  vars.push(dCli.slice(0, 4) + dCli.slice(5))
+                else if (dCli.length === 12) vars.push(dCli.slice(0, 4) + '9' + dCli.slice(4))
+                var condT = ''
+                for (const v of vars)
+                  condT += (condT === '' ? '' : ' || ') + "contato_telefone='" + v + "'"
+                var msCli = []
+                try {
+                  msCli = $app.findRecordsByFilter(
+                    'whatsapp_mensagens',
+                    "conexao='" + central.id + "' && direcao='entrada' && (" + condT + ')',
+                    '-created',
+                    4,
+                    0,
+                  )
+                } catch (eSort) {
+                  msCli = $app.findRecordsByFilter(
+                    'whatsapp_mensagens',
+                    "conexao='" + central.id + "' && direcao='entrada' && (" + condT + ')',
+                    '',
+                    4,
+                    0,
+                  )
+                }
+                const partes = []
+                for (var im = msCli.length - 1; im >= 0; im--) {
+                  const tx = String(msCli[im].get('texto') || '').trim()
+                  if (tx !== '') partes.push(tx)
+                }
+                contexto = partes.join(' / ')
+              } catch (eCtx) {}
+            }
+            contexto = contexto.replace(/\s+/g, ' ').replace(/\|/g, '/').slice(0, 300)
+
+            const msgCli =
+              'Oi' +
+              (primCli !== '' ? ' ' + primCli : '') +
+              '! Aqui é ' +
+              (primVend !== '' ? primVend : 'o time de vendas') +
+              ' da Haisan. Recebi seu contato pelo nosso atendimento, como posso te ajudar?'
+            const linkCli = 'https://wa.me/' + dCli + '?text=' + encodeURIComponent(msgCli)
+
+            const textoAv =
+              '🔔 Novo cliente para você' +
+              (primVend !== '' ? ', ' + primVend : '') +
+              '!\n' +
+              '*' +
+              nomeCli +
+              '* · ' +
+              telFmt +
+              '\nOrigem: ' +
+              origemTxt +
+              (contexto !== '' ? '\nO que ele quer: ' + contexto : '') +
+              '\n\nChame agora pelo seu WhatsApp: ' +
+              linkCli
+
+            const modeloAv = String(central.get('modelo_aviso_vendedor') || '')
+            const envAv = new Record(colEnv)
+            envAv.set('lead', leadId)
+            envAv.set('conexao', String(central.id))
+            envAv.set('destino_telefone', dVend)
+            envAv.set('motivo', 'aviso_vendedor')
+            envAv.set('texto', textoAv.slice(0, 3900))
+            if (modeloAv !== '') {
+              envAv.set('modo', 'modelo')
+              envAv.set('modelo_nome', modeloAv)
+              envAv.set(
+                'legenda',
+                [
+                  primVend !== '' ? primVend : 'vendedor',
+                  nomeCli.replace(/\|/g, '/'),
+                  telFmt,
+                  contexto !== '' ? contexto : 'veja a conversa no sistema',
+                  linkCli,
+                ].join('|'),
+              )
+            } else {
+              envAv.set('modo', 'texto')
+            }
+            envAv.set('estado', 'pendente')
+            envAv.set('tentativas', 0)
+            envAv.set('dedupe_key', chaveAv)
+            envAv.set('fixture', false)
+            $app.save(envAv)
+            envios.push(envAv.id)
+            try {
+              const evAv = new Record($app.findCollectionByNameOrId('crm_lead_events'))
+              evAv.set('lead_id', leadId)
+              evAv.set('tipo', 'nota')
+              evAv.set(
+                'texto',
+                'Aviso ao vendedor pela central (' +
+                  (primVend || vendedorNome) +
+                  '): contexto do cliente + link para chamar pelo WhatsApp.',
+              )
+              evAv.set('fixture', false)
+              $app.save(evAv)
+            } catch (eEvAv) {}
+          }
+        } catch (eAvCentral) {
+          console.log(
+            'transferencias: aviso pela central falhou -> ' + String(eAvCentral).slice(0, 140),
+          )
+        }
+      }
     }
 
     if (telefoneCliente !== '' && central) {
