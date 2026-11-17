@@ -142,6 +142,9 @@ export default function Leads() {
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [soQuentes, setSoQuentes] = useState(false)
   const [busca, setBusca] = useState('')
+  // 17/11: filtros por vendedor e por origem na barra do CRM (pedido da gestão)
+  const [filtroVendedor, setFiltroVendedor] = useState<string>('todos')
+  const [filtroOrigem, setFiltroOrigem] = useState<string>('todos')
   const [msg, setMsg] = useState<string | null>(null)
   // criação
   const [abrirCriar, setAbrirCriar] = useState(false)
@@ -262,6 +265,10 @@ export default function Leads() {
   const filtrados = useMemo(() => {
     let out = itens
     if (filtroStatus !== 'todos') out = out.filter((l) => l.status === filtroStatus)
+    // 17/11: por vendedor (dono do lead) — "Sem dono" mostra quem ninguém pegou
+    if (filtroVendedor === '__sem_dono__') out = out.filter((l) => !l.owner_id)
+    else if (filtroVendedor !== 'todos') out = out.filter((l) => l.owner_id === filtroVendedor)
+    if (filtroOrigem !== 'todos') out = out.filter((l) => l.origem === filtroOrigem)
     // "só os quentes": nota 60+ da IA. É o filtro que o vendedor usa para
     // decidir a ordem do dia — sem ele, 40 conversas parecem todas iguais.
     if (soQuentes) out = out.filter((l) => (l.ia_nota ?? -1) >= 60)
@@ -308,7 +315,31 @@ export default function Leads() {
       return nb - na
     })
     return out
-  }, [itens, filtroStatus, busca, soQuentes])
+  }, [itens, filtroStatus, busca, soQuentes, filtroVendedor, filtroOrigem])
+
+  // 17/11: opções da barra de filtros, tiradas da própria base
+  const vendedoresFiltro = useMemo(() => {
+    const m: Record<string, { id: string; nome: string; total: number }> = {}
+    for (const l of itens) {
+      const id = l.owner_id || ''
+      if (id === '') continue
+      if (!m[id]) m[id] = { id, nome: l.owner_nome || l.vendedor_nome || 'Sem nome', total: 0 }
+      m[id].total++
+    }
+    return Object.values(m).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  }, [itens])
+  const semDonoTotal = useMemo(() => itens.filter((l) => !l.owner_id).length, [itens])
+  const origensFiltro = useMemo(() => {
+    const s = new Set<string>()
+    for (const l of itens) if (l.origem) s.add(l.origem)
+    return Array.from(s).sort()
+  }, [itens])
+  const temFiltro =
+    busca !== '' ||
+    filtroVendedor !== 'todos' ||
+    filtroStatus !== 'todos' ||
+    filtroOrigem !== 'todos' ||
+    soQuentes
 
   /** Quantas páginas a lista filtrada tem (mínimo 1, para a tabela não sumir). */
   const totalPaginas = useMemo(
@@ -326,7 +357,7 @@ export default function Leads() {
   // numa página vazia (ex.: estava na 40 e o filtro deixou 3 resultados)
   useEffect(() => {
     setPagina(0)
-  }, [filtroStatus, busca])
+  }, [filtroStatus, busca, filtroVendedor, filtroOrigem, soQuentes])
 
   // a lista encolheu (lead virou outro status, importação recarregou): se a
   // página atual deixou de existir, recua para a última válida
@@ -599,6 +630,101 @@ export default function Leads() {
           descricao="Crie o primeiro lead manualmente ou importe a planilha da agência (botão Importar CSV)."
         />
       )}
+      {/* 17/11: BARRA DE FILTROS — busca + vendedor + etapa + origem + quentes.
+          Vale para a Lista e para o Funil. Os campos existiam no código mas
+          tinham sumido da tela na troca do visual. */}
+      {!carregando && !erro && itens.length > 0 && (
+        <div className="flex flex-wrap items-end gap-2 rounded-cartao bg-muted p-3">
+          <div className="min-w-[220px] flex-1 space-y-1">
+            <Label className="text-xs">Buscar</Label>
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Nome, telefone ou e-mail"
+              className="h-9 bg-background"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Vendedor</Label>
+            <Select value={filtroVendedor} onValueChange={setFiltroVendedor}>
+              <SelectTrigger className="h-9 w-[220px] bg-background">
+                <SelectValue placeholder="Todos os vendedores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os vendedores</SelectItem>
+                {vendedoresFiltro.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.nome} ({v.total})
+                  </SelectItem>
+                ))}
+                {semDonoTotal > 0 && (
+                  <SelectItem value="__sem_dono__">Sem dono ({semDonoTotal})</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Etapa</Label>
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="h-9 w-[200px] bg-background">
+                <SelectValue placeholder="Todas as etapas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as etapas</SelectItem>
+                {STATUS_LEADS.map((s) => (
+                  <SelectItem key={s.valor} value={s.valor}>
+                    {s.rotulo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Origem</Label>
+            <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
+              <SelectTrigger className="h-9 w-[160px] bg-background">
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as origens</SelectItem>
+                {origensFiltro.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {ROTULO_ORIGEM[o] || o}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            size="sm"
+            variant={soQuentes ? 'default' : 'outline'}
+            className="h-9"
+            onClick={() => setSoQuentes(!soQuentes)}
+          >
+            Só quentes (nota 60+)
+          </Button>
+          {temFiltro && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-9"
+              onClick={() => {
+                setBusca('')
+                setFiltroVendedor('todos')
+                setFiltroStatus('todos')
+                setFiltroOrigem('todos')
+                setSoQuentes(false)
+              }}
+            >
+              Limpar filtros
+            </Button>
+          )}
+          <p className="w-full text-xs text-muted-foreground">
+            {filtrados.length} de {itens.length} leads
+          </p>
+        </div>
+      )}
+
       {/* FUNIL DE VENDAS (kanban por status) */}
       {!carregando && !erro && itens.length > 0 && vista === 'funil' && (
         <div
@@ -606,7 +732,8 @@ export default function Leads() {
           style={{ gridTemplateColumns: 'repeat(10, minmax(200px, 1fr))' }}
         >
           {STATUS_LEADS.map((s) => {
-            const coluna = itens.filter((l) => l.status === s.valor)
+            // 17/11: o funil respeita a barra de filtros (vendedor, busca, origem)
+            const coluna = filtrados.filter((l) => l.status === s.valor)
             // valor somado da coluna — só conta o que tem venda registrada
             const valorColuna = coluna.reduce((acc, l) => acc + Number(l.valor || 0), 0)
             // SPEC-3-018 RN-203 item 10: a coluna é um contêiner --muted
