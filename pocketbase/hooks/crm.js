@@ -679,6 +679,9 @@ routerAdd(
                   : rawO || []
           } catch (eO) {}
           if (Array.isArray(scO) && scO.indexOf('*') >= 0) ehGestaoOwner = true
+          // 17/11 (pedido da Anézia na call): a GESTÃO da empresa (cargo
+          // management) também troca o vendedor do lead.
+          if (String(gO.get('role') || '') === 'management') ehGestaoOwner = true
         }
       } catch (eGO) {}
       if (!ehGestaoOwner) {
@@ -689,8 +692,75 @@ routerAdd(
           detalhe: 'o dono do lead só muda pela gestão',
         })
       }
-      lead.set('owner_id', String(body.owner_id || '').slice(0, 40))
-      mudancas.push({ tipo: 'nota', texto: 'responsável atualizado' })
+      // 17/11 (call com a Anézia): TROCAR VENDEDOR escolhendo o nome. O novo
+      // dono tem de ser vendedor com número ativo (ou vazio = sem dono). O lead
+      // sai da carteira do antigo e entra na do novo — inclusive na carteira de
+      // contatos, para a próxima conversa do cliente cair no vendedor certo.
+      const novoDono = String(body.owner_id || '')
+        .replace(/'/g, '')
+        .slice(0, 40)
+      var nomeNovoDono = ''
+      var cxNovoDono = null
+      if (novoDono !== '') {
+        try {
+          const cxsN = $app.findRecordsByFilter(
+            'whatsapp_conexoes',
+            "vendedor_user='" + novoDono + "' && papel='vendedor' && ativo=true && fixture=false",
+            '',
+            1,
+            0,
+          )
+          if (cxsN && cxsN.length > 0) cxNovoDono = cxsN[0]
+        } catch (eCxN) {}
+        if (!cxNovoDono) {
+          return e.json(422, {
+            ok: false,
+            erro: 'vendedor_invalido',
+            detalhe: 'escolha um vendedor com número de WhatsApp ativo',
+          })
+        }
+        try {
+          nomeNovoDono = String($app.findRecordById('users', novoDono).get('name') || '')
+        } catch (eUN) {}
+      }
+      var nomeAntigoDono = ''
+      try {
+        const antDono = String(lead.get('owner_id') || '')
+        if (antDono !== '')
+          nomeAntigoDono = String($app.findRecordById('users', antDono).get('name') || '')
+      } catch (eUA) {}
+      lead.set('owner_id', novoDono)
+      try {
+        lead.set('vendedor_nome', nomeNovoDono)
+      } catch (eVN) {}
+      mudancas.push({
+        tipo: 'status',
+        texto:
+          'vendedor trocado: ' +
+          (nomeAntigoDono || 'sem dono') +
+          ' → ' +
+          (nomeNovoDono || 'sem dono'),
+      })
+      // carteira de contatos acompanha a troca
+      try {
+        const telL = String(lead.get('telefone') || '').replace(/\D/g, '')
+        if (telL.length >= 8 && cxNovoDono) {
+          const cartL = $app.findRecordsByFilter(
+            'carteira_contatos',
+            "telefone~'" + telL.slice(-8) + "'",
+            '',
+            10,
+            0,
+          )
+          for (const cl of cartL) {
+            try {
+              cl.set('vendedor_user', novoDono)
+              cl.set('conexao', String(cxNovoDono.id))
+              $app.save(cl)
+            } catch (eCl) {}
+          }
+        }
+      } catch (eCart) {}
     }
     if (body.valor !== undefined) {
       const vv = Number(body.valor)

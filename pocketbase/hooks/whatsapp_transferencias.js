@@ -932,7 +932,34 @@ onRecordAfterCreateSuccess((e) => {
             } else {
               envAv.set('modo', 'texto')
             }
-            envAv.set('estado', 'pendente')
+            // janela de 24h com o vendedor: com modelo aprovado não precisa;
+            // sem modelo e janela fechada, o aviso fica guardado e o cron
+            // `wa_avisos_retidos` solta quando o vendedor falar com a central.
+            var janelaVend = false
+            try {
+              const desdeJ = new Date(Date.now() - 24 * 3600000)
+                .toISOString()
+                .replace('T', ' ')
+                .slice(0, 19)
+              const mJ = $app.findRecordsByFilter(
+                'whatsapp_mensagens',
+                "conexao='" +
+                  central.id +
+                  "' && direcao='entrada' && contato_telefone~'" +
+                  dVend.slice(-8) +
+                  "' && created>='" +
+                  desdeJ +
+                  "'",
+                '',
+                1,
+                0,
+              )
+              janelaVend = !!(mJ && mJ.length > 0)
+            } catch (eJ) {}
+            envAv.set(
+              'estado',
+              modeloAv !== '' || janelaVend ? 'pendente' : 'fora_da_janela_sem_modelo',
+            )
             envAv.set('tentativas', 0)
             envAv.set('dedupe_key', chaveAv)
             envAv.set('fixture', false)

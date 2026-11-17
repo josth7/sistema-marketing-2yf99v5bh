@@ -157,6 +157,32 @@ export default function Leads() {
   const [erroCriar, setErroCriar] = useState<string | null>(null)
   // detalhe
   const [detalhe, setDetalhe] = useState<Lead | null>(null)
+  // 17/11 (call com a Anézia): na ficha, trocar o vendedor escolhendo o nome,
+  // corrigir o nome do cliente e lançar o valor da venda
+  const [vendedoresLista, setVendedoresLista] = useState<
+    { id: string; nome: string; final: string }[]
+  >([])
+  const [novoDono, setNovoDono] = useState('')
+  const [trocando, setTrocando] = useState(false)
+  const [editNome, setEditNome] = useState('')
+  const [editValor, setEditValor] = useState('')
+  const [salvandoDados, setSalvandoDados] = useState(false)
+  useEffect(() => {
+    if (!user) return
+    pb.send('/backend/v1/crm/vendedores', { method: 'GET' })
+      .then((r: { itens?: { id: string; nome: string; final: string }[] }) =>
+        setVendedoresLista(r.itens || []),
+      )
+      .catch(() => setVendedoresLista([]))
+  }, [user])
+  const detalheId = detalhe?.id || ''
+  useEffect(() => {
+    if (!detalhe) return
+    setEditNome(detalhe.nome || '')
+    setEditValor(detalhe.valor ? String(detalhe.valor).replace('.', ',') : '')
+    setNovoDono('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detalheId])
   // conversa do WhatsApp na ficha (SPEC-3-005, CA-3-15)
   const [conversa, setConversa] = useState<{
     ok: boolean
@@ -510,6 +536,79 @@ export default function Leads() {
       setMsg(e instanceof Error ? e.message : String(e))
     } finally {
       setSalvando(false)
+    }
+  }
+
+  /** Mensagem de erro legível vinda do backend (erro/detalhe). */
+  const erroLegivel = (e: unknown): string => {
+    const d = (
+      e as {
+        response?: { erro?: string; detalhe?: string; data?: { erro?: string; detalhe?: string } }
+      }
+    )?.response
+    const corpo = d?.data || d
+    if (corpo && (corpo.detalhe || corpo.erro)) return String(corpo.detalhe || corpo.erro)
+    return e instanceof Error ? e.message : String(e)
+  }
+
+  /** 17/11: corrige o nome do cliente e o valor da venda pela ficha. */
+  const salvarDados = async () => {
+    if (!detalhe) return
+    const dados: { nome?: string; valor?: number } = {}
+    const nomeLimpo = editNome.trim()
+    if (nomeLimpo !== '' && nomeLimpo !== (detalhe.nome || '')) dados.nome = nomeLimpo
+    const vTxt = editValor.trim()
+    if (vTxt !== '') {
+      const normal = vTxt.indexOf(',') >= 0 ? vTxt.replace(/\./g, '').replace(',', '.') : vTxt
+      const v = Number(normal.replace(/[^0-9.]/g, ''))
+      if (!Number.isFinite(v) || v < 0) {
+        setMsg('Valor inválido. Use, por exemplo, 3.790,00')
+        return
+      }
+      if (v !== Number(detalhe.valor || 0)) dados.valor = v
+    }
+    if (dados.nome === undefined && dados.valor === undefined) {
+      setMsg('Nada para salvar.')
+      return
+    }
+    setSalvandoDados(true)
+    try {
+      await pb.send('/backend/v1/crm/leads/' + detalhe.id, { method: 'PATCH', body: dados })
+      setMsg('Dados do cliente salvos.')
+      await carregar()
+      setDetalhe({
+        ...detalhe,
+        nome: dados.nome !== undefined ? dados.nome : detalhe.nome,
+        valor: dados.valor !== undefined ? dados.valor : detalhe.valor,
+      })
+      setEventos(await eventosDoLead(detalhe.id))
+    } catch (e) {
+      setMsg(erroLegivel(e))
+    } finally {
+      setSalvandoDados(false)
+    }
+  }
+
+  /** 17/11: passa o lead para o vendedor escolhido (sai da carteira do antigo). */
+  const trocarVendedor = async () => {
+    if (!detalhe || novoDono === '') return
+    setTrocando(true)
+    try {
+      const destinoId = novoDono === '__sem_dono__' ? '' : novoDono
+      await pb.send('/backend/v1/crm/leads/' + detalhe.id, {
+        method: 'PATCH',
+        body: { owner_id: destinoId },
+      })
+      const v = vendedoresLista.find((x) => x.id === destinoId)
+      setMsg(v ? 'Lead passado para ' + v.nome + '.' : 'Lead ficou sem dono.')
+      await carregar()
+      setDetalhe({ ...detalhe, owner_id: destinoId, owner_nome: v ? v.nome : '' })
+      setNovoDono('')
+      setEventos(await eventosDoLead(detalhe.id))
+    } catch (e) {
+      setMsg(erroLegivel(e))
+    } finally {
+      setTrocando(false)
     }
   }
 
@@ -1089,6 +1188,32 @@ export default function Leads() {
               {detalhe.observacoes && (
                 <p className="rounded-md bg-muted px-3 py-2 text-sm">{detalhe.observacoes}</p>
               )}
+              {/* 17/11: dados do cliente — nome e valor da venda editáveis pelo dono do lead */}
+              <div className="rounded-md border p-3">
+                <p className="mb-2 text-sm font-medium">Dados do cliente</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_160px_auto] sm:items-end">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nome do cliente</Label>
+                    <Input
+                      value={editNome}
+                      onChange={(e) => setEditNome(e.target.value)}
+                      placeholder="Nome completo"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Valor da venda (R$)</Label>
+                    <Input
+                      value={editValor}
+                      onChange={(e) => setEditValor(e.target.value)}
+                      placeholder="0,00"
+                      inputMode="decimal"
+                    />
+                  </div>
+                  <Button onClick={() => void salvarDados()} disabled={salvandoDados}>
+                    {salvandoDados ? 'Salvando…' : 'Salvar dados'}
+                  </Button>
+                </div>
+              </div>
               <div className="flex items-end gap-2">
                 <div className="space-y-1 flex-1">
                   <Label>Status</Label>
@@ -1170,9 +1295,43 @@ export default function Leads() {
                         : 'Sem responsável — a transferência usa o rodízio'}
                     </p>
                   </div>
-                  <Button size="sm" onClick={() => void transferir()} disabled={transferindo}>
-                    {transferindo ? 'Transferindo…' : 'Transferir para vendedor'}
-                  </Button>
+                  {/* 17/11: trocar vendedor escolhendo o nome (pedido da Anézia) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select value={novoDono} onValueChange={setNovoDono}>
+                      <SelectTrigger className="h-9 w-[200px]">
+                        <SelectValue placeholder="Trocar vendedor…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vendedoresLista
+                          .filter((v) => v.id !== detalhe.owner_id)
+                          .map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.nome}
+                            </SelectItem>
+                          ))}
+                        {detalhe.owner_id && (
+                          <SelectItem value="__sem_dono__">Deixar sem dono</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      onClick={() => void trocarVendedor()}
+                      disabled={trocando || novoDono === ''}
+                    >
+                      {trocando ? 'Trocando…' : 'Trocar'}
+                    </Button>
+                    {!detalhe.owner_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void transferir()}
+                        disabled={transferindo}
+                      >
+                        {transferindo ? 'Distribuindo…' : 'Distribuir pelo rodízio'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {transfErro && <p className="mt-2 text-xs text-red-600">{transfErro}</p>}
                 {transf && (
