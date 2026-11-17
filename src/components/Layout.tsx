@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
-  Rocket,
   BarChart3,
   ListPlus,
   Scale,
@@ -17,29 +16,47 @@ import {
   KeyRound,
   LogOut,
   Bot,
-  Menu as MenuIcon,
+  Rocket,
+  LayoutGrid,
+  Handshake,
+  Megaphone,
+  Sparkles,
+  Settings,
+  Folder,
   X,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { VERSAO_SISTEMA } from '@/lib/versao'
 import { SeletorEmpresa } from '@/components/base/seletor-empresa'
+import { Dica } from '@/components/base/dica'
 import type { Sessao } from '@/App'
 
 /**
- * Layout único do sistema (SPEC-2-007, CA-2-16).
+ * Layout do sistema — NAVEGAÇÃO EM DOIS NÍVEIS (SPEC-3-018 / RN-202).
  *
- * Mudança de 30/10: o menu NÃO é uma lista fixa. Ele vem do servidor
- * (/backend/v1/wa/sessao → `menu`), com só os módulos que os grants da pessoa
- * permitem. Quem não tem a permissão não vê a aba.
+ * Antes: uma coluna única com o menu agrupado por categoria (CA-3-39).
+ * Agora: uma BARRA ESTREITA DE ÍCONES (64 px) + um PAINEL DE MÓDULOS (240 px),
+ * como nas referências.
  *
- * **CA-3-39 (16/11) — MENU NA LATERAL:** até 15/11 o menu ficava numa faixa
- * horizontal no topo, apesar de o card pedir a lateral. Aqui ele passa para uma
- * coluna à esquerda, agrupado por categoria. No celular a coluna vira uma
- * gaveta, aberta pelo botão do cabeçalho — senão ela comeria a tela.
+ * Regras da RN-202 que este arquivo implementa:
+ *  - barra: quadrado preto de 40 px com o ícone da marca no topo (leva a `/`);
+ *    um botão redondo de 44 px por categoria que a pessoa tem; a categoria
+ *    ATIVA num círculo preto com ícone branco; no rodapé, Minha senha e Sair
+ *    (Minha senha fica SÓ aqui, não entra em categoria);
+ *  - painel: nome da categoria em exibição, o SeletorEmpresa (só quem tem 2+),
+ *    e os módulos daquela categoria — o da rota atual numa pílula branca;
+ *  - categoria em exibição: ao abrir uma tela é a que contém a rota; clicar num
+ *    ícone troca o painel SEM trocar de tela; clicar num módulo navega e a
+ *    categoria volta a ser a da rota nova;
+ *  - rotas fora do menu (Início `/`, Minha senha, não encontrado): nenhum ícone
+ *    marcado e o painel mostra a primeira categoria;
+ *  - larguras: ≥1024 px barra e painel fixos; 768–1023 px só a barra fixa e o
+ *    painel abre por cima; <768 px uma gaveta com os dois lado a lado;
+ *  - teclado: Tab percorre, Enter/Espaço ativam, Esc fecha e devolve o foco.
  *
- * **CA-3-40:** cada item tem `title` (dica ao passar o mouse) e a categoria
- * virou cabeçalho visível, não só um separador — que é o "menos branco e
- * separar melhor as seções" pedido.
+ * Nenhum dado, rota, permissão ou contador novo: o menu continua vindo do
+ * servidor (`/backend/v1/wa/sessao` → `menu[]`, com `para`, `rotulo`,
+ * `categoria`).
  */
 
 const ICONES: Record<string, typeof BarChart3> = {
@@ -58,23 +75,36 @@ const ICONES: Record<string, typeof BarChart3> = {
   '/saude-canal': Activity,
 }
 
+// RN-202: um ícone por categoria
+const ICONES_CATEGORIA: Record<string, typeof LayoutGrid> = {
+  'Visão geral': LayoutGrid,
+  Vendas: Handshake,
+  Marketing: Megaphone,
+  'Inteligência artificial': Sparkles,
+  Administração: Settings,
+  Outros: Folder,
+}
+
+const ORDEM_CATEGORIAS = [
+  'Visão geral',
+  'Vendas',
+  'Marketing',
+  'Inteligência artificial',
+  'Administração',
+  'Outros',
+]
+
 export default function Layout({ sessao }: { sessao: Sessao }) {
   const atual = useLocation().pathname
   const currentYear = new Date().getFullYear()
-  const [menuAberto, setMenuAberto] = useState(false)
+
+  // <768 px: gaveta aberta/fechada. 768–1023 px: painel sobreposto.
+  const [gaveta, setGaveta] = useState(false)
+  const [painelSobreposto, setPainelSobreposto] = useState(false)
 
   // Minha senha todo mundo tem; o resto vem do servidor
   const itens = [...sessao.menu, { para: '/minha-senha', rotulo: 'Minha senha' }]
 
-  // Ordem em que a gestão pensa o negócio. Item sem categoria cai em "Outros".
-  const ORDEM_CATEGORIAS = [
-    'Visão geral',
-    'Vendas',
-    'Marketing',
-    'Inteligência artificial',
-    'Administração',
-    'Outros',
-  ]
   const grupoMenu = ORDEM_CATEGORIAS.map((cat) => ({
     categoria: cat,
     itens: itens.filter((i) =>
@@ -84,138 +114,233 @@ export default function Layout({ sessao }: { sessao: Sessao }) {
     ),
   })).filter((g) => g.itens.length > 0)
 
+  // RN-202: categoria da ROTA atual; se a rota não está no menu, a primeira
+  const categoriaDaRota = (() => {
+    for (const g of grupoMenu) {
+      for (const i of g.itens) {
+        if (i.para === atual || atual.startsWith(i.para + '/')) return g.categoria
+      }
+    }
+    return grupoMenu.length > 0 ? grupoMenu[0].categoria : ''
+  })()
+
+  // Categoria EM EXIBIÇÃO no painel. Começa na da rota e é trocada ao clicar
+  // num ícone (sem navegar). Volta a ser a da rota quando a rota muda.
+  const [categoriaExibida, setCategoriaExibida] = useState(categoriaDaRota)
+  useEffect(() => {
+    setCategoriaExibida(categoriaDaRota)
+  }, [categoriaDaRota])
+
+  const grupoExibido =
+    grupoMenu.find((g) => g.categoria === categoriaExibida) || grupoMenu[0] || null
+
   function sair() {
     pb.authStore.clear()
     window.location.replace('/')
   }
 
-  // A coluna lateral. No celular fica escondida até o botão abrir.
-  const lateral = (
-    <div className="flex flex-col h-full">
-      {/* marca */}
-      <div className="flex items-center gap-3 h-16 shrink-0 px-4 border-b border-border">
-        <div className="h-9 w-9 shrink-0 rounded-lg bg-[linear-gradient(135deg,hsl(var(--marca-1)),hsl(var(--marca-2)))] flex items-center justify-center text-white shadow-sm">
-          <Rocket className="h-5 w-5" aria-hidden="true" />
-        </div>
-        <span className="font-semibold text-sm tracking-tight truncate">Sistema Marketing</span>
-        <button
-          type="button"
-          onClick={() => setMenuAberto(false)}
-          className="md:hidden ml-auto rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-          aria-label="Fechar menu"
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </button>
-      </div>
+  function escolherCategoria(cat: string) {
+    setCategoriaExibida(cat)
+    setPainelSobreposto(true) // em 768–1023 abre por cima
+    setGaveta(false)
+  }
 
-      {/* seletor de empresa (CA-3-90: só o dono com 2+ empresas vê) */}
-      <div className="px-3 py-2 border-b border-border">
-        <SeletorEmpresa />
-      </div>
+  // Esc fecha o painel sobreposto e a gaveta
+  useEffect(() => {
+    function aoTeclar(ev: KeyboardEvent) {
+      if (ev.key !== 'Escape') return
+      setPainelSobreposto(false)
+      setGaveta(false)
+    }
+    window.addEventListener('keydown', aoTeclar)
+    return () => window.removeEventListener('keydown', aoTeclar)
+  }, [])
 
-      {/* categorias + itens */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4" aria-label="Navegação principal">
-        {grupoMenu.map((grupo) => (
-          <div key={grupo.categoria}>
-            <div
-              className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70"
-              title={grupo.categoria}
+  // ---------------- BARRA DE ÍCONES (64 px) ----------------
+  const barra = (
+    <nav
+      aria-label="Categorias"
+      className="flex w-16 shrink-0 flex-col items-center gap-1 bg-background py-3"
+    >
+      {/* marca: quadrado preto de 40 px */}
+      <Link
+        to="/"
+        aria-label="Início"
+        title="Início"
+        className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background transition-opacity hover:opacity-90"
+      >
+        <Rocket className="h-5 w-5" aria-hidden="true" />
+      </Link>
+
+      {grupoMenu.map((g) => {
+        const Icone = ICONES_CATEGORIA[g.categoria] || Folder
+        const ativa = g.categoria === categoriaExibida
+        return (
+          <Dica key={g.categoria} texto={g.categoria}>
+            <button
+              type="button"
+              onClick={() => escolherCategoria(g.categoria)}
+              aria-label={g.categoria}
+              aria-current={ativa ? 'true' : undefined}
+              className={
+                'flex h-11 w-11 items-center justify-center rounded-full transition-colors ' +
+                (ativa
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+              }
             >
-              {grupo.categoria}
-            </div>
-            <ul className="space-y-0.5">
-              {grupo.itens.map(({ para, rotulo }) => {
-                const Icone = ICONES[para] || KeyRound
-                const ativo = atual === para || atual.startsWith(para + '/')
-                return (
-                  <li key={para}>
-                    <Link
-                      to={para}
-                      aria-current={ativo ? 'page' : undefined}
-                      title={rotulo + ' — ' + grupo.categoria}
-                      onClick={() => setMenuAberto(false)}
-                      className={
-                        'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors ' +
-                        (ativo
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground')
-                      }
-                    >
-                      <Icone className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{rotulo}</span>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
-      </nav>
+              <Icone className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </Dica>
+        )
+      })}
 
-      {/* sair */}
-      <div className="shrink-0 border-t border-border p-2">
-        <button
-          type="button"
-          onClick={sair}
-          title={'Sair — ' + sessao.user.email}
-          className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="truncate">Sair</span>
-        </button>
+      <div className="mt-auto flex flex-col items-center gap-1">
+        <Dica texto="Minha senha">
+          <Link
+            to="/minha-senha"
+            aria-label="Minha senha"
+            className={
+              'flex h-11 w-11 items-center justify-center rounded-full transition-colors ' +
+              (atual === '/minha-senha'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+            }
+          >
+            <KeyRound className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </Dica>
+        <Dica texto="Sair">
+          <button
+            type="button"
+            onClick={sair}
+            aria-label={'Sair — ' + sessao.user.email}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <LogOut className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </Dica>
       </div>
+    </nav>
+  )
+
+  // ---------------- PAINEL DE MÓDULOS (240 px) ----------------
+  const painel = (
+    <div className="flex h-full w-60 shrink-0 flex-col gap-3 bg-background px-3 py-4">
+      <h2 className="text-painel font-semibold tracking-tight">
+        {grupoExibido ? grupoExibido.categoria : ''}
+      </h2>
+
+      {/* CA-3-90: só quem tem 2+ empresas vê */}
+      <SeletorEmpresa />
+
+      <ul className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
+        {(grupoExibido ? grupoExibido.itens : []).map(({ para, rotulo }) => {
+          const Icone = ICONES[para] || KeyRound
+          const ativo = atual === para || atual.startsWith(para + '/')
+          return (
+            <li key={para}>
+              <Link
+                to={para}
+                onClick={() => {
+                  setPainelSobreposto(false)
+                  setGaveta(false)
+                }}
+                aria-current={ativo ? 'page' : undefined}
+                title={rotulo}
+                className={
+                  'flex items-center gap-2.5 rounded-full px-3 py-2 text-sm transition-colors ' +
+                  (ativo
+                    ? 'bg-card font-medium text-foreground'
+                    : 'text-muted-foreground hover:text-foreground')
+                }
+              >
+                <Icone className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{rotulo}</span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
-      {/* fundo escuro da gaveta no celular */}
-      {menuAberto && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          onClick={() => setMenuAberto(false)}
-          aria-hidden="true"
-        />
+    <div className="flex min-h-screen bg-background text-foreground">
+      {/* ---------- ≥1024 px: barra e painel fixos lado a lado ---------- */}
+      <div className="hidden min-h-screen border-r border-border bg-background lg:flex">
+        {barra}
+        <div className="border-l border-border">{painel}</div>
+      </div>
+
+      {/* ---------- 768–1023 px: só a barra fixa; painel por cima ---------- */}
+      <div className="hidden min-h-screen border-r border-border bg-background md:flex lg:hidden">
+        {barra}
+      </div>
+      {painelSobreposto && (
+        <div className="fixed inset-0 z-40 hidden md:block lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setPainelSobreposto(false)}
+            aria-hidden="true"
+          />
+          <div className="absolute inset-y-0 left-16 z-50 border-r border-border bg-background shadow-janela">
+            {painel}
+          </div>
+        </div>
       )}
 
-      {/* COLUNA LATERAL — fixa no desktop, gaveta no celular */}
-      <aside
-        className={
-          'fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card transition-transform duration-200 md:static md:translate-x-0 md:z-auto ' +
-          (menuAberto ? 'translate-x-0' : '-translate-x-full')
-        }
-      >
-        {lateral}
-      </aside>
+      {/* ---------- <768 px: gaveta com barra e painel lado a lado ---------- */}
+      {gaveta && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setGaveta(false)}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 flex h-full bg-background shadow-janela">
+            {barra}
+            <div className="border-l border-border">{painel}</div>
+            <button
+              type="button"
+              onClick={() => setGaveta(false)}
+              aria-label="Fechar menu"
+              className="absolute right-2 top-2 rounded-full p-2 text-muted-foreground hover:bg-muted"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* conteúdo */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* cabeçalho enxuto: só o botão do menu e o nome de quem está logado */}
-        <header className="h-16 border-b border-border bg-card/80 backdrop-blur sticky top-0 z-30 px-4 md:px-6 flex items-center gap-3">
+      {/* ---------- conteúdo ---------- */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* cabeçalho: abaixo de 1024 px fica só para o botão de menu e a empresa */}
+        <header className="flex h-16 items-center gap-3 border-b border-border px-4 lg:hidden">
           <button
             type="button"
-            onClick={() => setMenuAberto(true)}
-            className="md:hidden rounded-md p-2 text-muted-foreground hover:bg-muted"
+            onClick={() => setGaveta(true)}
             aria-label="Abrir menu"
+            className="rounded-full p-2 text-muted-foreground hover:bg-muted md:hidden"
           >
-            <MenuIcon className="h-5 w-5" aria-hidden="true" />
+            <LayoutGrid className="h-5 w-5" aria-hidden="true" />
           </button>
-          <span className="font-semibold text-base md:text-lg tracking-tight truncate md:hidden">
-            Sistema Marketing
-          </span>
-          <div className="ml-auto flex items-center gap-2 min-w-0">
-            <span className="hidden sm:inline text-xs text-muted-foreground truncate">
-              {sessao.user.nome !== '' ? sessao.user.nome : sessao.user.email}
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={() => setPainelSobreposto((v) => !v)}
+            aria-label="Abrir módulos"
+            className="hidden rounded-full p-2 text-muted-foreground hover:bg-muted md:inline-flex lg:hidden"
+          >
+            <LayoutGrid className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <span className="truncate text-sm font-semibold">Sistema Marketing</span>
         </header>
 
-        <main className="flex-1 flex flex-col min-w-0">
+        <main className="flex min-w-0 flex-1 flex-col">
           <Outlet />
         </main>
 
-        {/* rodapé com a versão real (CA-2-16) */}
-        <footer className="py-3 border-t border-border bg-card text-center text-xs text-muted-foreground">
+        <footer className="py-3 text-center text-xs text-muted-foreground">
           Sistema Marketing · {VERSAO_SISTEMA} · {currentYear}
           {sessao.user.nome !== '' && <> · {sessao.user.nome}</>}
         </footer>
