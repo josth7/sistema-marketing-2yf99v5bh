@@ -25,18 +25,77 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
     return e.json(400, { ok: false, erro: 'fonte inválida: use meta_ads ou google_ads' })
   }
 
+  // ================= EMPRESA (17/11) =================
+  // O sistema atende MAIS DE UMA EMPRESA. A ingestão nasceu quando só existia a
+  // Haisan e gravava tudo sem `empresa` — com o Google da GOO7 conectado pelo
+  // HURIEL, o dado dela entraria misturado com o da Haisan.
+  //
+  // Ordem de resolução (a primeira que existir):
+  //   1. `empresa` no corpo ou na query (o Maestro/HURIEL manda o id);
+  //   2. segredo EMPRESA_GOOGLE_ADS / EMPRESA_META_ADS (empresa padrão da fonte);
+  //   3. a empresa mais antiga do sistema (Haisan) — comportamento antigo.
+  var idEmpresaIngest = ''
+  try {
+    idEmpresaIngest = String(e.request.url.query().get('empresa') || '')
+  } catch (eQ) {}
+  if (idEmpresaIngest === '') {
+    try {
+      var corpoTmp = e.requestInfo().body || {}
+      if (corpoTmp && corpoTmp.empresa) idEmpresaIngest = String(corpoTmp.empresa)
+    } catch (eB) {}
+  }
+  if (idEmpresaIngest === '') {
+    try {
+      idEmpresaIngest = String(
+        $secrets.get(fonte === 'google_ads' ? 'EMPRESA_GOOGLE_ADS' : 'EMPRESA_META_ADS') || '',
+      )
+    } catch (eS) {}
+  }
+  if (idEmpresaIngest === '') {
+    try {
+      // mais antiga = a primeira criada (Haisan), como era antes
+      const esPad = e.app.findRecordsByFilter('empresas', '', 'created', 1, 0)
+      if (esPad.length > 0) idEmpresaIngest = esPad[0].id
+    } catch (eE2) {}
+  }
+  if (idEmpresaIngest !== '') {
+    // confere se a empresa existe: gravar id inválido suja o painel
+    try {
+      e.app.findRecordById('empresas', idEmpresaIngest)
+    } catch (eVal) {
+      console.log('ingest: empresa invalida -> ' + idEmpresaIngest)
+      idEmpresaIngest = ''
+    }
+  }
+  console.log('ingest: fonte=' + fonte + ' empresa=' + (idEmpresaIngest || '(nenhuma)'))
+
   // ---- atualiza fontes_estado (inline, RN-07) ----
   // estado: conectado | erro_autenticacao | erro_api | indisponivel
   function gravarEstado(app, canal, estado, aviso, sucesso) {
     try {
       const colE = app.findCollectionByNameOrId('fontes_estado')
-      const exE = app.findRecordsByFilter(colE, "canal='" + canal + "'", '', 1, 0)
+      // por EMPRESA: o estado da fonte do GOO7 não pode sobrescrever o da Haisan
+      const exE = app.findRecordsByFilter(
+        colE,
+        "canal='" +
+          canal +
+          "'" +
+          (idEmpresaIngest !== '' ? " && empresa='" + idEmpresaIngest + "'" : ''),
+        '',
+        1,
+        0,
+      )
       let recE
       if (exE && exE.length > 0) {
         recE = app.findRecordById(colE, exE[0].id)
       } else {
         recE = new Record(colE)
         recE.set('canal', canal)
+        if (idEmpresaIngest !== '') {
+          try {
+            recE.set('empresa', idEmpresaIngest)
+          } catch (eEmpE) {}
+        }
       }
       recE.set('estado', estado)
       recE.set('aviso', aviso || '')
@@ -400,7 +459,13 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
     let gravados = 0
     for (const r of linhas) {
       if (!r.data) continue
-      const filtro = "origem='api' && canal='" + fonte + "' && campanha_id='" + r.campanhaId + "'"
+      const filtro =
+        "origem='api' && canal='" +
+        fonte +
+        "' && campanha_id='" +
+        r.campanhaId +
+        "'" +
+        (idEmpresaIngest !== '' ? " && empresa='" + idEmpresaIngest + "'" : '')
       const candidatos = e.app.findRecordsByFilter(col, filtro, '', 50, 0)
       let rec = null
       for (const c of candidatos) {
@@ -413,6 +478,11 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
         rec = new Record(col)
         rec.set('origem', 'api')
         rec.set('canal', fonte)
+        if (idEmpresaIngest !== '') {
+          try {
+            rec.set('empresa', idEmpresaIngest)
+          } catch (eEmpR) {}
+        }
       }
       const ehOrganico = r.objetivo === 'organico'
       rec.set('natureza', ehOrganico ? 'organico' : 'pago')
