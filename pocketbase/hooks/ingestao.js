@@ -44,6 +44,54 @@ routerAdd('POST', '/backend/v1/ingest', (e) => {
       if (corpoTmp && corpoTmp.empresa) idEmpresaIngest = String(corpoTmp.empresa)
     } catch (eB) {}
   }
+  // ---- GOOGLE: a CONTA manda (17/11) ----
+  // O Google tem uma conta por empresa. Identificar pela conta é o caminho
+  // seguro: o Maestro já manda `conta_id` no corpo, então o dado da Haisan
+  // continua indo para a Haisan MESMO com o segredo apontando o GOO7.
+  // Sem isso, a primeira carga da Haisan cairia no GOO7 — um erro que eu mesmo
+  // criaria ao configurar o segredo para o GOO7.
+  if (idEmpresaIngest === '' && fonte === 'google_ads') {
+    var contaIn = ''
+    try {
+      const cTmp = e.requestInfo().body || {}
+      contaIn = String(cTmp.conta_id || '').replace(/[^0-9]/g, '')
+    } catch (eC) {}
+    if (contaIn !== '') {
+      // procura a empresa que já tem essa conta nas métricas
+      try {
+        const dona = e.app.findRecordsByFilter(
+          'metricas_diarias',
+          "canal='google_ads' && conta_id='" + contaIn + "' && empresa!=''",
+          '',
+          1,
+          0,
+        )
+        if (dona.length > 0) idEmpresaIngest = String(dona[0].get('empresa') || '')
+      } catch (eD) {}
+    }
+  }
+  // mapa fixo das contas conhecidas (quando ainda não há métrica da conta)
+  if (idEmpresaIngest === '' && fonte === 'google_ads') {
+    try {
+      const contaM = String(
+        (function () {
+          try {
+            return String((e.requestInfo().body || {}).conta_id || '').replace(/[^0-9]/g, '')
+          } catch (eX) {
+            return ''
+          }
+        })(),
+      )
+      const mapa = String($secrets.get('MAPA_CONTA_EMPRESA') || '')
+      // formato: "9624533125=466e6h3zvebl0rf,1234567890=78b71rygx3rtnwg"
+      if (mapa !== '' && contaM !== '') {
+        for (const par of mapa.split(',')) {
+          const kv = par.split('=')
+          if (kv.length === 2 && kv[0].trim() === contaM) idEmpresaIngest = kv[1].trim()
+        }
+      }
+    } catch (eM) {}
+  }
   if (idEmpresaIngest === '') {
     try {
       idEmpresaIngest = String(
