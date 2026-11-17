@@ -142,7 +142,6 @@ export default function Numeros() {
                     texto={c.papel === 'central' ? 'central' : 'vendedor'}
                     tom={c.papel === 'central' ? 'ok' : 'neutro'}
                   />
-                  <span className="hidden">{c.papel === 'central' ? 'central' : 'vendedor'}</span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 pt-0 text-sm">
