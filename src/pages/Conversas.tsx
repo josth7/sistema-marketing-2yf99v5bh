@@ -749,16 +749,19 @@ export default function Conversas() {
               </div>
 
               {(observacoes.length > 0 || possoEscrever) && (
-                <div className="border-b bg-amber-50 px-4 py-2 dark:bg-amber-950/20">
-                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                <div
+                  className="border-b px-4 py-2"
+                  style={{ backgroundColor: 'hsl(var(--interna))' }}
+                >
+                  <div
+                    className="mb-1 flex items-center gap-1.5 text-xs font-semibold"
+                    style={{ color: 'hsl(var(--interna-foreground))' }}
+                  >
                     <span>🔒</span>
-                    <span>Recado interno — o cliente NÃO vê, só o vendedor deste atendimento</span>
+                    <span>Interna — o cliente NÃO vê, só o vendedor deste atendimento</span>
                   </div>
                   {observacoes.map((o) => (
-                    <div
-                      key={o.id}
-                      className="mb-1 rounded border border-amber-300/60 bg-white/70 px-2 py-1 text-xs dark:bg-amber-900/20"
-                    >
+                    <div key={o.id} className="mb-1 rounded-campo bg-white/70 px-2 py-1 text-xs">
                       <span className="font-medium">{o.autor_nome || 'Gerência'}: </span>
                       <span className="whitespace-pre-wrap">{o.texto}</span>
                     </div>
@@ -772,7 +775,7 @@ export default function Conversas() {
                           if (ev.key === 'Enter') void salvarNota()
                         }}
                         placeholder="Ex.: não fala que é aço, é madeira…"
-                        className="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs dark:bg-amber-900/30"
+                        className="flex-1 rounded-campo bg-white px-2 py-1 text-xs"
                       />
                       <Button
                         size="sm"
