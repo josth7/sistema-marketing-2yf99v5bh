@@ -53,6 +53,7 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
     // ---------- conexões ----------
     const cxPapel = {}
     const cxVend = {}
+    const cxFix = {}
     var central = null
     try {
       for (const c of app.findRecordsByFilter(
@@ -64,7 +65,12 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
       )) {
         cxPapel[c.id] = String(c.get('papel') || '')
         cxVend[c.id] = String(c.get('vendedor_user') || '')
-        if (String(c.get('papel')) === 'central') central = c
+        cxFix[c.id] = String(c.get('fixture')) === 'true'
+        // DEFEITO CORRIGIDO (17/11, consultor): pegava QUALQUER central ativa —
+        // inclusive a "CENTRAL FIXTURE QA" (teste). O aviso saía pela rota de
+        // teste e voltava 405/404: 0 de 55 avisos chegaram em 17/11. Agora só
+        // central real; e o aviso sai pela central onde o cliente escreveu.
+        if (String(c.get('papel')) === 'central' && !cxFix[c.id] && !central) central = c
       }
     } catch (e1) {}
     if (!central) return
@@ -147,6 +153,7 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
       const cx = String(m.get('conexao') || '')
       // só a CENTRAL gera aviso (o número do dono não precisa de aviso)
       if (cxPapel[cx] !== 'central') continue
+      if (cxFix[cx]) continue
 
       const tel = String(m.get('contato_telefone') || '').replace(/[^0-9]/g, '')
       if (tel === '') continue
@@ -172,7 +179,7 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
       // dono tem conexão ativa?
       var cxDono = ''
       for (const id in cxVend) {
-        if (cxVend[id] === dono && cxPapel[id] === 'vendedor') cxDono = id
+        if (cxVend[id] === dono && cxPapel[id] === 'vendedor' && !cxFix[id]) cxDono = id
       }
       if (cxDono === '') {
         // sem conexão: o cliente vai para "Precisa de ação"
@@ -203,7 +210,10 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
       try {
         const ant = app.findRecordsByFilter(
           colEnv,
-          "dedupe_key~'aviso_resposta' && destino_telefone='" + tel + "'",
+          // CORRIGIDO (17/11): filtrava destino_telefone = telefone do CLIENTE,
+          // mas o destino do aviso é o número do VENDEDOR — a trava de 15 min
+          // nunca achava nada. A chave já carrega o telefone do cliente.
+          "dedupe_key~'" + chave + "|'",
           '',
           5,
           0,
@@ -268,7 +278,7 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
 
       try {
         const env = new Record(colEnv)
-        env.set('conexao', central.id)
+        env.set('conexao', cx)
         env.set('destino_telefone', numDono)
         env.set('motivo', 'aviso_vendedor')
         env.set('modo', 'texto')

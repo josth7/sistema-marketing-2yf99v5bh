@@ -750,7 +750,16 @@ onRecordAfterCreateSuccess((e) => {
         } catch (eSil) {}
       }
       var id = null
-      if (apresentacaoLigada && modeloApresentacao !== '') {
+      // DEFEITO CORRIGIDO (17/11, consultor): este envio saía DO número do
+      // vendedor PARA O PRÓPRIO número do vendedor (`conexaoVendedor` ->
+      // `numeroVendedor`). A Meta recusa mensagem para o próprio número:
+      // "(#100) Invalid parameter" — 33 de 41 apresentações recusadas desde
+      // 16/11. Pior: ele ocupava a chave `apresentacao|<lead>`, então a
+      // apresentação CERTA (do número do vendedor para o CLIENTE, feita pelo
+      // `wa_apresentacao_15min` 15 min depois da frase com o link) nunca saía.
+      // A apresentação agora é SÓ do cron. Este envio fica desligado.
+      const ENVIAR_APRESENTACAO_NA_TRANSFERENCIA = false
+      if (ENVIAR_APRESENTACAO_NA_TRANSFERENCIA && apresentacaoLigada && modeloApresentacao !== '') {
         id = enfileirar(
           conexaoVendedor,
           numeroVendedor,

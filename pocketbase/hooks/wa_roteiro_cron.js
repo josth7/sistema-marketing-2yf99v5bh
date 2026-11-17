@@ -226,6 +226,23 @@ cronAdd('wa_roteiro', '* * * * *', () => {
           }
         } catch (eG) {}
         if (!vd || gt) continue
+        // TRAVA (17/11, consultor): só entra quem tem CONEXÃO de vendedor ativa
+        // (mesma regra do rodízio e do wa_aviso_lead_novo). Sem isto, contas sem
+        // número — consultor da agência, Marketing, GOO7 — tinham carga 0 e eram
+        // anunciadas ao cliente ("direcionado para rodrigo@adapta.org"): 18
+        // clientes entre 11 e 17/11.
+        var temCxVend = false
+        try {
+          const cxU = $app.findRecordsByFilter(
+            $app.findCollectionByNameOrId('whatsapp_conexoes'),
+            "vendedor_user='" + u.id + "' && papel='vendedor' && ativo=true && fixture=false",
+            '',
+            1,
+            0,
+          )
+          temCxVend = !!(cxU && cxU.length > 0)
+        } catch (eCxU) {}
+        if (!temCxVend) continue
         vendedores.push({ id: u.id, nome: nm || em, carga: carga[u.id] || 0 })
       }
       vendedores.sort(function (a, b) {
