@@ -88,7 +88,9 @@ export default function MinhaSenha() {
       <div className="mx-auto max-w-lg space-y-4">
         <div className="flex items-center gap-2">
           <KeyRound className="h-5 w-5 text-primary" aria-hidden="true" />
-          <h1 className="text-xl font-semibold tracking-tight">Minha senha</h1>
+          <h1 className="text-titulo-celular font-semibold tracking-tight md:text-titulo">
+            Minha senha
+          </h1>
         </div>
 
         {erroStatus !== '' && (
@@ -152,7 +154,7 @@ export default function MinhaSenha() {
               autoComplete="current-password"
               value={atual}
               onChange={(e) => setAtual(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-campo border border-input bg-card px-4 py-2.5 text-sm"
               required
             />
           </div>
@@ -168,7 +170,7 @@ export default function MinhaSenha() {
               value={nova}
               onChange={(e) => setNova(e.target.value)}
               minLength={8}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-campo border border-input bg-card px-4 py-2.5 text-sm"
               required
             />
             <p className="text-xs text-muted-foreground">Mínimo 8 caracteres.</p>
@@ -185,7 +187,7 @@ export default function MinhaSenha() {
               value={nova2}
               onChange={(e) => setNova2(e.target.value)}
               minLength={8}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-campo border border-input bg-card px-4 py-2.5 text-sm"
               required
             />
           </div>
@@ -204,7 +206,7 @@ export default function MinhaSenha() {
           <button
             type="submit"
             disabled={enviando || atual === '' || nova === '' || nova2 === ''}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-60"
           >
             {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             {enviando ? 'Alterando…' : 'Alterar senha'}
