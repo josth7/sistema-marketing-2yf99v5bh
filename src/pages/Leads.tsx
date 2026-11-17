@@ -609,24 +609,27 @@ export default function Leads() {
             const coluna = itens.filter((l) => l.status === s.valor)
             // valor somado da coluna — só conta o que tem venda registrada
             const valorColuna = coluna.reduce((acc, l) => acc + Number(l.valor || 0), 0)
-            const corBorda =
+            // SPEC-3-018 RN-203 item 10: a coluna é um contêiner --muted
+            // arredondado. A cor do estado NÃO pinta a coluna inteira — ela
+            // vira o PONTO do chip de etapa, com o nome sempre em texto
+            // (o estado nunca é mostrado só pela cor).
+            const corPonto =
               s.cor === 'verde'
-                ? 'border-emerald-300'
+                ? 'hsl(var(--destaque-escuro))'
                 : s.cor === 'vermelho'
-                  ? 'border-red-300'
-                  : 'border-border'
+                  ? 'hsl(var(--destructive))'
+                  : 'hsl(var(--muted-foreground))'
             return (
-              <div
-                key={s.valor}
-                className={
-                  'rounded-lg border ' +
-                  corBorda +
-                  ' bg-muted/30 p-2 ' +
-                  (s.cor === 'vermelho' ? 'bg-red-50/40' : '')
-                }
-              >
+              <div key={s.valor} className="rounded-cartao bg-muted p-2">
                 <p className="mb-1 flex items-start justify-between gap-1 px-1 text-xs font-semibold leading-tight">
-                  <span className="flex-1">{s.rotulo}</span>
+                  <span className="flex flex-1 items-center gap-1.5">
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: corPonto }}
+                      aria-hidden="true"
+                    />
+                    {s.rotulo}
+                  </span>
                   <span className="shrink-0 rounded-full bg-background px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
                     {coluna.length}
                   </span>
@@ -755,7 +758,7 @@ export default function Leads() {
               return (
                 <div
                   key={l.id}
-                  className="flex flex-col rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+                  className="flex flex-col rounded-lead border border-border bg-card p-3 transition-colors hover:border-foreground/20"
                 >
                   {/* cabeçalho do bloco: nome + etapa */}
                   <div className="flex items-start justify-between gap-2">
@@ -869,9 +872,9 @@ export default function Leads() {
 
       {/* criar */}
       <Dialog open={abrirCriar} onOpenChange={setAbrirCriar}>
-        <DialogContent>
+        <DialogContent className="rounded-janela shadow-janela">
           <DialogHeader>
-            <DialogTitle>Novo lead</DialogTitle>
+            <DialogTitle className="text-janela">Novo lead</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
@@ -932,9 +935,9 @@ export default function Leads() {
 
       {/* detalhe */}
       <Dialog open={!!detalhe} onOpenChange={(aberto) => !aberto && setDetalhe(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg rounded-janela shadow-janela">
           <DialogHeader>
-            <DialogTitle>{detalhe?.nome}</DialogTitle>
+            <DialogTitle className="text-janela">{detalhe?.nome}</DialogTitle>
           </DialogHeader>
           {detalhe && (
             <div className="space-y-4">
