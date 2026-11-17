@@ -95,8 +95,8 @@ routerAdd(
       if (leadId === '') {
         // conversa sem lead: se já foi transferida, é cliente avisado sem CRM
         if (transferida) {
-          if (out.c.conversa_sem_lead.length < 60)
-            out.c.conversa_sem_lead.push({
+          if (out.c.length < 60)
+            out.c.push({
               conversa: cv.id.slice(0, 10),
               tel: tel.slice(-6),
               estado: estado,
@@ -113,8 +113,8 @@ routerAdd(
       } catch (eL) {}
       if (!lead) {
         if (transferida) {
-          if (out.b.dono_invalido.length < 60)
-            out.b.dono_invalido.push({
+          if (out.b.length < 60)
+            out.b.push({
               conversa: cv.id.slice(0, 10),
               tel: tel.slice(-6),
               motivo: 'lead nao existe mais',
@@ -130,8 +130,8 @@ routerAdd(
       if (ow === '') {
         // transferida com cliente avisado e SEM dono = o caso do dono
         if (transferida) {
-          if (out.a.transferidas_sem_dono.length < 80)
-            out.a.transferidas_sem_dono.push({
+          if (out.a.length < 80)
+            out.a.push({
               conversa: cv.id.slice(0, 10),
               lead: leadId.slice(0, 10),
               nome: nomeLead,
@@ -155,8 +155,8 @@ routerAdd(
         } catch (eU) {
           donoNome = '(usuario apagado)'
         }
-        if (out.b.dono_invalido.length < 60)
-          out.b.dono_invalido.push({
+        if (out.b.length < 60)
+          out.b.push({
             conversa: cv.id.slice(0, 10),
             lead: leadId.slice(0, 10),
             nome: nomeLead,
@@ -170,14 +170,14 @@ routerAdd(
         continue
       }
 
-      out.d.ok_count++
+      out.d++
     }
 
     out.resumo = {
-      transferidas_sem_dono: out.a.transferidas_sem_dono.length,
-      dono_invalido: out.b.dono_invalido.length,
-      conversa_sem_lead: out.c.conversa_sem_lead.length,
-      conferidas_ok: out.d.ok_count,
+      transferidas_sem_dono: out.a.length,
+      dono_invalido: out.b.length,
+      conversa_sem_lead: out.c.length,
+      conferidas_ok: out.d,
     }
     return e.json(200, out)
   },
