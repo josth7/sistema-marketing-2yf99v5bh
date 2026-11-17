@@ -1062,13 +1062,16 @@ export default function Leads() {
 
       {/* detalhe */}
       <Dialog open={!!detalhe} onOpenChange={(aberto) => !aberto && setDetalhe(null)}>
-        <DialogContent className="max-w-lg rounded-janela shadow-janela">
+        {/* 17/11: a janela estourava para a direita — o link wa.me/... das
+            mensagens do robô é uma "palavra" sem espaço e alargava tudo.
+            Agora: mais larga, rola só na vertical e quebra texto longo. */}
+        <DialogContent className="max-h-[90vh] w-[95vw] max-w-2xl overflow-y-auto overflow-x-hidden rounded-janela shadow-janela">
           <DialogHeader>
             <DialogTitle className="text-janela">{detalhe?.nome}</DialogTitle>
           </DialogHeader>
           {detalhe && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="min-w-0 space-y-4 [overflow-wrap:anywhere]">
+              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 <p>
                   <span className="text-muted-foreground">Telefone:</span> {detalhe.telefone || '—'}
                 </p>
@@ -1246,7 +1249,7 @@ export default function Leads() {
                         <div
                           key={msg.id}
                           className={
-                            'rounded-md px-3 py-2 text-sm ' +
+                            'min-w-0 rounded-md px-3 py-2 text-sm [overflow-wrap:anywhere] ' +
                             (msg.autor === 'cliente'
                               ? 'bg-muted/60'
                               : 'ml-6 bg-emerald-50 dark:bg-emerald-950/30')
@@ -1265,7 +1268,11 @@ export default function Leads() {
                           ) : (
                             <>
                               {/* texto renderizado como TEXTO: nunca HTML */}
-                              {msg.texto && <p className="whitespace-pre-wrap">{msg.texto}</p>}
+                              {msg.texto && (
+                                <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                                  {msg.texto}
+                                </p>
+                              )}
                               {msg.editada_em && msg.texto_original && (
                                 <p className="mt-1 text-xs text-muted-foreground line-through">
                                   {msg.texto_original}
