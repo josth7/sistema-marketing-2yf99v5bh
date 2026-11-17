@@ -258,6 +258,7 @@ routerAdd(
         out.numeros.distribuidos++
         if (!carga[dono]) {
           carga[dono] = {
+            id: dono,
             vendedor: nomes[dono] || dono,
             total: 0,
             abertos: 0,

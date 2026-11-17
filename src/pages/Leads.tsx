@@ -143,7 +143,14 @@ export default function Leads() {
   const [soQuentes, setSoQuentes] = useState(false)
   const [busca, setBusca] = useState('')
   // 17/11: filtros por vendedor e por origem na barra do CRM (pedido da gestão)
-  const [filtroVendedor, setFiltroVendedor] = useState<string>('todos')
+  // abre já filtrado quando vem da Gestão de leads (/leads?vendedor=<id>)
+  const [filtroVendedor, setFiltroVendedor] = useState<string>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('vendedor') || 'todos'
+    } catch {
+      return 'todos'
+    }
+  })
   const [filtroOrigem, setFiltroOrigem] = useState<string>('todos')
   const [msg, setMsg] = useState<string | null>(null)
   // criação

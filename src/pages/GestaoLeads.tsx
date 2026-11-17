@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
+import { Link } from 'react-router-dom'
 import { Dica, DicaNumero } from '@/components/base/dica'
-import { CabecalhoTela } from '@/components/base/visual'
+import { CabecalhoTela, PilulasFiltro } from '@/components/base/visual'
 import {
   CabecalhoPagina,
   EstadoCarregando,
@@ -40,6 +41,7 @@ interface Resumo {
     duplicados: number
   }
   por_vendedor: {
+    id?: string
     vendedor: string
     total: number
     abertos: number
@@ -70,6 +72,29 @@ export default function GestaoLeads() {
   const [dados, setDados] = useState<Resumo | null>(null)
   const [de, setDe] = useState('')
   const [ate, setAte] = useState('')
+  // 17/11: atalhos de período (o filtro de datas continua para o resto)
+  const [periodo, setPeriodo] = useState('tudo')
+  const aplicarPeriodo = (p: string) => {
+    setPeriodo(p)
+    const iso = (d: Date) =>
+      d.getFullYear() +
+      '-' +
+      String(d.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(d.getDate()).padStart(2, '0')
+    const hoje = new Date()
+    if (p === 'tudo') {
+      setDe('')
+      setAte('')
+      return
+    }
+    const ini = new Date(hoje)
+    if (p === '7d') ini.setDate(hoje.getDate() - 6)
+    else if (p === '30d') ini.setDate(hoje.getDate() - 29)
+    else if (p === 'mes') ini.setDate(1)
+    setDe(iso(ini))
+    setAte(iso(hoje))
+  }
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -111,13 +136,41 @@ export default function GestaoLeads() {
 
       {/* RN-203 item 2: o filtro de datas continua em campos; o contêiner segue o cartão */}
       <div className="flex flex-wrap items-end gap-2 rounded-cartao bg-muted p-3">
+        <PilulasFiltro
+          rotulo="Período"
+          valor={periodo}
+          aoTrocar={(v) => aplicarPeriodo(v)}
+          opcoes={[
+            { valor: 'hoje', rotulo: 'Hoje' },
+            { valor: '7d', rotulo: '7 dias' },
+            { valor: '30d', rotulo: '30 dias' },
+            { valor: 'mes', rotulo: 'Este mês' },
+            { valor: 'tudo', rotulo: 'Tudo' },
+          ]}
+        />
         <div className="space-y-1">
           <Label className="text-xs">De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} className="h-9" />
+          <Input
+            type="date"
+            value={de}
+            onChange={(e) => {
+              setDe(e.target.value)
+              setPeriodo('custom')
+            }}
+            className="h-9"
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} className="h-9" />
+          <Input
+            type="date"
+            value={ate}
+            onChange={(e) => {
+              setAte(e.target.value)
+              setPeriodo('custom')
+            }}
+            className="h-9"
+          />
         </div>
         <Button size="sm" variant="outline" onClick={() => void carregar()}>
           Atualizar
@@ -129,6 +182,7 @@ export default function GestaoLeads() {
             onClick={() => {
               setDe('')
               setAte('')
+              setPeriodo('tudo')
             }}
           >
             Limpar período
@@ -157,6 +211,11 @@ export default function GestaoLeads() {
               <p className={'text-2xl font-semibold ' + (n.sem_dono > 0 ? 'text-amber-600' : '')}>
                 {n.sem_dono}
               </p>
+              {n.sem_dono > 0 && (
+                <Link to="/leads?vendedor=__sem_dono__" className="text-xs text-primary underline">
+                  ver no CRM
+                </Link>
+              )}
             </div>
             <div className="rounded-lg border p-3">
               <DicaNumero texto="Tem dono, mas a vendedora nunca mandou mensagem — o cliente não sabe que existe">
@@ -181,6 +240,11 @@ export default function GestaoLeads() {
               >
                 {n.conversas_sem_resposta}
               </p>
+              {n.conversas_sem_resposta > 0 && (
+                <Link to="/esperando" className="text-xs text-primary underline">
+                  ver a lista
+                </Link>
+              )}
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Recusados</p>
@@ -201,7 +265,12 @@ export default function GestaoLeads() {
               />
             )}
             {dados.por_vendedor.map((v) => (
-              <div key={v.vendedor} className="rounded-md border px-3 py-2">
+              <Link
+                key={v.vendedor}
+                to={'/leads?vendedor=' + encodeURIComponent(v.id || '')}
+                className="block rounded-md border px-3 py-2 transition hover:bg-muted/60"
+                title="Abrir a carteira deste vendedor no CRM"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium">{v.vendedor}</p>
                   <p className="text-xs text-muted-foreground">
@@ -216,7 +285,7 @@ export default function GestaoLeads() {
                   {v.valor > 0 && <span className="text-emerald-700">{reais(v.valor)}</span>}
                   {v.descartados > 0 && <span>descartados: {v.descartados}</span>}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </>
