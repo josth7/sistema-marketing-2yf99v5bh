@@ -9,6 +9,33 @@
 cronAdd('tmp_1811_bomdia', '* * * * *', () => {
   const agora = new Date()
   if (agora.toISOString().slice(0, 13) > '2026-11-18T13') return
+  // Elisângela sem o modelo de apresentação na conta dela (#132001): desliga a
+  // apresentação, e os leads dela passam a ser avisados pela central (como
+  // Adriana e Fábio). Religar na Administração quando o modelo for aprovado.
+  try {
+    for (const c of $app.findRecordsByFilter(
+      'whatsapp_conexoes',
+      "papel='vendedor' && ativo=true && fixture=false && apresentacao_ativa=true",
+      '',
+      20,
+      0,
+    )) {
+      const nm = (
+        String(c.get('vendedor_nome_publico') || '') +
+        ' ' +
+        String(c.get('nome_exibicao') || '')
+      ).toLowerCase()
+      if (nm.indexOf('elis') >= 0) {
+        c.set('apresentacao_ativa', false)
+        $app.save(c)
+        console.log('tmp_1811_liberar: apresentação da Elisângela desligada (aviso pela central)')
+      }
+    }
+  } catch (eEl) {
+    console.log(
+      'tmp_1811_liberar: falhou desligar apresentação da Elisângela ' + String(eEl).slice(0, 100),
+    )
+  }
   try {
     const desde48 = new Date(agora.getTime() - 48 * 3600000)
       .toISOString()
