@@ -5,7 +5,6 @@ import {
   listarAlertas,
   transicionar,
   rotuloEstadoAlerta,
-  rotuloPeriodo,
   type AlertaItem,
 } from '@/lib/marketing/alertas'
 import {
@@ -15,7 +14,6 @@ import {
   EstadoVazio,
 } from '@/components/base/estados'
 import { CabecalhoTela } from '@/components/base/visual'
-import { formatarInteiro, formatarVariacao } from '@/lib/marketing/types'
 
 /**
  * Fila de análise de alertas (SPEC-2-002, card f7591165, CA-2-06/07).
@@ -45,6 +43,44 @@ function BadgeEstado({ estado }: { estado: string }) {
       {rotuloEstadoAlerta(estado)}
     </span>
   )
+}
+
+// Frase do alerta em linguagem de quem toca a loja (o texto técnico do servidor
+// continua gravado no histórico; aqui só muda como aparece na tela).
+const NOME_METRICA: Record<string, string> = {
+  custo_por_resultado: 'Custo por lead',
+  cpc: 'Custo por clique',
+  cpm: 'Custo por mil exibições',
+  ctr: 'Taxa de cliques',
+  gasto: 'Investimento',
+  resultados: 'Leads',
+  cliques: 'Cliques',
+  impressoes: 'Exibições',
+}
+const CANAL_TXT: Record<string, string> = { meta_ads: 'na Meta', google_ads: 'no Google' }
+const DINHEIRO = ['custo_por_resultado', 'cpc', 'cpm', 'gasto']
+const PLURAL = ['resultados', 'cliques', 'impressoes']
+
+function valorAlerta(m: string, v: number | null): string {
+  if (v === null || v === undefined) return '—'
+  if (DINHEIRO.includes(m)) return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  if (m === 'ctr') return v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%'
+  return Math.round(v).toLocaleString('pt-BR')
+}
+
+function fraseAlerta(a: AlertaItem): string {
+  const pct = a.variation_pct === null ? '' : ' ' + Math.round(Math.abs(a.variation_pct)) + '%'
+  const caiu = (a.variation_pct ?? 0) < 0
+  const verbo = PLURAL.includes(a.metric) ? (caiu ? 'caíram' : 'subiram') : caiu ? 'caiu' : 'subiu'
+  const quando = a.period_kind === 'monthly' ? 'no último mês' : 'na última quinzena'
+  const nome = NOME_METRICA[a.metric] ?? a.metric
+  const canal = CANAL_TXT[a.canal] ?? 'em ' + a.canal
+  return nome + ' ' + verbo + pct + ' ' + canal + ' ' + quando
+}
+
+function dataCurta(iso: string): string {
+  const p = (iso || '').slice(0, 10).split('-')
+  return p.length === 3 ? p[2] + '/' + p[1] : iso
 }
 
 export default function Alertas() {
@@ -185,7 +221,7 @@ export default function Alertas() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <CabecalhoTela
         titulo="Alertas"
-        subtitulo="Fila de análise dos alertas gerados pelas regras aprovadas — o job diário roda às 06:15 (Brasil) e só avalia janelas fechadas"
+        subtitulo="Avisos de quando um número de marketing sobe ou cai muito. Para cada um: comece a análise, registre o que foi decidido e encerre."
         acoes={
           <>
             <button
@@ -222,7 +258,7 @@ export default function Alertas() {
       ) : itens.length === 0 ? (
         <EstadoVazio
           titulo="Nenhum alerta na fila"
-          descricao="Alertas aparecem aqui quando uma regra aprovada cruza o limiar em um período fechado. Os limiares reais são definidos no workshop com a gerência (22/10)."
+          descricao="Quando um número de marketing sobe ou cai além do combinado em Critérios, o aviso aparece aqui."
         />
       ) : (
         <div className="space-y-3">
@@ -231,27 +267,23 @@ export default function Alertas() {
               <div className="flex flex-wrap items-center gap-2">
                 <BadgeEstado estado={item.state} />
                 <span className="text-xs text-muted-foreground">
-                  {rotuloPeriodo(item.period_kind)} · {item.period_prev_start} →{' '}
-                  {item.period_current_end}
+                  {item.period_kind === 'monthly' ? 'Mês' : 'Quinzena'} de{' '}
+                  {dataCurta(item.period_current_start)} a {dataCurta(item.period_current_end)},
+                  comparada com a anterior
                 </span>
                 <span className="text-xs text-muted-foreground">
                   gerado em {dataBR(item.created)}
                 </span>
               </div>
-              <p className="mt-2 font-medium">{item.trigger_summary}</p>
+              <p className="mt-2 text-base font-semibold" title={item.trigger_summary}>
+                {fraseAlerta(item)}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {formatarInteiro(item.previous_value)} → {formatarInteiro(item.current_value)} ·{' '}
+                Antes {valorAlerta(item.metric, item.previous_value)} · agora{' '}
                 <span className="font-semibold text-foreground">
-                  {item.variation_pct === null
-                    ? '—'
-                    : formatarVariacao({
-                        atual: item.current_value,
-                        anterior: item.previous_value,
-                        variacaoPercentual: item.variation_pct,
-                        semBaseDeComparacao: false,
-                      })}
+                  {valorAlerta(item.metric, item.current_value)}
                 </span>{' '}
-                · responsável: {item.responsible_email ?? '—'} · regra v{item.criterion_version}
+                · quem acompanha: {item.responsible_email ?? 'ninguém definido'}
               </p>
               {item.state !== 'closed' && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -273,9 +305,7 @@ export default function Alertas() {
                       Registrar decisão vinculada
                     </button>
                   )}
-                  {(item.state === 'open' ||
-                    item.state === 'in_review' ||
-                    item.state === 'decided') && (
+                  {(item.state === 'in_review' || item.state === 'decided') && (
                     <button
                       onClick={() => void mover(item, 'encerrar')}
                       disabled={ocupado === item.id}
@@ -284,7 +314,7 @@ export default function Alertas() {
                       Encerrar
                     </button>
                   )}
-                  {(item.state === 'open' || item.state === 'in_review') && (
+                  {(item.state === 'in_review' || item.state === 'decided') && (
                     <input
                       value={justificativa}
                       onChange={(ev) => setJustificativa(ev.target.value)}
@@ -307,8 +337,8 @@ export default function Alertas() {
 
       <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground">
         <BellRing className="h-3.5 w-3.5" aria-hidden="true" />
-        O job automático está pausado até os limiares reais serem aprovados no workshop (22/10) —
-        nenhuma regra em rascunho gera alerta.
+        Os alertas são conferidos todo dia às 06:15. Só as regras aprovadas em Critérios geram
+        alerta.
       </p>
     </div>
   )
