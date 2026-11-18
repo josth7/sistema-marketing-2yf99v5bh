@@ -29,7 +29,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Database,
-  Eye,
   Minus,
   RefreshCw,
   TrendingDown,
@@ -45,7 +44,6 @@ import {
   Tooltip as ChartTooltip,
   Legend,
 } from 'recharts'
-import { estadosIniciais, datasetDemonstrativo } from '@/lib/marketing/fontes'
 import { construirVisao, periodosDisponiveis } from '@/lib/marketing/agregacao'
 import {
   carregarEstadoFontes,
@@ -68,12 +66,7 @@ import type {
   ObjetivoCampanha,
   RegistroMetricas,
 } from '@/lib/marketing/types'
-import {
-  CabecalhoPagina,
-  SeloDemonstracao,
-  EstadoVazio,
-  EstadoErro,
-} from '@/components/base/estados'
+import { CabecalhoPagina, EstadoVazio, EstadoErro } from '@/components/base/estados'
 import { CabecalhoTela } from '@/components/base/visual'
 
 const LABEL_CANAL: Record<Canal, string> = {
@@ -106,7 +99,8 @@ type Sentido = 'sobe_bom' | 'sobe_ruim' | 'neutro'
 
 /** Faixa única de chips por fonte — estado por cor E texto (nunca só cor). */
 function FaixaFontes({ estadosPb }: { estadosPb: Record<string, FonteEstadoRecord> }) {
-  const estados = useMemo(() => estadosIniciais(), [])
+  // 18/11: sem registro no servidor = "sem informação". Antes caía num estado
+  // fixo de demonstração (incidente antigo, conta de exemplo) mostrado como real.
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -123,9 +117,9 @@ function FaixaFontes({ estadosPb }: { estadosPb: Record<string, FonteEstadoRecor
                 ultimaIngestao: pb.ultima_ingestao,
               }
             : {
-                estado: estados[canal].estado,
-                aviso: estados[canal].aviso,
-                ultimaIngestao: estados[canal].ultimaIngestao,
+                estado: 'sem_dados' as const,
+                aviso: 'Sem estado registrado para esta fonte',
+                ultimaIngestao: null as string | null,
               }
           const quando = e.ultimaIngestao
             ? new Date(e.ultimaIngestao).toLocaleTimeString('pt-BR', {
@@ -163,7 +157,9 @@ function FaixaFontes({ estadosPb }: { estadosPb: Record<string, FonteEstadoRecor
                     : '· conectado'
                   : erro
                     ? '· erro de acesso'
-                    : '· sem conexão'}
+                    : !pb
+                      ? '· sem informação'
+                      : '· sem conexão'}
               </span>
             </span>
           )
@@ -422,13 +418,12 @@ function TabelaNatureza({ visao }: { visao: ReturnType<typeof construirVisao> })
 }
 
 export default function PainelPage() {
-  // CA-2-17: Dados reais é o modo inicial; Demonstração vira seletor discreto.
-  const [usarDemo, setUsarDemo] = useState(false)
+  // 18/11: modo Demonstração removido — a tela mostra só dados reais.
   const [canalSelecionado, setCanalSelecionado] = useState<Canal | 'todos'>('todos')
   const [natureza, setNatureza] = useState<Natureza | 'ambos'>('ambos')
   const [objetivo, setObjetivo] = useState<ObjetivoCampanha | 'todos'>('todos')
   const [periodoIdx, setPeriodoIdx] = useState(0)
-  const [reais, setReais] = useState<ReturnType<typeof datasetReal>>([])
+  const [reais, setReais] = useState<RegistroMetricas[]>([])
   const [estadosFontes, setEstadosFontes] = useState<Record<string, FonteEstadoRecord>>({})
   const [carregando, setCarregando] = useState(false)
   const [erroReais, setErroReais] = useState<string | null>(null)
@@ -460,11 +455,11 @@ export default function PainelPage() {
   }
 
   useEffect(() => {
-    if (!usarDemo) void carregarReais()
+    void carregarReais()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usarDemo])
+  }, [])
 
-  const dataset = usarDemo ? datasetDemonstrativo() : reais
+  const dataset = reais
   const periodos = useMemo(() => periodosDisponiveis(dataset), [dataset])
   const periodo = periodos[Math.min(periodoIdx, Math.max(0, periodos.length - 1))]
 
@@ -531,59 +526,17 @@ export default function PainelPage() {
       <CabecalhoTela
         titulo="Painel"
         subtitulo="Visão única por período, canal e objetivo — orgânico e pago sempre separados."
-        acoes={
-          <div className="inline-flex rounded-full bg-muted p-1">
-            <button
-              type="button"
-              onClick={() => setUsarDemo(false)}
-              aria-selected={!usarDemo}
-              className={
-                'inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm transition-colors ' +
-                (!usarDemo
-                  ? 'bg-primary font-medium text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground')
-              }
-            >
-              <Database className="h-4 w-4" aria-hidden="true" /> Dados reais
-            </button>
-            <button
-              type="button"
-              onClick={() => setUsarDemo(true)}
-              aria-selected={usarDemo}
-              className={
-                'inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm transition-colors ' +
-                (usarDemo
-                  ? 'bg-primary font-medium text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground')
-              }
-            >
-              <Eye className="h-4 w-4" aria-hidden="true" /> Demonstração
-            </button>
-          </div>
-        }
       />
-
-      {usarDemo && (
-        <div className="flex flex-wrap items-center gap-2 rounded-cartao border border-[hsl(var(--warn))]/40 bg-[hsl(var(--warn))]/10 px-4 py-2">
-          <SeloDemonstracao />
-          <span className="text-sm text-amber-900">
-            Dados fictícios para avaliar organização e filtros — não representam resultados reais.
-            Nada aqui é gravado como resultado real.
-          </span>
-        </div>
-      )}
 
       <FaixaFontes estadosPb={estadosFontes} />
 
-      {!usarDemo && escopoAviso && (
+      {escopoAviso && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-800">
           {escopoAviso}
         </div>
       )}
-      {!usarDemo && erroReais && (
-        <EstadoErro mensagem={erroReais} aoTentar={() => void carregarReais()} />
-      )}
-      {!usarDemo && (
+      {erroReais && <EstadoErro mensagem={erroReais} aoTentar={() => void carregarReais()} />}
+      {
         <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
           <span>
             {carregando
@@ -602,7 +555,7 @@ export default function PainelPage() {
             Recarregar
           </Button>
         </div>
-      )}
+      }
 
       {/* Filtros rotulados — 1 linha ≥1024px, 2 colunas no tablet, empilhados no celular */}
       <Card>
