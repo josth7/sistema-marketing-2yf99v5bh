@@ -523,11 +523,27 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
   }
 
   // mensagem entre números da empresa (RN-58)
+  // 18/11: EXCEÇÃO — vendedor escrevendo para a CENTRAL não é descartado. É o
+  // "bom dia" que abre a janela de 24h da Meta para a central avisar o
+  // vendedor (wa_avisos_retidos procura essa mensagem de entrada). Antes ele
+  // era jogado fora aqui, nenhum aviso guardado era solto e a aba Equipe
+  // ficava vazia. Agora vira conversa interna (bloco CA-3-25 logo abaixo).
+  var vendedorParaCentral = ''
   if (telefone !== '') {
     try {
       const outras = $app.findRecordsByFilter(colConexoes, "numero='" + telefone + "'", '', 1, 0)
       if (outras && outras.length > 0) {
-        return e.json(200, { ok: true, ignorado: 'entre_numeros_da_empresa' })
+        const outra = outras[0]
+        if (
+          String(conexao.get('papel') || '') === 'central' &&
+          String(outra.get('papel') || '') === 'vendedor'
+        ) {
+          vendedorParaCentral =
+            String(outra.get('vendedor_nome_publico') || outra.get('nome_exibicao') || '').trim() ||
+            'Vendedor'
+        } else {
+          return e.json(200, { ok: true, ignorado: 'entre_numeros_da_empresa' })
+        }
       }
     } catch (eO) {}
     // ---------- linha interna da equipe (CA-3-25) ----------
@@ -566,6 +582,10 @@ routerAdd('POST', '/backend/v1/whatsapp/dapi/{token}', (e) => {
         rotuloInterno = String(ints[0].get('rotulo') || 'Equipe Haisan')
       }
     } catch (eInt) {}
+    if (vendedorParaCentral !== '') {
+      ehNumeroInterno = true
+      if (rotuloInterno === '') rotuloInterno = 'Vendedor ' + vendedorParaCentral
+    }
 
     if (ehNumeroInterno) {
       // grava a conversa interna (uma por contato + conexao) e a mensagem.
