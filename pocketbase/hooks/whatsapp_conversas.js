@@ -345,6 +345,28 @@ routerAdd(
       return kx < ky ? 1 : -1
     })
 
+    // 18/11: conversa com número da EQUIPE (vendedor ou número interno) vai
+    // para a aba Equipe, mesmo sem a marca `interna` gravada. Os avisos que a
+    // central manda ao vendedor criam a conversa sem essa marca e caíam em
+    // Clientes, como se o vendedor fosse cliente.
+    const fimEquipe = {}
+    try {
+      for (const cxE of $app.findRecordsByFilter(colConexoes, 'fixture=false', '', 100, 0)) {
+        const d8 = String(cxE.get('numero') || '')
+          .replace(/\D/g, '')
+          .slice(-8)
+        if (d8.length === 8) fimEquipe[d8] = true
+      }
+    } catch (eFE) {}
+    try {
+      for (const ni of $app.findRecordsByFilter('whatsapp_numeros_internos', '', '', 200, 0)) {
+        const d8i = String(ni.get('numero') || '')
+          .replace(/\D/g, '')
+          .slice(-8)
+        if (d8i.length === 8) fimEquipe[d8i] = true
+      }
+    } catch (eFI) {}
+
     var itens = []
     for (const c of todas) {
       // pode ver?
@@ -434,7 +456,13 @@ routerAdd(
         estado: c.get('estado'),
         canal: c.get('canal'),
         // CA-3-25: conversa da EQUIPE (número interno) x conversa com CLIENTE
-        interna: String(c.get('interna')) === 'true',
+        interna:
+          String(c.get('interna')) === 'true' ||
+          fimEquipe[
+            String(c.get('contato_telefone') || '')
+              .replace(/\D/g, '')
+              .slice(-8)
+          ] === true,
         // CA-3-70 (05/11) — NÃO LIDA = a última mensagem é do CLIENTE.
         // Decisão do dono: mesmo que o robô tenha falado no meio, se quem
         // falou por último foi o cliente, ele está esperando GENTE — conta
