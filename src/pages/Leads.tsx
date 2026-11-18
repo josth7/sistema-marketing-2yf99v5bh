@@ -59,6 +59,7 @@ import {
   type Lead,
   type LeadEvento,
   type ResultadoImportacao,
+  type DashboardCrm,
 } from '@/lib/marketing/crm'
 
 const ROTULO_STATUS: Record<string, string> = {
@@ -234,6 +235,25 @@ export default function Leads() {
   const [dash, setDash] = useState<DashboardCrm | null>(null)
   // vista: lista ou funil
   const [vista, setVista] = useState<'lista' | 'funil'>('lista')
+  // 18/11: dentro da vista Lista, formato em linhas ou em blocos (fica salvo)
+  const [formatoLista, setFormatoLista] = useState<'lista' | 'blocos'>(() => {
+    try {
+      const v = window.localStorage.getItem('crm_vista_lista')
+      return v === 'lista' || v === 'blocos' ? v : 'blocos'
+    } catch {
+      return 'blocos'
+    }
+  })
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('crm_vista_lista', formatoLista)
+    } catch {
+      // navegador sem armazenamento: só não lembra a escolha
+    }
+  }, [formatoLista])
+  // 18/11: arrastar e soltar no funil — card em movimento e coluna sob o cursor
+  const [arrastando, setArrastando] = useState<{ id: string; origem: string } | null>(null)
+  const [colunaAlvo, setColunaAlvo] = useState<string | null>(null)
   // página atual da tabela (0-based)
   const [pagina, setPagina] = useState(0)
   // importação
@@ -243,14 +263,19 @@ export default function Leads() {
   const [resultado, setResultado] = useState<ResultadoImportacao | null>(null)
   const [erroImportar, setErroImportar] = useState<string | null>(null)
 
-  const carregar = useCallback(async () => {
+  // `silencioso`: recarrega sem ligar o esqueleto nem trocar a tela por erro
+  // (usado depois de soltar um card no funil). Sem a opção, tudo igual a antes.
+  const carregar = useCallback(async (opcoes?: { silencioso?: boolean }) => {
+    const silencioso = opcoes?.silencioso === true
     if (!pb.authStore.isValid) {
       setCarregando(false)
       setErro('Entre com o seu usuário para ver os leads.')
       return
     }
-    setCarregando(true)
-    setErro(null)
+    if (!silencioso) {
+      setCarregando(true)
+      setErro(null)
+    }
     try {
       setItens(await listarLeads())
       try {
@@ -264,9 +289,9 @@ export default function Leads() {
         setDash(null)
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : String(e))
+      if (!silencioso) setErro(e instanceof Error ? e.message : String(e))
     } finally {
-      setCarregando(false)
+      if (!silencioso) setCarregando(false)
     }
   }, [])
 
@@ -420,13 +445,48 @@ export default function Leads() {
     const idx = ordem.indexOf(l.status)
     const novo = direcao === 'avancar' ? ordem[idx + 1] : ordem[idx - 1]
     if (!novo) return
+    await trocarEtapa(l, novo)
+  }
+
+  /**
+   * Troca a etapa do lead — a mesma chamada das setas (editarLead + mensagem).
+   * `otimista` (arrastar e soltar): move o card na hora, recarrega em silêncio
+   * no sucesso e devolve o card à coluna de origem se o servidor recusar.
+   */
+  const trocarEtapa = async (l: Lead, novo: string, otimista = false) => {
+    const origem = l.status
+    if (otimista) {
+      setItens((atual) =>
+        atual.map((x) => (x.id === l.id ? { ...x, status: novo as Lead['status'] } : x)),
+      )
+    }
     try {
       await editarLead(l.id, { status: novo })
       setMsg(`${l.nome}: ${ROTULO_STATUS[novo]}.`)
-      await carregar()
+      if (otimista) await carregar({ silencioso: true })
+      else await carregar()
     } catch (e) {
+      if (otimista) {
+        setItens((atual) => atual.map((x) => (x.id === l.id ? { ...x, status: origem } : x)))
+      }
       setMsg(e instanceof Error ? e.message : String(e))
     }
+  }
+
+  /** Soltou um card numa coluna do funil. */
+  const soltarNaEtapa = (id: string, destino: string) => {
+    const l = itens.find((x) => x.id === id)
+    if (!l || l.status === destino) return
+    // descartar exige motivo (CA-3-72): abre a ficha com "Descartado" já
+    // escolhido e o campo de motivo. Fechar a ficha deixa o card onde estava.
+    if (destino === 'descartado') {
+      void abrirDetalhe(l)
+      setNovoStatus('descartado')
+      setMotivoPerda('')
+      setMsg('Informe o motivo do descarte e clique em Salvar status.')
+      return
+    }
+    void trocarEtapa(l, destino, true)
   }
 
   const contagem = useMemo(() => {
@@ -855,7 +915,34 @@ export default function Leads() {
                   ? 'hsl(var(--muted-foreground) / 0.45)'
                   : 'hsl(var(--muted-foreground))'
             return (
-              <div key={s.valor} className="rounded-cartao bg-muted p-2">
+              <div
+                key={s.valor}
+                className={
+                  'rounded-cartao bg-muted p-2 ring-inset transition-shadow ' +
+                  (colunaAlvo === s.valor && arrastando && arrastando.origem !== s.valor
+                    ? 'ring-2 ring-marca-1/40'
+                    : '')
+                }
+                onDragOver={(e) => {
+                  if (!arrastando) return
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                  if (colunaAlvo !== s.valor) setColunaAlvo(s.valor)
+                }}
+                onDragLeave={(e) => {
+                  // só limpa ao sair da coluna (não ao passar sobre um card filho)
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                    setColunaAlvo((c) => (c === s.valor ? null : c))
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const id = e.dataTransfer.getData('text/plain') || arrastando?.id || ''
+                  setColunaAlvo(null)
+                  setArrastando(null)
+                  if (id !== '') soltarNaEtapa(id, s.valor)
+                }}
+              >
                 <p className="mb-1 flex items-start justify-between gap-1 px-1 text-xs font-semibold leading-tight">
                   <span className="flex flex-1 items-center gap-1.5">
                     <span
@@ -879,7 +966,23 @@ export default function Leads() {
                     <p className="px-1 py-3 text-center text-xs text-muted-foreground">vazio</p>
                   )}
                   {coluna.slice(0, LIMITE_COLUNA).map((l) => (
-                    <div key={l.id} className="rounded-md border bg-card p-2">
+                    <div
+                      key={l.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', l.id)
+                        e.dataTransfer.effectAllowed = 'move'
+                        setArrastando({ id: l.id, origem: l.status })
+                      }}
+                      onDragEnd={() => {
+                        setArrastando(null)
+                        setColunaAlvo(null)
+                      }}
+                      className={
+                        'cursor-grab rounded-md border bg-card p-2 active:cursor-grabbing ' +
+                        (arrastando?.id === l.id ? 'opacity-50' : '')
+                      }
+                    >
                       <div className="flex items-center justify-between gap-1">
                         <p className="truncate text-sm font-medium">{l.nome}</p>
                         <span
@@ -978,6 +1081,17 @@ export default function Leads() {
           com nome, telefone, valor, origem, etapa e responsável. */}
       {!carregando && !erro && itens.length > 0 && vista === 'lista' && (
         <>
+          {/* 18/11: formato da lista — linhas ou blocos (a escolha fica salva) */}
+          <PilulasFiltro
+            rotulo="Formato"
+            valor={formatoLista}
+            aoTrocar={(v) => setFormatoLista(v === 'lista' ? 'lista' : 'blocos')}
+            opcoes={[
+              { valor: 'lista', rotulo: 'Lista' },
+              { valor: 'blocos', rotulo: 'Blocos' },
+            ]}
+          />
+
           {filtrados.length === 0 && (
             <Card>
               <CardContent className="pt-6">
@@ -988,103 +1102,197 @@ export default function Leads() {
             </Card>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paginaAtual.map((l) => {
-              const valor = Number(l.valor || 0)
-              return (
-                <div
-                  key={l.id}
-                  className="flex flex-col rounded-lead border border-border bg-card p-3 transition-colors hover:border-foreground/20"
-                >
-                  {/* cabeçalho do bloco: nome + etapa */}
-                  <div className="flex items-start justify-between gap-2">
-                    <p
-                      className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground"
-                      title={l.nome}
-                    >
-                      {l.nome}
-                    </p>
-                    <Badge className={'shrink-0 text-xs ' + (COR_STATUS[l.status] || '')}>
-                      {ROTULO_STATUS[l.status] || l.status}
-                    </Badge>
-                  </div>
-
-                  {/* nota da IA em destaque: é o que diz quem atacar primeiro */}
-                  <div className="mt-1 flex items-center gap-2">
-                    <span
-                      className={
-                        'rounded-full px-2 py-0.5 text-sm font-semibold tabular-nums ' +
-                        corNota(l.ia_nota)
-                      }
-                      title={
-                        l.ia_justificativa ||
-                        'Nota da IA pela conversa (0 a 100). — = conversa ainda não analisada.'
-                      }
-                    >
-                      {rotuloNota(l.ia_nota)}
-                    </span>
-                    {l.ia_humor && (
+          {/* formato LISTA: uma linha por lead, mesmos dados dos blocos */}
+          {formatoLista === 'lista' && paginaAtual.length > 0 && (
+            <div className="overflow-hidden rounded-cartao border border-border bg-card">
+              <div className="hidden gap-3 border-b border-border px-3 py-2 text-xs text-muted-foreground md:grid md:grid-cols-[minmax(0,2fr)_150px_48px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_80px_104px_56px]">
+                <span>Lead</span>
+                <span>Etapa</span>
+                <span>Nota</span>
+                <span>Telefone</span>
+                <span>Origem</span>
+                <span>Responsável</span>
+                <span>Data</span>
+                <span className="text-right">Valor</span>
+                <span />
+              </div>
+              <div className="divide-y divide-border">
+                {paginaAtual.map((l) => (
+                  <div
+                    key={l.id}
+                    className="flex flex-col gap-1 px-3 py-2 text-sm md:grid md:grid-cols-[minmax(0,2fr)_150px_48px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_80px_104px_56px] md:items-center md:gap-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium text-foreground" title={l.nome}>
+                        {l.nome}
+                      </span>
+                      {l.ia_humor && (
+                        <span
+                          className={
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-xs ' +
+                            (COR_HUMOR[l.ia_humor] || 'bg-muted text-muted-foreground')
+                          }
+                        >
+                          {l.ia_humor}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <Badge
+                        className={'max-w-full truncate text-xs ' + (COR_STATUS[l.status] || '')}
+                      >
+                        {ROTULO_STATUS[l.status] || l.status}
+                      </Badge>
+                    </div>
+                    <div>
                       <span
                         className={
-                          'rounded-full px-1.5 py-0.5 text-xs ' +
-                          (COR_HUMOR[l.ia_humor] || 'bg-muted text-muted-foreground')
+                          'rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums ' +
+                          corNota(l.ia_nota)
+                        }
+                        title={
+                          l.ia_justificativa ||
+                          'Nota da IA pela conversa (0 a 100). — = conversa ainda não analisada.'
                         }
                       >
-                        {l.ia_humor}
+                        {rotuloNota(l.ia_nota)}
                       </span>
-                    )}
-                    <span className="ml-auto text-base font-semibold tabular-nums text-foreground">
-                      R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  {l.ia_resumo && (
-                    <p
-                      className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground"
-                      title={l.ia_resumo}
-                    >
-                      {l.ia_resumo}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {l.telefone || l.email || '—'}
                     </p>
-                  )}
-
-                  {/* telefone com atalho de WhatsApp */}
-                  <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                    <p className="flex items-center gap-1.5 truncate">
-                      <Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{l.telefone || l.email || '—'}</span>
-                    </p>
-                    <p className="truncate">
+                    <p className="truncate text-xs text-muted-foreground">
                       {ROTULO_ORIGEM[l.origem] || l.origem}
                       {l.campanha ? ' · ' + l.campanha : ''}
                     </p>
-                    <p className="flex items-center gap-1.5 truncate">
-                      <Calendar className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <p className="truncate text-xs text-foreground">{l.owner_nome || '—'}</p>
+                    <p className="text-xs tabular-nums text-muted-foreground">
                       {(l.data_lead || l.criado_em || '')
                         .slice(0, 10)
                         .split('-')
                         .reverse()
                         .join('/') || '—'}
                     </p>
-                  </div>
-
-                  {/* responsável */}
-                  <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-                    <p className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-xs text-muted-foreground">
-                      <User className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      <span className="truncate text-foreground">{l.owner_nome || '—'}</span>
+                    <p className="text-xs font-medium tabular-nums text-foreground md:text-right">
+                      R${' '}
+                      {Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 shrink-0 px-2 text-xs"
-                      onClick={() => void abrirDetalhe(l)}
-                    >
-                      Abrir
-                    </Button>
+                    <div className="md:text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => void abrirDetalhe(l)}
+                      >
+                        Abrir
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* formato BLOCOS: 1 coluna no celular, 2–3 no tablet, 3–4 no desktop */}
+          {formatoLista === 'blocos' && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {paginaAtual.map((l) => {
+                const valor = Number(l.valor || 0)
+                return (
+                  <div
+                    key={l.id}
+                    className="flex flex-col rounded-lead border border-border bg-card p-3 transition-colors hover:border-foreground/20"
+                  >
+                    {/* cabeçalho do bloco: nome + etapa */}
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground"
+                        title={l.nome}
+                      >
+                        {l.nome}
+                      </p>
+                      <Badge className={'shrink-0 text-xs ' + (COR_STATUS[l.status] || '')}>
+                        {ROTULO_STATUS[l.status] || l.status}
+                      </Badge>
+                    </div>
+
+                    {/* nota da IA em destaque: é o que diz quem atacar primeiro */}
+                    <div className="mt-1 flex items-center gap-2">
+                      <span
+                        className={
+                          'rounded-full px-2 py-0.5 text-sm font-semibold tabular-nums ' +
+                          corNota(l.ia_nota)
+                        }
+                        title={
+                          l.ia_justificativa ||
+                          'Nota da IA pela conversa (0 a 100). — = conversa ainda não analisada.'
+                        }
+                      >
+                        {rotuloNota(l.ia_nota)}
+                      </span>
+                      {l.ia_humor && (
+                        <span
+                          className={
+                            'rounded-full px-1.5 py-0.5 text-xs ' +
+                            (COR_HUMOR[l.ia_humor] || 'bg-muted text-muted-foreground')
+                          }
+                        >
+                          {l.ia_humor}
+                        </span>
+                      )}
+                      <span className="ml-auto text-base font-semibold tabular-nums text-foreground">
+                        R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {l.ia_resumo && (
+                      <p
+                        className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground"
+                        title={l.ia_resumo}
+                      >
+                        {l.ia_resumo}
+                      </p>
+                    )}
+
+                    {/* telefone com atalho de WhatsApp */}
+                    <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                      <p className="flex items-center gap-1.5 truncate">
+                        <Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{l.telefone || l.email || '—'}</span>
+                      </p>
+                      <p className="truncate">
+                        {ROTULO_ORIGEM[l.origem] || l.origem}
+                        {l.campanha ? ' · ' + l.campanha : ''}
+                      </p>
+                      <p className="flex items-center gap-1.5 truncate">
+                        <Calendar className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        {(l.data_lead || l.criado_em || '')
+                          .slice(0, 10)
+                          .split('-')
+                          .reverse()
+                          .join('/') || '—'}
+                      </p>
+                    </div>
+
+                    {/* responsável */}
+                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+                      <p className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-xs text-muted-foreground">
+                        <User className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate text-foreground">{l.owner_nome || '—'}</span>
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 shrink-0 px-2 text-xs"
+                        onClick={() => void abrirDetalhe(l)}
+                      >
+                        Abrir
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </>
       )}
 
