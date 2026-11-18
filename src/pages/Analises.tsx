@@ -154,7 +154,8 @@ export default function Analises() {
       if (!res.ok || dados.ok === false) {
         throw new Error(dados.erro ?? 'não foi possível carregar as análises')
       }
-      setItens(dados.itens ?? [])
+      // 18/11: análise de teste (fixture) não aparece para o usuário
+      setItens((dados.itens ?? []).filter((it) => !it.fixture))
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'não foi possível carregar as análises')
     } finally {
@@ -380,11 +381,7 @@ export default function Analises() {
                     {item.alvo_ref}
                   </span>
                 )}
-                {item.fixture && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                    teste
-                  </span>
-                )}
+
                 <span className="text-xs text-muted-foreground">
                   {item.period_start} → {item.period_end} · {dataBR(item.gerado_em)} · v
                   {item.versao}

@@ -106,9 +106,7 @@ export default function Caixa() {
       setItens([])
       await carregar()
     } catch {
-      setErroAuth(
-        'Login inválido — confira e-mail e senha (conta de teste: criterios.fixture.aprovador@haisan.com.br, senha Fixture@2026)',
-      )
+      setErroAuth('Login inválido. Confira o e-mail e a senha.')
     } finally {
       setEntrando(false)
     }

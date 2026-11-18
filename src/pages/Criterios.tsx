@@ -258,26 +258,17 @@ export default function Criterios() {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>E-mail</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(ev) => setEmail(ev.target.value)}
-                />
+                <Input type="email" value={email} onChange={(ev) => setEmail(ev.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Senha</Label>
-                <Input
-                  type="password"
-                  value={senha}
-                  onChange={(ev) => setSenha(ev.target.value)}
-                />
+                <Input type="password" value={senha} onChange={(ev) => setSenha(ev.target.value)} />
               </div>
             </div>
             {erroAuth && <p className="text-xs text-red-600">{erroAuth}</p>}
             <Button onClick={entrar} disabled={entrando}>
               {entrando ? 'Entrando…' : 'Entrar'}
             </Button>
-
           </CardContent>
         </Card>
       )}

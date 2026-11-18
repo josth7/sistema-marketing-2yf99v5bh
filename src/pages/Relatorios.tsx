@@ -33,9 +33,6 @@ import { tickTeste } from '@/lib/marketing/caixa'
 import {
   blocoComparativo,
   destaqueAtrasada,
-  diasJanela,
-  fixtureDecisoes,
-  fixtureSnapshot,
   parseJson,
   parseSnapshot,
   resumoFactual,
@@ -96,20 +93,6 @@ function quinzenasFechadas(): Array<{ value: string; label: string }> {
   return out
 }
 
-const FIXTURE_COBERTURA: CoberturaCanalItem[] = [
-  { canal: 'meta_ads', dias: 15 },
-  { canal: 'google_ads', dias: 9 },
-]
-const FIXTURE_WARNINGS = [
-  'google_ads: 9 dia(s) coberto(s) de 15 — cobertura parcial (indicadores podem subestimar o período)',
-]
-const FIXTURE_ELIG: EligibilidadeComparacao = {
-  valida: false,
-  motivo: 'cobertura desigual — google_ads: 9 dia(s) nesta quinzena vs 15 na anterior',
-  anterior: { inicio: '2026-09-01', fim: '2026-09-15' },
-}
-const FIXTURE_PAYLOAD = '<img src=x onerror=alert(1)>'
-
 export default function Relatorios() {
   const [itens, setItens] = useState<RelatorioItem[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -155,7 +138,7 @@ export default function Relatorios() {
   const carregar = useCallback(async () => {
     if (!pb.authStore.isValid) {
       setCarregando(false)
-      setErro('Entre com um usuário de teste para gerar e ver os relatórios.')
+      setErro('Entre com o seu usuário para gerar e ver os relatórios.')
       return
     }
     setCarregando(true)
@@ -185,9 +168,7 @@ export default function Relatorios() {
       setAviso(null)
       await carregar()
     } catch {
-      setErroAuth(
-        'Login inválido — usuário de teste: criterios.fixture.criador@haisan.com.br, senha Fixture@2026',
-      )
+      setErroAuth('Login inválido. Confira o e-mail e a senha.')
     } finally {
       setEntrando(false)
     }
@@ -413,13 +394,12 @@ export default function Relatorios() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="email">E-mail do usuário de teste</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="criterios.fixture.criador@haisan.com.br"
               />
             </div>
             <div className="space-y-1">
@@ -429,7 +409,6 @@ export default function Relatorios() {
                 type="password"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                placeholder="Fixture@2026"
               />
             </div>
             {erroAuth && <p className="text-sm text-destructive">{erroAuth}</p>}
@@ -684,7 +663,11 @@ export default function Relatorios() {
   )
 }
 
-/** Prévia do template (dados de demonstração ISOLADOS — origem 'demonstracao'). */
+/**
+ * Prévia do relatório — SÓ dados reais do relatório gerado (18/11). Antes, o
+ * que vinha vazio era trocado por dados de demonstração (fixture) e aparecia
+ * para o usuário como se fosse real. Agora vazio aparece como vazio.
+ */
 function TemplateRelatorio(props: {
   titulo: string
   geradoEm: string
@@ -698,13 +681,11 @@ function TemplateRelatorio(props: {
   avisoAlertas: string
 }) {
   const hojeISO = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  const snap = props.snapshot ?? fixtureSnapshot()
-  const cob = props.cobertura ?? FIXTURE_COBERTURA
-  const janela = props.janelaDias || diasJanela('2026-09-01', '2026-09-15')
-  const elig = props.eligibility ?? FIXTURE_ELIG
-  const warnings = props.warnings.length > 0 ? props.warnings : FIXTURE_WARNINGS
-  const decisoes = props.decisoes.length > 0 ? props.decisoes : fixtureDecisoes()
-  const payloadDemo = FIXTURE_PAYLOAD
+  const snap = props.snapshot
+  const cob = props.cobertura ?? []
+  const elig = props.eligibility
+  const warnings = props.warnings
+  const decisoes = props.decisoes
 
   return (
     <div className="space-y-4">
@@ -726,7 +707,12 @@ function TemplateRelatorio(props: {
             Cobertura por fonte
           </p>
           <div className="mt-2 space-y-1">
-            {(cob ?? []).map((c) => (
+            {cob.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Sem dados de cobertura neste relatório.
+              </p>
+            )}
+            {cob.map((c) => (
               <div key={c.canal} className="flex justify-between text-sm">
                 <span>{c.canal}</span>
                 <span>{c.dias} dia(s)</span>
@@ -738,7 +724,7 @@ function TemplateRelatorio(props: {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Comparação com a quinzena anterior
           </p>
-          {elig && elig.valida ? (
+          {snap && elig && elig.valida ? (
             <div className="mt-2 space-y-1 text-sm">
               {blocoComparativo(snap, null).map((b) => (
                 <div key={b.rotulo} className="flex justify-between">
@@ -767,12 +753,17 @@ function TemplateRelatorio(props: {
       <div className="space-y-3">
         <TabelaObjetivos
           titulo="Pago — indicadores por objetivo"
-          linhas={snap.pago?.porObjetivo ?? []}
+          linhas={snap?.pago?.porObjetivo ?? []}
         />
         <TabelaObjetivos
           titulo="Orgânico — indicadores por objetivo"
-          linhas={snap.organico?.porObjetivo ?? []}
+          linhas={snap?.organico?.porObjetivo ?? []}
         />
+        {!snap && (
+          <p className="text-sm text-muted-foreground">
+            Sem indicadores registrados neste relatório.
+          </p>
+        )}
       </div>
 
       <div className="rounded-cartao border border-gray-200 p-3">
@@ -780,6 +771,9 @@ function TemplateRelatorio(props: {
           Decisões em aberto
         </p>
         <div className="mt-2 space-y-1">
+          {decisoes.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhuma decisão em aberto.</p>
+          )}
           {decisoes.map((d) => (
             <div key={d.id} className="flex flex-wrap items-center gap-2">
               {d.atrasada && destaqueAtrasada(d.review_date, hojeISO) && (
@@ -802,10 +796,6 @@ function TemplateRelatorio(props: {
         </p>
         <p className="mt-1 text-sm text-muted-foreground">{props.avisoAlertas}</p>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        Prévia com dados de demonstração — conteúdo de teste exibido como texto.
-      </p>
     </div>
   )
 }
