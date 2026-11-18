@@ -190,14 +190,19 @@ routerAdd(
     // ---------- mensagens ----------
     const colMsg = $app.findCollectionByNameOrId('whatsapp_mensagens')
     var msgs = []
+    // 18/11: compara pelos últimos 8 dígitos. A fila grava a saída com o
+    // número em outro formato (com/sem 55, com/sem o 9) e a conversa ficava
+    // em branco na tela, mesmo com a prévia mostrando a mensagem.
     try {
+      const telConv = String(conv.get('contato_telefone') || '')
+      const fim8 = telConv.replace(/\D/g, '').slice(-8)
+      const filtroTel =
+        fim8.length === 8
+          ? "contato_telefone~'" + fim8 + "'"
+          : "contato_telefone='" + telConv.replace(/'/g, '') + "'"
       msgs = $app.findRecordsByFilter(
         colMsg,
-        "conexao='" +
-          String(conv.get('conexao')) +
-          "' && contato_telefone='" +
-          String(conv.get('contato_telefone')) +
-          "'",
+        "conexao='" + String(conv.get('conexao')) + "' && " + filtroTel,
         '-enviada_em',
         300,
         0,
