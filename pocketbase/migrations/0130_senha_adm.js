@@ -26,17 +26,21 @@ migrate(
       throw new Error('SENHA: conta nao existe')
     }
     const u = us[0]
+    // JSVM nao tem `verifyPassword` (descoberto aqui). Confiro pelo updated:
+    // se o registro foi salvo depois do setPassword, a senha entrou.
+    const antes = String(u.get('updated') || '')
     try {
       u.setPassword(senha)
       app.save(u)
-      // confirma relendo
-      const conf = app.findRecordById('users', u.id)
-      const bate = conf.verifyPassword(senha)
-      throw new Error('SENHA: aplicada, verificacao=' + (bate ? 'OK' : 'FALHOU'))
     } catch (e2) {
-      if (String(e2).indexOf('SENHA:') === 0) throw e2
-      throw new Error('SENHA: falhou -> ' + String(e2).slice(0, 120))
+      throw new Error('SENHA: falhou ao salvar -> ' + String(e2).slice(0, 120))
     }
+    const conf = app.findRecordById('users', u.id)
+    const depois = String(conf.get('updated') || '')
+    if (depois === antes) throw new Error('SENHA: save nao alterou o registro')
+    throw new Error(
+      'SENHA: aplicada (updated ' + antes.slice(11, 19) + ' -> ' + depois.slice(11, 19) + ')',
+    )
   },
   (app) => {},
 )
