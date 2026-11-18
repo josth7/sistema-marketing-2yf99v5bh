@@ -359,6 +359,41 @@ routerAdd(
       // REGRA: esperando = a última mensagem DELE é mais nova que a última nossa
       if (!(ultimaDoCliente > 0 && ultimaDoCliente > ultimaNossa)) continue
 
+      // 18/11: confere nas MENSAGENS, não só no resumo da conversa. O histórico
+      // importado grava várias mensagens com o MESMO horário e a conversa pode
+      // ficar com "último autor = cliente" mesmo tendo resposta nossa (caso MS
+      // Studio: o Douglas respondeu e o cliente seguia em esperando). Se houver
+      // mensagem nossa (saída) no mesmo minuto da última dele ou depois, ele
+      // foi respondido.
+      try {
+        const fim8 = String(g.telefone || '')
+          .replace(/\D/g, '')
+          .slice(-8)
+        const desdeR = new Date(ultimaDoCliente - 60000)
+          .toISOString()
+          .replace('T', ' ')
+          .slice(0, 19)
+        // só pelo telefone DO CLIENTE: o aviso ao vendedor leva o lead do
+        // cliente mas vai para o telefone do vendedor e não é resposta.
+        const condR = fim8.length === 8 ? "contato_telefone~'" + fim8 + "'" : ''
+        if (condR !== '') {
+          const resp = app.findRecordsByFilter(
+            app.findCollectionByNameOrId('whatsapp_mensagens'),
+            "direcao='saida' && (" +
+              condR +
+              ") && (enviada_em>='" +
+              desdeR +
+              "' || created>='" +
+              desdeR +
+              "')",
+            '',
+            1,
+            0,
+          )
+          if (resp && resp.length > 0) continue
+        }
+      } catch (eResp) {}
+
       const info = leadDoCliente !== '' ? leadInfo[leadDoCliente] : null
       const dono = info ? info.dono : ''
 
