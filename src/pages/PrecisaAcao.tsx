@@ -139,10 +139,10 @@ export default function PrecisaAcao() {
   )
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 space-y-4 p-4 md:p-8">
       <CabecalhoTela
-        titulo="Precisa de ação"
-        subtitulo="Clientes esperando uma decisão da gestão — hoje, a carteira de quem saiu da empresa. O cliente não troca de mãos sozinho: você escolhe para quem vai."
+        titulo="Carteira de quem saiu"
+        subtitulo="Só a gestão vê esta tela. Quando alguém é suspenso, os clientes dele ficam aqui sem atendimento até você escolher o novo responsável. Em cada grupo, clique em Passar carteira e escolha a vendedora."
       />
 
       <div className="flex flex-wrap items-center gap-3">

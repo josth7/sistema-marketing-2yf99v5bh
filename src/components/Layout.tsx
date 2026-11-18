@@ -24,6 +24,15 @@ import {
   Settings,
   Folder,
   X,
+  ClipboardList,
+  Hourglass,
+  BadgeDollarSign,
+  PhoneCall,
+  AlertTriangle,
+  SlidersHorizontal,
+  ShieldCheck,
+  Target,
+  Circle,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { VERSAO_SISTEMA } from '@/lib/versao'
@@ -73,6 +82,41 @@ const ICONES: Record<string, typeof BarChart3> = {
   '/concorrentes': Eye,
   '/analises': BrainCircuit,
   '/saude-canal': Activity,
+  '/gestao-leads': ClipboardList,
+  '/esperando': Hourglass,
+  '/vendas-sem-valor': BadgeDollarSign,
+  '/recontato': PhoneCall,
+  '/precisa-acao': AlertTriangle,
+  '/admin': SlidersHorizontal,
+  '/acessos': ShieldCheck,
+  '/conversoes': Target,
+  '/minha-senha': KeyRound,
+}
+
+// Uma frase curta embaixo de cada módulo, para a pessoa saber o que tem lá
+// sem precisar abrir (só texto de tela; o menu continua vindo do servidor).
+const DESCRICOES: Record<string, string> = {
+  '/painel': 'Números de marketing e vendas',
+  '/criterios': 'Quando o sistema deve avisar',
+  '/alertas': 'Avisos de queda ou alta nos números',
+  '/decisoes': 'O que foi decidido e por quê',
+  '/relatorios': 'Resumos semanais e quinzenais',
+  '/caixa': 'Itens esperando sua revisão',
+  '/leads': 'Todos os clientes e o funil',
+  '/gestao-leads': 'Quem está com cada vendedor',
+  '/esperando': 'Clientes aguardando resposta',
+  '/conversas': 'WhatsApp de todos os números',
+  '/vendas-sem-valor': 'Vendas fechadas sem o valor',
+  '/recontato': 'Clientes para chamar de novo',
+  '/precisa-acao': 'Leads parados que pedem ação',
+  '/conversoes': 'Vendas enviadas ao Meta e Google',
+  '/concorrentes': 'O que os concorrentes estão fazendo',
+  '/analises': 'Análises feitas pela IA',
+  '/saude-canal': 'Se as integrações estão funcionando',
+  '/numeros': 'Números de WhatsApp conectados',
+  '/atendimento': 'Como o robô responde',
+  '/acessos': 'Quem entra e o que pode ver',
+  '/admin': 'Ajustes gerais do sistema',
 }
 
 // RN-202: um ícone por categoria
@@ -236,7 +280,8 @@ export default function Layout({ sessao }: { sessao: Sessao }) {
 
       <ul className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
         {(grupoExibido ? grupoExibido.itens : []).map(({ para, rotulo }) => {
-          const Icone = ICONES[para] || KeyRound
+          const Icone = ICONES[para] || Circle
+          const descricao = DESCRICOES[para] || ''
           const ativo = atual === para || atual.startsWith(para + '/')
           return (
             <li key={para}>
@@ -247,16 +292,30 @@ export default function Layout({ sessao }: { sessao: Sessao }) {
                   setGaveta(false)
                 }}
                 aria-current={ativo ? 'page' : undefined}
-                title={rotulo}
+                title={descricao ? rotulo + ' — ' + descricao : rotulo}
                 className={
-                  'flex items-center gap-2.5 rounded-full px-3 py-2 text-sm transition-colors ' +
+                  'flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ' +
                   (ativo
-                    ? 'bg-card font-medium text-foreground'
-                    : 'text-muted-foreground hover:text-foreground')
+                    ? 'bg-card font-medium text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground')
                 }
               >
-                <Icone className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">{rotulo}</span>
+                <span
+                  className={
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ' +
+                    (ativo ? 'bg-foreground text-background' : 'bg-muted text-foreground/70')
+                  }
+                >
+                  <Icone className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate">{rotulo}</span>
+                  {descricao !== '' && (
+                    <span className="truncate text-[11px] font-normal leading-tight text-muted-foreground">
+                      {descricao}
+                    </span>
+                  )}
+                </span>
               </Link>
             </li>
           )

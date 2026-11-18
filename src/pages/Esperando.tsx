@@ -194,7 +194,7 @@ export default function Esperando() {
   )
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 space-y-4 p-4 md:p-8">
       <CabecalhoTela
         titulo="Conversas esperando"
         subtitulo="A última mensagem é do cliente e ninguém respondeu. Quem espera há mais tempo aparece primeiro."

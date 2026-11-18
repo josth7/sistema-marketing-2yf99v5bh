@@ -108,10 +108,10 @@ export default function Recontato() {
   const donos = Object.keys(porDono).sort((a, b) => porDono[b].length - porDono[a].length)
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 space-y-4 p-4 md:p-8">
       <CabecalhoTela
-        titulo="Clientes para recontatar"
-        subtitulo="Leads que entraram depois de 31/10 e nunca receberam um oi de um vendedor. Chame pelo WhatsApp e marque como contatado — a lista esvazia conforme você chama."
+        titulo="Falta o primeiro contato"
+        subtitulo="Clientes da sua carteira que ainda não receberam nenhuma mensagem sua no WhatsApp. Para cada um: 1) clique em Chamar no WhatsApp e mande o oi; 2) clique em Já chamei. Quem já recebeu o seu oi sai da lista."
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -178,7 +178,7 @@ export default function Recontato() {
                     disabled={marcando === c.id}
                     onClick={() => void marcarContatado(c)}
                   >
-                    {marcando === c.id ? 'Marcando…' : 'Marcar contatado'}
+                    {marcando === c.id ? 'Salvando…' : 'Já chamei'}
                   </Button>
                 </div>
               </div>

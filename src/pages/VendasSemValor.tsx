@@ -133,7 +133,7 @@ export default function VendasSemValor() {
   const donos = Object.keys(porDono).sort((a, b) => porDono[b].length - porDono[a].length)
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 space-y-4 p-4 md:p-8">
       <CabecalhoTela
         titulo="Vendas sem valor"
         subtitulo="Vendas que ficaram sem o valor registrado. Enquanto estiverem assim, o faturamento e a taxa de conversão ficam menores do que a realidade."

@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import pb from '@/lib/pocketbase/client'
 import { linkChamarWhatsapp } from '@/lib/marketing/crm'
 import { Dica, DicaNumero } from '@/components/base/dica'
@@ -102,6 +95,14 @@ type Observacao = {
   autor_nome: string
   autor_user: string
   created: string
+}
+
+/** Situação da conversa em palavras de quem atende (o valor técnico continua o mesmo). */
+const ROTULO_ESTADO: Record<string, string> = {
+  pausada_humano: 'Com o vendedor',
+  ia_ativa: 'Robô atendendo',
+  transferida: 'Passada ao vendedor',
+  encerrada: 'Encerrada',
 }
 
 const ROTULO_AUTOR: Record<string, string> = {
@@ -219,6 +220,8 @@ export default function Conversas() {
   const grabRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const fileRef = useRef<HTMLInputElement | null>(null)
+  // caixa das mensagens: rola só ela até a última mensagem (nunca a página)
+  const caixaMsgRef = useRef<HTMLDivElement | null>(null)
 
   const [observacoes, setObservacoes] = useState<Observacao[]>([])
   const [nota, setNota] = useState('')
@@ -373,6 +376,13 @@ export default function Conversas() {
 
   const convAberta = conversas.find((c) => c.id === aberta) || null
 
+  // Ao abrir a conversa ou chegar mensagem nova, mostra a última — rolando só
+  // a caixa das mensagens, sem empurrar a página para baixo.
+  useEffect(() => {
+    const el = caixaMsgRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [mensagens, aberta])
+
   // A IA escreve, voce envia pelo celular (03/11): a Meta bloqueia o envio
   // pela API, mas nao impede a IA de pensar. Este botao traz a resposta certa
   // para a etapa da conversa e preenche o campo — o vendedor copia e manda.
@@ -419,7 +429,7 @@ export default function Conversas() {
         headers: { 'Content-Type': 'application/json' },
       })
       setRascunho('')
-      setAvisoEnvio('Mensagem na fila — sai em até 2 minutos.')
+      setAvisoEnvio('Mensagem na fila — sai em até 1 minuto.')
       void carregarMensagens(aberta)
     } catch (e) {
       setAvisoEnvio('Não enviei: ' + (e instanceof Error ? e.message : String(e)))
@@ -453,7 +463,7 @@ export default function Conversas() {
         headers: { 'Content-Type': 'application/json' },
       })
       setRascunho('')
-      setAvisoEnvio('Arquivo na fila — sai em até 2 minutos.')
+      setAvisoEnvio('Arquivo na fila — sai em até 1 minuto.')
       void carregarMensagens(aberta)
     } catch (e) {
       setAvisoEnvio('Não enviei: ' + (e instanceof Error ? e.message : String(e)))
@@ -573,51 +583,61 @@ export default function Conversas() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {soUmNumero ? (
-          <Badge variant="outline">{numeros[0]?.nome}</Badge>
-        ) : (
-          <div className="w-60">
-            {/* CA-3-70: mostrar só quem está esperando */}
-            <Button
-              size="sm"
-              variant={soNaoLidas ? 'default' : 'outline'}
-              onClick={() => setSoNaoLidas((v) => !v)}
-            >
-              {soNaoLidas ? 'Não respondidas' : 'Todas'}
-              {contagemNaoLidas > 0 && (
-                <DicaNumero texto="Clientes cuja última mensagem é deles e ninguém respondeu ainda">
-                  <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
-                    {contagemNaoLidas}
-                  </span>
-                </DicaNumero>
-              )}
-            </Button>
-            <Select value={filtroNumero} onValueChange={setFiltroNumero}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os números</SelectItem>
-                {numeros.map((n) => (
-                  <SelectItem key={n.id} value={n.id}>
-                    {n.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        <input
-          value={busca}
-          onChange={(ev) => setBusca(ev.target.value)}
-          placeholder="Buscar contato ou mensagem…"
-          className="w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-        <span className="text-xs text-muted-foreground">{filtradas.length} conversa(s)</span>
-        <Button size="sm" variant="outline" onClick={() => void carregar()}>
-          Atualizar
-        </Button>
+      {/* Barra de filtros: número em pílulas (um clique), "só sem resposta"
+          para todo mundo — inclusive quem vê um número só — e busca. */}
+      <div className="space-y-2 rounded-cartao border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={busca}
+            onChange={(ev) => setBusca(ev.target.value)}
+            placeholder="Buscar por nome, telefone ou mensagem…"
+            className="min-w-[220px] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          {/* CA-3-70: mostrar só quem está esperando */}
+          <Button
+            size="sm"
+            variant={soNaoLidas ? 'default' : 'outline'}
+            onClick={() => setSoNaoLidas((v) => !v)}
+            title="Clientes cuja última mensagem é deles e ninguém respondeu ainda"
+          >
+            Só sem resposta
+            {contagemNaoLidas > 0 && (
+              <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
+                {contagemNaoLidas}
+              </span>
+            )}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => void carregar()}>
+            Atualizar
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {soUmNumero ? (
+            <Badge variant="outline">Número: {numeros[0]?.nome}</Badge>
+          ) : (
+            <>
+              <span className="mr-1 text-xs text-muted-foreground">Número:</span>
+              {[{ id: 'todos', nome: 'Todos' }, ...numeros].map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => setFiltroNumero(n.id)}
+                  className={
+                    'rounded-full border px-3 py-1 text-xs transition-colors ' +
+                    (filtroNumero === n.id
+                      ? 'border-foreground bg-foreground text-background'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground')
+                  }
+                >
+                  {n.nome}
+                </button>
+              ))}
+            </>
+          )}
+          <span className="ml-auto text-xs text-muted-foreground">
+            {filtradas.length} conversa(s)
+          </span>
+        </div>
       </div>
 
       {filtradas.length === 0 && (
@@ -632,7 +652,7 @@ export default function Conversas() {
           <div className="border-b px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Conversas
           </div>
-          <div className="max-h-[32rem] overflow-y-auto">
+          <div className="max-h-[calc(100vh-18rem)] min-h-[20rem] overflow-y-auto overscroll-contain">
             {filtradas.map((c) => (
               <button
                 key={c.id}
@@ -687,7 +707,7 @@ export default function Conversas() {
                     <span className="text-xs text-muted-foreground">{c.numero_nome}</span>
                     {c.estado && c.estado !== 'triagem' && (
                       <Badge variant="outline" className="px-1 py-0 text-xs">
-                        {c.estado.replace('_', ' ')}
+                        {ROTULO_ESTADO[c.estado] || c.estado.replace('_', ' ')}
                       </Badge>
                     )}
                     {c.canal && c.canal !== 'sem_gatilho' && (
@@ -760,12 +780,14 @@ export default function Conversas() {
                     <span>🔒</span>
                     <span>Interna — o cliente NÃO vê, só o vendedor deste atendimento</span>
                   </div>
-                  {observacoes.map((o) => (
-                    <div key={o.id} className="mb-1 rounded-campo bg-white/70 px-2 py-1 text-xs">
-                      <span className="font-medium">{o.autor_nome || 'Gerência'}: </span>
-                      <span className="whitespace-pre-wrap">{o.texto}</span>
-                    </div>
-                  ))}
+                  <div className="max-h-24 overflow-y-auto overscroll-contain">
+                    {observacoes.map((o) => (
+                      <div key={o.id} className="mb-1 rounded-campo bg-white/70 px-2 py-1 text-xs">
+                        <span className="font-medium">{o.autor_nome || 'Gerência'}: </span>
+                        <span className="whitespace-pre-wrap">{o.texto}</span>
+                      </div>
+                    ))}
+                  </div>
                   {possoEscrever && (
                     <div className="flex gap-2">
                       <input
@@ -790,8 +812,11 @@ export default function Conversas() {
                 </div>
               )}
 
-              <div className="max-h-[26rem] flex-1 space-y-1 overflow-y-auto px-4 py-3">
-                {carregandoMsg && (
+              <div
+                ref={caixaMsgRef}
+                className="max-h-[calc(100vh-24rem)] min-h-[16rem] flex-1 space-y-1 overflow-y-auto overscroll-contain bg-muted/30 px-4 py-3"
+              >
+                {carregandoMsg && mensagens.length === 0 && (
                   <p className="text-xs text-muted-foreground">Carregando mensagens…</p>
                 )}
                 {!carregandoMsg && erroMsg && (
@@ -800,89 +825,93 @@ export default function Conversas() {
                 {!carregandoMsg && !erroMsg && mensagens.length === 0 && (
                   <p className="text-xs text-muted-foreground">Nenhuma mensagem ainda.</p>
                 )}
-                {!carregandoMsg &&
-                  mensagens.map((m, i) => {
-                    const anterior = i > 0 ? mensagens[i - 1] : null
-                    const novoDia =
-                      !anterior || rotuloDia(anterior.enviada_em) !== rotuloDia(m.enviada_em)
-                    const minha = m.direcao === 'saida'
-                    return (
-                      <div key={m.id}>
-                        {novoDia && (
-                          <div className="my-2 text-center">
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                              {rotuloDia(m.enviada_em)}
+                {mensagens.map((m, i) => {
+                  const anterior = i > 0 ? mensagens[i - 1] : null
+                  const novoDia =
+                    !anterior || rotuloDia(anterior.enviada_em) !== rotuloDia(m.enviada_em)
+                  const minha = m.direcao === 'saida'
+                  return (
+                    <div key={m.id}>
+                      {novoDia && (
+                        <div className="my-2 text-center">
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {rotuloDia(m.enviada_em)}
+                          </span>
+                        </div>
+                      )}
+                      <div className={'flex ' + (minha ? 'justify-end' : 'justify-start')}>
+                        <div
+                          className={
+                            // RN-203 item 11: bolha do cliente BRANCA com borda;
+                            // a nossa em `--accent` com texto `--accent-foreground`
+                            'max-w-[85%] rounded-cartao px-3 py-2 text-sm ' +
+                            (minha
+                              ? 'bg-accent text-accent-foreground'
+                              : 'border border-border bg-card text-card-foreground')
+                          }
+                        >
+                          <div className="mb-0.5 flex items-center gap-2 text-xs opacity-70">
+                            <span className="font-semibold">
+                              {ROTULO_AUTOR[m.autor] || m.autor}
                             </span>
+                            <span>{horaCurta(m.enviada_em)}</span>
+                            {m.status && <span>· {m.status}</span>}
+                            {m.editada_em ? <span>· editada</span> : null}
                           </div>
-                        )}
-                        <div className={'flex ' + (minha ? 'justify-end' : 'justify-start')}>
-                          <div
-                            className={
-                              // RN-203 item 11: bolha do cliente BRANCA com borda;
-                              // a nossa em `--accent` com texto `--accent-foreground`
-                              'max-w-[85%] rounded-cartao px-3 py-2 text-sm ' +
-                              (minha
-                                ? 'bg-accent text-accent-foreground'
-                                : 'border border-border bg-card text-card-foreground')
-                            }
-                          >
-                            <div className="mb-0.5 flex items-center gap-2 text-xs opacity-70">
-                              <span className="font-semibold">
-                                {ROTULO_AUTOR[m.autor] || m.autor}
-                              </span>
-                              <span>{horaCurta(m.enviada_em)}</span>
-                              {m.status && <span>· {m.status}</span>}
-                              {m.editada_em ? <span>· editada</span> : null}
-                            </div>
-                            {m.apagada ? (
-                              <p className="italic opacity-70">Mensagem apagada</p>
-                            ) : (
-                              <>
-                                {m.texto && <p className="whitespace-pre-wrap">{m.texto}</p>}
-                                {m.media_url && (
-                                  <span className="mt-1 block">
-                                    {m.tipo === 'image' ? (
-                                      <img
-                                        src={m.media_url}
-                                        alt="imagem enviada"
-                                        className="max-h-64 rounded"
-                                        loading="lazy"
-                                      />
-                                    ) : m.tipo === 'audio' ? (
-                                      <audio controls src={m.media_url} className="max-w-full" />
-                                    ) : m.tipo === 'video' ? (
-                                      <video
-                                        controls
-                                        src={m.media_url}
-                                        className="max-h-64 rounded"
-                                      />
-                                    ) : (
-                                      <a
-                                        href={m.media_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-xs underline"
-                                      >
-                                        {m.media_mimetype || 'Abrir arquivo'}
-                                      </a>
-                                    )}
-                                    {m.tipo === 'audio' && duracao(m.media_duracao_s) !== '' && (
-                                      <span className="ml-2 text-xs opacity-70">
-                                        {duracao(m.media_duracao_s)}
-                                      </span>
-                                    )}
-                                  </span>
-                                )}
-                                {!m.texto && !m.media_url && (
-                                  <p className="text-xs opacity-70">({m.tipo})</p>
-                                )}
-                              </>
-                            )}
-                          </div>
+                          {m.apagada ? (
+                            <p className="italic opacity-70">Mensagem apagada</p>
+                          ) : (
+                            <>
+                              {m.texto && <p className="whitespace-pre-wrap">{m.texto}</p>}
+                              {m.media_url && (
+                                <span className="mt-1 block">
+                                  {m.tipo === 'image' ? (
+                                    <img
+                                      src={m.media_url}
+                                      alt="imagem enviada"
+                                      className="max-h-64 rounded"
+                                      loading="lazy"
+                                      onLoad={() => {
+                                        const el = caixaMsgRef.current
+                                        if (el && i === mensagens.length - 1)
+                                          el.scrollTop = el.scrollHeight
+                                      }}
+                                    />
+                                  ) : m.tipo === 'audio' ? (
+                                    <audio controls src={m.media_url} className="max-w-full" />
+                                  ) : m.tipo === 'video' ? (
+                                    <video
+                                      controls
+                                      src={m.media_url}
+                                      className="max-h-64 rounded"
+                                    />
+                                  ) : (
+                                    <a
+                                      href={m.media_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-xs underline"
+                                    >
+                                      {m.media_mimetype || 'Abrir arquivo'}
+                                    </a>
+                                  )}
+                                  {m.tipo === 'audio' && duracao(m.media_duracao_s) !== '' && (
+                                    <span className="ml-2 text-xs opacity-70">
+                                      {duracao(m.media_duracao_s)}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                              {!m.texto && !m.media_url && (
+                                <p className="text-xs opacity-70">({m.tipo})</p>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
-                    )
-                  })}
+                    </div>
+                  )
+                })}
               </div>
 
               <div className="border-t px-3 py-2">
@@ -906,8 +935,12 @@ export default function Conversas() {
                   </Button>
                   {sugestao !== '' && (
                     <>
-                      <Button size="sm" onClick={() => void copiarSugestao(sugestao)}>
-                        Copiar para o celular
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void copiarSugestao(sugestao)}
+                      >
+                        Copiar texto
                       </Button>
                       <span className="text-xs text-muted-foreground">
                         Revise antes de enviar — a IA segue o roteiro, não decide preço.

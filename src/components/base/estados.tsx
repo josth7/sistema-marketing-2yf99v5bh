@@ -67,7 +67,12 @@ export function EstadoVazio(props: { titulo: string; descricao?: string }) {
 }
 
 /** Estado: erro — mensagem simples + "Tentar de novo", sem detalhe técnico. */
-export function EstadoErro(props: { mensagem: string; aoTentar?: () => void }) {
+export function EstadoErro(props: {
+  mensagem: string
+  aoTentar?: () => void
+  onTentarNovamente?: () => void
+}) {
+  const tentar = props.aoTentar || props.onTentarNovamente
   return (
     <div
       className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
@@ -77,13 +82,8 @@ export function EstadoErro(props: { mensagem: string; aoTentar?: () => void }) {
       <div>
         <p className="font-medium">Algo deu errado</p>
         <p>{props.mensagem}</p>
-        {props.aoTentar && (
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0 underline"
-            onClick={props.aoTentar}
-          >
+        {tentar && (
+          <Button variant="link" size="sm" className="h-auto p-0 underline" onClick={tentar}>
             Tentar de novo
           </Button>
         )}
