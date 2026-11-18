@@ -50,6 +50,47 @@ cronAdd('tmp_1811_bomdia', '* * * * *', () => {
       1000,
       0,
     )
+    // contagem por vendedor e estado dos avisos de hoje (para conferir entrega)
+    if (agora.getUTCMinutes() % 5 === 0) {
+      const nomes = {}
+      for (const c of $app.findRecordsByFilter(
+        'whatsapp_conexoes',
+        "papel='vendedor' && fixture=false",
+        '',
+        50,
+        0,
+      )) {
+        nomes[
+          String(c.get('numero') || '')
+            .replace(/\D/g, '')
+            .slice(-8)
+        ] = String(c.get('vendedor_nome_publico') || c.get('nome_exibicao') || '?')
+      }
+      const cont = {}
+      var ultErro = ''
+      for (const r of $app.findRecordsByFilter(
+        'whatsapp_envios',
+        "motivo='aviso_vendedor' && fixture=false && created>='2026-11-18 11:00:00'",
+        '',
+        2000,
+        0,
+      )) {
+        const k =
+          (nomes[
+            String(r.get('destino_telefone') || '')
+              .replace(/\D/g, '')
+              .slice(-8)
+          ] || '?') +
+          '|' +
+          String(r.get('estado'))
+        cont[k] = (cont[k] || 0) + 1
+        const er = String(r.get('ultimo_erro') || '')
+        if (er !== '' && ultErro === '') ultErro = er.slice(0, 120)
+      }
+      console.log(
+        'tmp_1811_contagem: ' + JSON.stringify(cont) + (ultErro ? ' | ult.erro: ' + ultErro : ''),
+      )
+    }
     if (!retidos || retidos.length === 0) return
     var n = 0
     for (const r of retidos) {
