@@ -1,30 +1,48 @@
 /// <reference path="../pb_data/types.d.ts" />
-/**
- * TEMPORÁRIO (18/11): recoloca na fila os avisos ao vendedor recusados hoje
- * pelo limite de envio da Meta para o mesmo número (#131056). Só entre
- * 12:45 e 13:15 UTC de 18/11; depois não faz nada. APAGAR depois.
- */
-cronAdd('tmp_1811_bomdia', '*/5 * * * *', () => {
-  const agora = new Date().toISOString()
-  if (agora < '2026-11-18T12:45' || agora > '2026-11-18T13:15') return
+// TEMPORÁRIO (18/11) — só leitura: por que um contato caiu na aba Equipe.
+cronAdd('tmp_1811_bomdia', '* * * * *', () => {
+  if ($app.store().get('tmp_anny')) return
+  $app.store().set('tmp_anny', true)
+  const f8 = '99601233'
   try {
-    const rs = $app.findRecordsByFilter(
-      'whatsapp_envios',
-      "motivo='aviso_vendedor' && estado='erro_definitivo' && fixture=false && created>='2026-11-18 11:00:00' && ultimo_erro~'131056'",
+    const cx = $app.findRecordsByFilter('whatsapp_conexoes', "numero~'" + f8 + "'", '', 5, 0)
+    const ni = $app.findRecordsByFilter(
+      'whatsapp_numeros_internos',
+      "numero~'" + f8 + "'",
       '',
-      50,
+      5,
       0,
     )
-    var n = 0
-    for (const r of rs) {
-      r.set('estado', 'pendente')
-      r.set('tentativas', 0)
-      $app.save(r)
-      n++
-    }
-    if (n > 0)
-      console.log('tmp_1811_reenvio: ' + n + ' aviso(s) recolocados na fila (limite #131056)')
+    const cv = $app.findRecordsByFilter(
+      'whatsapp_conversas',
+      "contato_telefone~'" + f8 + "'",
+      '',
+      10,
+      0,
+    )
+    console.log(
+      'tmp_anny: conexoes=' +
+        cx.length +
+        ' internos=' +
+        ni.length +
+        (ni.length
+          ? ' rotulo=' +
+            String(ni[0].get('rotulo')) +
+            ' criado=' +
+            String(ni[0].get('created')).slice(0, 16)
+          : '') +
+        ' conversas=' +
+        cv
+          .map(
+            (c) =>
+              'interna:' +
+              String(c.get('interna')) +
+              '/lead:' +
+              (String(c.get('lead')) ? 's' : 'n'),
+          )
+          .join(','),
+    )
   } catch (e) {
-    console.log('tmp_1811_reenvio: erro ' + String(e).slice(0, 120))
+    console.log('tmp_anny: erro ' + String(e).slice(0, 120))
   }
 })
