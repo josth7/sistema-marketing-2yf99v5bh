@@ -579,6 +579,12 @@ onRecordAfterCreateSuccess((e) => {
         }
         return String(env.get('estado'))
       }
+      // 18/11: envio REAL não sai mais daqui. Este caminho usava outro host
+      // (api.deliverify.io) e mandava `X-Fixture-Secret: ''` — o mesmo header
+      // vazio que dava 405 na fila (10/11). O envio já está gravado `pendente`;
+      // a fila `whatsapp_envios_fila` manda em até 2 min com o host, a chave
+      // por número e o formato de modelo certos.
+      if (!ehFixture) return 'pendente'
       {
         var chave = ''
         try {

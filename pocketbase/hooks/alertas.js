@@ -36,6 +36,10 @@
 
 // ==================== CRON (lógica inline — cópia A) ====================
 cronAdd('alerta_avaliador_diario', '15 9 * * *', () => {
+  // CORRIGIDO (18/11): `empSel` só existia nas rotas (vem do X-Empresa) e o
+  // cron quebrava com ReferenceError. No cron não há pessoa nem seletor:
+  // avalia os critérios aprovados de todas as empresas, como antes.
+  var empSel = ''
   const hojeRef = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const app = $app
   const resumo = {

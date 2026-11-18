@@ -440,12 +440,25 @@ cronAdd('whatsapp_envios_fila', '*/2 * * * *', () => {
         // mascara telefone (10+ dígitos seguidos) e qualquer token
         limpo = limpo.replace(/[0-9]{10,}/g, '***')
         limpo = limpo.replace(/"(api[_-]?key|token|authorization)"\s*:\s*"[^"]*"/gi, '"$1":"***"')
-        if (limpo !== '') motivo4xx = status + ' ' + limpo.slice(0, 240)
+        if (limpo !== '') motivo4xx = status + ' ' + limpo.slice(0, 500)
       } catch (eLimpo) {}
-      env.set('ultimo_erro', motivo4xx.slice(0, 60))
+      // 18/11: o campo guarda a resposta inteira (até 500 caracteres, mascarada).
+      // Se o campo tiver limite menor e o save recusar, cai no corte antigo (60).
+      console.log(
+        'whatsapp_envios_fila: ' +
+          String(env.get('motivo') || '') +
+          ' -> recusa ' +
+          motivo4xx.slice(0, 500),
+      )
+      env.set('ultimo_erro', motivo4xx.slice(0, 500))
       try {
         $app.save(env)
-      } catch (e9) {}
+      } catch (e9) {
+        env.set('ultimo_erro', motivo4xx.slice(0, 60))
+        try {
+          $app.save(env)
+        } catch (e9b) {}
+      }
       continue
     }
 

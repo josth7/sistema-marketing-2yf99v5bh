@@ -94,7 +94,9 @@ export default function VendasSemValor() {
 
   const gravar = async () => {
     if (!aberta) return
-    const v = Number(valor.replace(/\./g, '').replace(',', '.'))
+    // "1.500,50" → 1500.50 ; "1500.50" → 1500.50 (antes virava 150050)
+    const bruto = valor.trim().replace(/\s/g, '')
+    const v = Number(bruto.includes(',') ? bruto.replace(/\./g, '').replace(',', '.') : bruto)
     if (!Number.isFinite(v) || v <= 0) {
       setErroValor('Informe o valor da venda (maior que zero).')
       return

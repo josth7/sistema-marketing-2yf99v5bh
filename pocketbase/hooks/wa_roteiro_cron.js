@@ -43,7 +43,16 @@ cronAdd('wa_roteiro', '* * * * *', () => {
     const colCx = $app.findCollectionByNameOrId('whatsapp_conexoes')
     var centrais = []
     try {
-      centrais = $app.findRecordsByFilter(colCx, "papel='central' && ativo=true", '', 5, 0)
+      // 18/11: a CENTRAL FIXTURE QA também é central ativa — fica de fora
+      for (const c0 of $app.findRecordsByFilter(
+        colCx,
+        "papel='central' && ativo=true",
+        '',
+        20,
+        0,
+      )) {
+        if (String(c0.get('fixture')) !== 'true') centrais.push(c0)
+      }
     } catch (e0) {
       return
     }
@@ -252,7 +261,15 @@ cronAdd('wa_roteiro', '* * * * *', () => {
 
     var cxsVend = []
     try {
-      cxsVend = $app.findRecordsByFilter(colCx, "papel='vendedor' && ativo=true", '', 20, 0)
+      for (const cv0 of $app.findRecordsByFilter(
+        colCx,
+        "papel='vendedor' && ativo=true",
+        '',
+        50,
+        0,
+      )) {
+        if (String(cv0.get('fixture')) !== 'true') cxsVend.push(cv0)
+      }
     } catch (e2) {}
 
     if (vendedores.length > 0) {
@@ -973,10 +990,14 @@ cronAdd('wa_roteiro', '* * * * *', () => {
         // anunciava um consultor, e o pedido ao ponto único nunca era criado.
         // O lead ficava sem dono e ninguém cobrava. Agora o pedido sai sempre
         // que a conversa transfere e o lead existe, com ou sem dono.
+        // 18/11: dono que o ponto único gravou (para corrigir o nome anunciado)
+        var corrigirAnuncio = false
+        var donoAnunciar = ''
         if (transfere && String(cv.get('lead') || '') !== '') {
           try {
             const ld2 = $app.findRecordById(colL, String(cv.get('lead')))
             if (String(ld2.get('owner_id') || '') === '') {
+              corrigirAnuncio = true
               // pede ao ponto único (idempotente: se já houver pedido aberto
               // para este lead, o hook de transferência não duplica o dono)
               try {
@@ -999,6 +1020,7 @@ cronAdd('wa_roteiro', '* * * * *', () => {
                 const relido = $app.findRecordById(colL, ld2.id)
                 donoAgora = String(relido.get('owner_id') || '')
               } catch (eRl) {}
+              donoAnunciar = donoAgora
               if (donoAgora !== '') {
                 try {
                   const colEvA = $app.findCollectionByNameOrId('crm_lead_events')
@@ -1011,6 +1033,71 @@ cronAdd('wa_roteiro', '* * * * *', () => {
               }
             }
           } catch (eOwn) {}
+        }
+
+        // ---------- 18/11: UM NOME SÓ PARA O CLIENTE ----------
+        // Lead sem dono: a frase acima anunciava o vendedor de MENOR CARGA, mas
+        // quem fica com o lead é o da ORDEM FIXA do rodízio (whatsapp_transferencias,
+        // decisão do dono 09/11) — e a transferência ainda manda ao cliente o
+        // aviso com o nome dela. O cliente ouvia dois nomes. Agora a frase é
+        // refeita com o dono que o ponto único acabou de gravar; sem dono
+        // gravado (ou dono sem conexão de vendedor), a frase sai SEM nome.
+        if (corrigirAnuncio && donoAnunciar !== cons.id) {
+          const posTxt = respostas.indexOf(TXT_CONSULTOR)
+          if (posTxt >= 0) {
+            var nomeReal = ''
+            var digReal = ''
+            var numReal = ''
+            for (const cxr of cxsVend) {
+              if (donoAnunciar === '') break
+              if (String(cxr.get('vendedor_user') || '') !== donoAnunciar) continue
+              nomeReal =
+                String(cxr.get('vendedor_nome_publico') || '') ||
+                String(cxr.get('nome_exibicao') || '')
+              const ndr = String(cxr.get('numero') || '').replace(/[^0-9]/g, '')
+              if (ndr.length === 13 || ndr.length === 12) digReal = ndr
+              if (ndr.length === 13)
+                numReal = '(' + ndr.slice(2, 4) + ') ' + ndr.slice(4, 9) + '-' + ndr.slice(9)
+              else if (ndr.length === 12)
+                numReal = '(' + ndr.slice(2, 4) + ') ' + ndr.slice(4, 8) + '-' + ndr.slice(8)
+            }
+            var novoTxt = ''
+            if (nomeReal === '') {
+              novoTxt = tx(
+                'transferencia_consultor_sem_nome',
+                'Certo! 😊 Já te encaminhei pro nosso time de vendas! Você recebe a mensagem de um vendedor nosso logo abaixo. Pode salvar como *Haisan Vendas*! 😊',
+              )
+            } else {
+              var linkReal = ''
+              if (digReal !== '') {
+                linkReal =
+                  'https://wa.me/' +
+                  digReal +
+                  '?text=' +
+                  encodeURIComponent(
+                    'Oi, ' + nomeReal.split(' ')[0] + '! Vim do atendimento da Haisan',
+                  )
+              }
+              novoTxt = (
+                linkReal !== ''
+                  ? tx(
+                      'transferencia_consultor',
+                      'Certo! 😊 Já te encaminhei pro nosso time de vendas! Quem vai te atender: *{nome}*.\nFala direto por aqui: {link}\nPode salvar como *Haisan Vendas*! 😊',
+                    )
+                  : tx(
+                      'transferencia_consultor_sem_numero',
+                      'Certo! 😊 Já te encaminhei pro nosso time de vendas! Seu consultor será o *{nome}*. Pode salvar como *Haisan Vendas*! 😊',
+                    )
+              )
+                .split('{nome}')
+                .join(nomeReal)
+                .split('{numero}')
+                .join(numReal)
+                .split('{link}')
+                .join(linkReal)
+            }
+            respostas[posTxt] = novoTxt
+          }
         }
         // ---------- enfileira (so quando o envio estiver ligado) ----------
         var enfileirados = 0
@@ -1085,7 +1172,15 @@ routerAdd(
     const colCx = $app.findCollectionByNameOrId('whatsapp_conexoes')
     var centrais = []
     try {
-      centrais = $app.findRecordsByFilter(colCx, "papel='central' && ativo=true", '', 5, 0)
+      for (const c1 of $app.findRecordsByFilter(
+        colCx,
+        "papel='central' && ativo=true",
+        '',
+        20,
+        0,
+      )) {
+        if (String(c1.get('fixture')) !== 'true') centrais.push(c1)
+      }
     } catch (e0) {}
     const central = centrais.length > 0 ? centrais[0] : null
 

@@ -2,12 +2,12 @@
 /**
  * 0130 — DEFINE a senha da conta haisan.ecmm@gmail.com (18/11).
  *
- * A conta existia com 3 grants e escopo *, mas o dono não consegue entrar
- * ("não aparece as informações"). Pode ser senha esquecida.
+ * DESCOBERTA: migração que lança erro é REVERTIDA (transação). Eu usava
+ * `throw` para mostrar o resultado e, com isso, a senha era desfeita a cada
+ * tentativa. Agora a migração CONCLUI sem erro e o resultado vai para
+ * `access_audit`, que é lido depois pela rota de acessos.
  *
- * A senha NÃO fica no arquivo: é lida do segredo `SENHA_ADM_ECMM`. Sem o
- * segredo, a migração não faz nada — assim nenhuma senha vai para o repositório
- * (lição de 12/11).
+ * A senha NÃO fica no arquivo: vem do segredo `SENHA_ADM_ECMM`.
  */
 migrate(
   (app) => {
@@ -16,31 +16,49 @@ migrate(
       senha = String($secrets.get('SENHA_ADM_ECMM') || '')
     } catch (e1) {}
     if (senha === '') {
-      throw new Error('SENHA: segredo SENHA_ADM_ECMM nao cadastrado — nada foi alterado')
-    }
-    if (senha.length < 8) {
-      throw new Error('SENHA: o segredo tem menos de 8 caracteres')
+      console.log('0130: segredo SENHA_ADM_ECMM ausente — nada alterado')
+      return
     }
     const us = app.findRecordsByFilter('users', "email='haisan.ecmm@gmail.com'", '', 1, 0)
     if (!us.length) {
-      throw new Error('SENHA: conta nao existe')
+      console.log('0130: conta nao existe')
+      return
     }
     const u = us[0]
-    // JSVM nao tem `verifyPassword` (descoberto aqui). Confiro pelo updated:
-    // se o registro foi salvo depois do setPassword, a senha entrou.
     const antes = String(u.get('updated') || '')
     try {
       u.setPassword(senha)
       app.save(u)
     } catch (e2) {
-      throw new Error('SENHA: falhou ao salvar -> ' + String(e2).slice(0, 120))
+      console.log('0130: falhou ao salvar -> ' + String(e2).slice(0, 140))
+      return
     }
     const conf = app.findRecordById('users', u.id)
     const depois = String(conf.get('updated') || '')
-    if (depois === antes) throw new Error('SENHA: save nao alterou o registro')
-    throw new Error(
-      'SENHA: aplicada (updated ' + antes.slice(11, 19) + ' -> ' + depois.slice(11, 19) + ')',
+    const ok = depois !== antes
+    console.log(
+      '0130: senha ' +
+        (ok ? 'APLICADA' : 'NAO mudou') +
+        ' (' +
+        antes.slice(11, 19) +
+        ' -> ' +
+        depois.slice(11, 19) +
+        ')',
     )
+    // registro de auditoria (nao lanca erro: a transacao precisa concluir)
+    try {
+      const a = new Record(app.findCollectionByNameOrId('access_audit'))
+      a.set('at', new Date().toISOString())
+      a.set('actor', 'sistema')
+      a.set('acao', 'senha_redefinida')
+      a.set('alvo', 'haisan.ecmm@gmail.com')
+      a.set(
+        'detalhe',
+        'Senha redefinida pelo Maestro a pedido do dono (18/11). Resultado: ' +
+          (ok ? 'aplicada' : 'nao aplicada'),
+      )
+      app.save(a)
+    } catch (e3) {}
   },
   (app) => {},
 )

@@ -269,6 +269,7 @@ routerAdd(
 
     // ---------- versão nova (append-only) ----------
     var maior = 0
+    var vigente = null
     try {
       const vs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('admin_config'),
@@ -279,7 +280,10 @@ routerAdd(
       )
       for (const v of vs) {
         const n = Number(v.get('versao') || 0)
-        if (n > maior) maior = n
+        if (n > maior) {
+          maior = n
+          vigente = v
+        }
       }
     } catch (e1) {}
 
@@ -329,8 +333,17 @@ routerAdd(
       // O preço é gravado SEMPRE (0 quando não vem): antes o `!== undefined`
       // deixava passar e a versão nova nascia com o campo vazio, então a tela
       // nunca encontrava o preço e não calculava o custo.
-      const precoM = Number(body.preco_marketing || 0)
-      const precoU = Number(body.preco_utilidade || 0)
+      // CORRIGIDO (18/11): a tela de Administração não manda os preços, e o
+      // salvar zerava os dois. Agora só troca o preço quando o corpo traz o
+      // campo; senão repete o preço da versão vigente.
+      const temPM = body.preco_marketing !== undefined && body.preco_marketing !== null
+      const temPU = body.preco_utilidade !== undefined && body.preco_utilidade !== null
+      const precoM = temPM
+        ? Number(body.preco_marketing || 0)
+        : Number((vigente && vigente.get('preco_marketing')) || 0)
+      const precoU = temPU
+        ? Number(body.preco_utilidade || 0)
+        : Number((vigente && vigente.get('preco_utilidade')) || 0)
       nv.set('preco_marketing', isNaN(precoM) ? 0 : precoM)
       nv.set('preco_utilidade', isNaN(precoU) ? 0 : precoU)
       nv.set('observacao', String(body.observacao || '').slice(0, 300))
@@ -449,6 +462,7 @@ routerAdd(
 
     var alvo = null
     var maior = 0
+    var vigenteV = null
     try {
       const vs = app.findRecordsByFilter(
         app.findCollectionByNameOrId('admin_config'),
@@ -459,7 +473,10 @@ routerAdd(
       )
       for (const v of vs) {
         const n = Number(v.get('versao') || 0)
-        if (n > maior) maior = n
+        if (n > maior) {
+          maior = n
+          vigenteV = v
+        }
         if (n === alvoVersao) alvo = v
       }
     } catch (e1) {}
@@ -471,6 +488,12 @@ routerAdd(
       const nv = new Record(col)
       nv.set('versao', maior + 1)
       nv.set('email_ativo', alvo.get('email_ativo') === true)
+      // CORRIGIDO (18/11): voltar versão desligava o aviso ao vendedor (o campo
+      // não era copiado e nascia false). Mantém o valor que está valendo agora.
+      nv.set(
+        'aviso_vendedor_ativo',
+        vigenteV ? vigenteV.get('aviso_vendedor_ativo') !== false : true,
+      )
       nv.set('email_destinatarios', String(alvo.get('email_destinatarios') || '[]'))
       nv.set('resumo_ativo', alvo.get('resumo_ativo') === true)
       nv.set('resumo_horarios', String(alvo.get('resumo_horarios') || '[]'))

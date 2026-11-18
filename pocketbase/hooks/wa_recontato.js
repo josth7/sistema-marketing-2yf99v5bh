@@ -61,6 +61,12 @@ routerAdd(
         const ate = String(g.get('valid_until') || '')
         if (de !== '' && de.slice(0, 10) > hoje) continue
         if (ate !== '' && ate.slice(0, 10) < hoje) continue
+        // 18/11: cargo management é gestão da empresa do grant (vê todos),
+        // igual a wa_gestao_esperando.js
+        if (String(g.get('role') || '') === 'management') {
+          temRead = true
+          temTudo = true
+        }
         const a = lerL(g.get('actions'))
         if (a.indexOf('read_leads') < 0) continue
         temRead = true
@@ -69,6 +75,13 @@ routerAdd(
       }
     } catch (e0) {}
     if (!temRead) return e.json(403, { ok: false, erro: 'sem permissão para ver leads' })
+
+    // 18/11: telefone comparado pelos ÚLTIMOS 8 DÍGITOS (padrão do sistema):
+    // assim "55" na frente e o nono dígito não fazem o mesmo número parecer outro.
+    function chave8(t) {
+      const d = String(t || '').replace(/\D/g, '')
+      return d.length > 8 ? d.slice(-8) : d
+    }
 
     // ---------- números internos da equipe (não são cliente) ----------
     const internos = {}
@@ -88,7 +101,7 @@ routerAdd(
         } catch (eI) {}
         if (!Array.isArray(lista)) continue
         for (const i of lista) {
-          const n = String(i.numero || '').replace(/\D/g, '')
+          const n = chave8(i.numero)
           if (n !== '') internos[n] = true
         }
       }
@@ -105,7 +118,7 @@ routerAdd(
         0,
       )
       for (const m of msgs) {
-        const tel = String(m.get('contato_telefone') || '').replace(/\D/g, '')
+        const tel = chave8(m.get('contato_telefone'))
         if (tel !== '') comContato[tel] = true
       }
     } catch (e2) {}
@@ -216,7 +229,7 @@ routerAdd(
       } catch (eC) {}
       if (criado !== '' && criado < DESDE) continue
       // telefone
-      const tel = String(l.get('telefone') || '').replace(/\D/g, '')
+      const tel = chave8(l.get('telefone'))
       if (tel === '') continue
       // número interno da equipe não é cliente
       if (internos[tel]) continue
@@ -296,6 +309,11 @@ routerAdd(
         const ate = String(g.get('valid_until') || '')
         if (de !== '' && de.slice(0, 10) > hoje) continue
         if (ate !== '' && ate.slice(0, 10) < hoje) continue
+        // 18/11: cargo management é gestão (igual a wa_gestao_esperando.js)
+        if (String(g.get('role') || '') === 'management') {
+          temRead = true
+          temTudo = true
+        }
         const a = lerA(g.get('actions'))
         if (a.indexOf('read_leads') >= 0) temRead = true
         const sc = lerA(g.get('scope_accounts'))

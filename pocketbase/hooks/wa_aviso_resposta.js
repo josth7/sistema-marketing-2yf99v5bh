@@ -54,6 +54,7 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
     const cxPapel = {}
     const cxVend = {}
     const cxFix = {}
+    const cxModeloAv = {}
     var central = null
     try {
       for (const c of app.findRecordsByFilter(
@@ -66,6 +67,7 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
         cxPapel[c.id] = String(c.get('papel') || '')
         cxVend[c.id] = String(c.get('vendedor_user') || '')
         cxFix[c.id] = String(c.get('fixture')) === 'true'
+        cxModeloAv[c.id] = String(c.get('modelo_aviso_vendedor') || '')
         // DEFEITO CORRIGIDO (17/11, consultor): pegava QUALQUER central ativa —
         // inclusive a "CENTRAL FIXTURE QA" (teste). O aviso saía pela rota de
         // teste e voltava 405/404: 0 de 55 avisos chegaram em 17/11. Agora só
@@ -277,14 +279,67 @@ cronAdd('wa_aviso_resposta', '*/2 * * * *', () => {
         link
 
       try {
+        // 18/11: JANELA DE 24h COM O VENDEDOR (mesma regra de
+        // whatsapp_transferencias.js, "AVISO AO VENDEDOR PELA CENTRAL").
+        // Texto livre da central para o vendedor fora da janela a Meta recusa
+        // ("Re-engagement"). Sem modelo e com janela fechada, o aviso fica
+        // guardado (`fora_da_janela_sem_modelo`) e o cron `wa_avisos_retidos`
+        // solta quando o vendedor mandar o "bom dia" para a central.
+        const modeloAv = cxModeloAv[cx] || ''
+        var dVendJ = String(numDono || '').replace(/\D/g, '')
+        var janelaVend = false
+        if (dVendJ.length >= 8) {
+          try {
+            const desdeJ = new Date(agora - 24 * 3600000)
+              .toISOString()
+              .replace('T', ' ')
+              .slice(0, 19)
+            const mJ = app.findRecordsByFilter(
+              'whatsapp_mensagens',
+              "conexao='" +
+                cx +
+                "' && direcao='entrada' && contato_telefone~'" +
+                dVendJ.slice(-8) +
+                "' && created>='" +
+                desdeJ +
+                "'",
+              '',
+              1,
+              0,
+            )
+            janelaVend = !!(mJ && mJ.length > 0)
+          } catch (eJ) {}
+        }
         const env = new Record(colEnv)
+        env.set('lead', lead.id)
         env.set('conexao', cx)
         env.set('destino_telefone', numDono)
         env.set('motivo', 'aviso_vendedor')
-        env.set('modo', 'texto')
         env.set('texto', textoAviso)
-        env.set('legenda', '')
-        env.set('estado', 'pendente')
+        if (modeloAv !== '') {
+          // variáveis do modelo: {{1}} vendedor, {{2}} cliente, {{3}} telefone,
+          // {{4}} contexto, {{5}} link (mesma ordem da transferência)
+          var primVendA =
+            String(nomes[dono] || '')
+              .trim()
+              .split(/\s+/)[0] || 'vendedor'
+          env.set('modo', 'modelo')
+          env.set('modelo_nome', modeloAv)
+          env.set(
+            'legenda',
+            [
+              primVendA,
+              (String(lead.get('nome') || '').trim() || 'Cliente').replace(/\|/g, '/'),
+              tel,
+              ('respondeu na central: "' + previa + '"').replace(/\|/g, '/'),
+              link,
+            ].join('|'),
+          )
+        } else {
+          env.set('modo', 'texto')
+          env.set('legenda', '')
+        }
+        env.set('estado', modeloAv !== '' || janelaVend ? 'pendente' : 'fora_da_janela_sem_modelo')
         env.set('tentativas', 0)
         env.set('fixture', false)
         // ITEM 3 (12/11) — "Value must be unique" dezenas de vezes por minuto.
