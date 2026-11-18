@@ -135,7 +135,7 @@ export default function GestaoLeads() {
       />
 
       {/* RN-203 item 2: o filtro de datas continua em campos; o contêiner segue o cartão */}
-      <div className="flex flex-wrap items-end gap-2 rounded-cartao bg-muted p-3">
+      <div className="flex flex-wrap items-end gap-2 rounded-cartao border bg-card p-3">
         <PilulasFiltro
           rotulo="Período"
           valor={periodo}
@@ -196,63 +196,63 @@ export default function GestaoLeads() {
       {!carregando && !erro && n && (
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <p className="text-xs text-muted-foreground">Recebidos</p>
-              <p className="text-2xl font-semibold">{n.recebidos}</p>
+              <p className="tabular text-2xl font-semibold">{n.recebidos}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <p className="text-xs text-muted-foreground">Com dono</p>
-              <p className="text-2xl font-semibold">{n.distribuidos}</p>
+              <p className="tabular text-2xl font-semibold">{n.distribuidos}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <DicaNumero texto="Leads que ninguém pegou ainda — não aparecem para vendedor">
                 <p className="text-xs text-muted-foreground">Sem dono</p>
               </DicaNumero>
-              <p className={'text-2xl font-semibold ' + (n.sem_dono > 0 ? 'text-amber-600' : '')}>
-                {n.sem_dono}
-              </p>
+              <p className="tabular text-2xl font-semibold">{n.sem_dono}</p>
               {n.sem_dono > 0 && (
-                <Link to="/leads?vendedor=__sem_dono__" className="text-xs text-primary underline">
+                <Link
+                  to="/leads?vendedor=__sem_dono__"
+                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
                   ver no CRM
                 </Link>
               )}
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <DicaNumero texto="Tem dono, mas a vendedora nunca mandou mensagem — o cliente não sabe que existe">
-                <p className="text-xs text-muted-foreground">Sem contato da vendedora</p>
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {n.sem_contato_vendedora > 0 && (
+                    <span
+                      className="h-1.5 w-1.5 rounded-full bg-destructive/70"
+                      aria-hidden="true"
+                    />
+                  )}
+                  Sem contato da vendedora
+                </p>
               </DicaNumero>
-              <p
-                className={
-                  'text-2xl font-semibold ' + (n.sem_contato_vendedora > 0 ? 'text-red-600' : '')
-                }
-              >
-                {n.sem_contato_vendedora}
-              </p>
+              <p className="tabular text-2xl font-semibold">{n.sem_contato_vendedora}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <DicaNumero texto="A última mensagem da conversa é do cliente e ninguém respondeu">
                 <p className="text-xs text-muted-foreground">Conversas sem resposta</p>
               </DicaNumero>
-              <p
-                className={
-                  'text-2xl font-semibold ' + (n.conversas_sem_resposta > 0 ? 'text-red-600' : '')
-                }
-              >
-                {n.conversas_sem_resposta}
-              </p>
+              <p className="tabular text-2xl font-semibold">{n.conversas_sem_resposta}</p>
               {n.conversas_sem_resposta > 0 && (
-                <Link to="/esperando" className="text-xs text-primary underline">
+                <Link
+                  to="/esperando"
+                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
                   ver a lista
                 </Link>
               )}
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <p className="text-xs text-muted-foreground">Recusados</p>
-              <p className="text-2xl font-semibold">{n.recusados}</p>
+              <p className="tabular text-2xl font-semibold">{n.recusados}</p>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <p className="text-xs text-muted-foreground">Duplicados</p>
-              <p className="text-2xl font-semibold">{n.duplicados}</p>
+              <p className="tabular text-2xl font-semibold">{n.duplicados}</p>
             </div>
           </div>
 
@@ -268,7 +268,7 @@ export default function GestaoLeads() {
               <Link
                 key={v.vendedor}
                 to={'/leads?vendedor=' + encodeURIComponent(v.id || '')}
-                className="block rounded-md border px-3 py-2 transition hover:bg-muted/60"
+                className="block rounded-cartao border bg-card px-3 py-2 transition hover:bg-muted/60"
                 title="Abrir a carteira deste vendedor no CRM"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -279,10 +279,10 @@ export default function GestaoLeads() {
                 </div>
                 <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span>em aberto: {v.abertos}</span>
-                  <span className={v.vendas > 0 ? 'text-emerald-700' : ''}>
+                  <span className={v.vendas > 0 ? 'text-marca-1' : ''}>
                     vendas: <strong>{v.vendas}</strong>
                   </span>
-                  {v.valor > 0 && <span className="text-emerald-700">{reais(v.valor)}</span>}
+                  {v.valor > 0 && <span className="tabular text-foreground">{reais(v.valor)}</span>}
                   {v.descartados > 0 && <span>descartados: {v.descartados}</span>}
                 </div>
               </Link>

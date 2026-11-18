@@ -17,7 +17,7 @@ export function CabecalhoPagina(props: { titulo: string; descricao?: string; aco
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="space-y-1 min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">{props.titulo}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{props.titulo}</h1>
         {props.descricao && (
           <p className="max-w-2xl text-sm text-muted-foreground">{props.descricao}</p>
         )}
@@ -31,7 +31,7 @@ export function CabecalhoPagina(props: { titulo: string; descricao?: string; aco
 export function SeloDemonstracao() {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900"
+      className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-800"
       role="status"
     >
       <AlertTriangle className="h-3 w-3" aria-hidden="true" />
@@ -75,7 +75,7 @@ export function EstadoErro(props: {
   const tentar = props.aoTentar || props.onTentarNovamente
   return (
     <div
-      className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+      className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive"
       role="alert"
     >
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

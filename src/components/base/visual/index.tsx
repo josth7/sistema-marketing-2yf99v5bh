@@ -73,17 +73,21 @@ export function CartaoDestaque({
   itens?: { rotulo: string; valor: string }[]
 }) {
   return (
-    <div className="cartao-destaque p-4 md:p-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-white/70">{rotulo}</p>
-      <p className="numero-destaque mt-1 tabular text-white">{valor}</p>
-      {apoio && <p className="mt-1 text-xs text-white/70">{apoio}</p>}
+    <div className="cartao-destaque relative overflow-hidden p-4 md:p-6">
+      <span className="absolute inset-y-0 left-0 w-1 bg-marca-1" aria-hidden="true" />
+      <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-marca-1" aria-hidden="true" />
+        {rotulo}
+      </p>
+      <p className="numero-destaque mt-1 tabular text-foreground">{valor}</p>
+      {apoio && <p className="mt-1 text-xs text-muted-foreground">{apoio}</p>}
 
       {itens.length > 0 && (
-        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/20 pt-4 md:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 md:grid-cols-4">
           {itens.slice(0, 4).map((i) => (
             <div key={i.rotulo} className="min-w-0">
-              <p className="truncate text-[11px] text-white/70">{i.rotulo}</p>
-              <p className="tabular text-lg font-semibold text-white">{i.valor}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{i.rotulo}</p>
+              <p className="tabular text-lg font-semibold text-foreground">{i.valor}</p>
             </div>
           ))}
         </div>
@@ -95,8 +99,8 @@ export function CartaoDestaque({
 /* ---------------- SELO DE ESTADO (RN-203 item 9) ---------------- */
 const CORES_SELO: Record<string, string> = {
   ok: 'hsl(var(--destaque-escuro))',
-  warn: 'hsl(var(--warn, 38 92% 50%))',
-  erro: 'hsl(var(--destructive, 0 84% 60%))',
+  warn: 'hsl(var(--warn))',
+  erro: 'hsl(var(--destructive))',
   neutro: 'hsl(var(--muted-foreground))',
 }
 
@@ -171,7 +175,7 @@ export function Distribuicao({ itens }: { itens: { rotulo: string; valor: number
           <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">{i.rotulo}</span>
           <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
             <span
-              className="block h-full rounded-full bg-primary"
+              className="block h-full rounded-full bg-marca-1"
               style={{ width: Math.round((i.valor / maior) * 100) + '%' }}
             />
           </span>

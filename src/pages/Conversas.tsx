@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Lock, Mic, Paperclip, Sparkles, Square } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import pb from '@/lib/pocketbase/client'
@@ -114,23 +115,8 @@ const ROTULO_AUTOR: Record<string, string> = {
   api_externa: 'API externa',
 }
 
-/** Cor do avatar estável por nome: a mesma pessoa tem sempre a mesma. */
-const CORES = [
-  'bg-emerald-600',
-  'bg-teal-600',
-  'bg-sky-600',
-  'bg-indigo-600',
-  'bg-violet-600',
-  'bg-rose-600',
-  'bg-amber-600',
-  'bg-cyan-700',
-]
-
-function corDoNome(nome: string): string {
-  let soma = 0
-  for (let i = 0; i < nome.length; i++) soma += nome.charCodeAt(i)
-  return CORES[soma % CORES.length]
-}
+/** Avatar neutro (visual sóbrio): iniciais em preto sobre cinza claro. */
+const AVATAR = 'bg-muted text-foreground'
 
 function iniciais(nome: string, telefone: string): string {
   const base = (nome || '').trim()
@@ -542,11 +528,18 @@ export default function Conversas() {
             robo.pode ? (
               <Button
                 size="sm"
-                variant={robo.ligado ? 'default' : 'destructive'}
+                variant="outline"
                 disabled={mudandoRobo}
                 onClick={() => void alternarRobo()}
                 title={robo.ligado ? 'Clique para desligar o robô' : 'Clique para ligar o robô'}
               >
+                <span
+                  className={
+                    'h-1.5 w-1.5 rounded-full ' +
+                    (robo.ligado ? 'bg-marca-1' : 'bg-muted-foreground/50')
+                  }
+                  aria-hidden="true"
+                />
                 {mudandoRobo
                   ? 'Mudando…'
                   : robo.ligado
@@ -556,7 +549,14 @@ export default function Conversas() {
                     : 'Robô desligado · clique para ligar'}
               </Button>
             ) : (
-              <Badge variant={robo.ligado ? 'default' : 'outline'}>
+              <Badge variant={robo.ligado ? 'default' : 'outline'} className="gap-1.5">
+                <span
+                  className={
+                    'h-1.5 w-1.5 rounded-full ' +
+                    (robo.ligado ? 'bg-marca-1' : 'bg-muted-foreground/50')
+                  }
+                  aria-hidden="true"
+                />
                 {robo.ligado ? 'Robô ligado' : 'Robô desligado'}
               </Badge>
             )
@@ -591,7 +591,7 @@ export default function Conversas() {
             value={busca}
             onChange={(ev) => setBusca(ev.target.value)}
             placeholder="Buscar por nome, telefone ou mensagem…"
-            className="min-w-[220px] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="min-w-[220px] flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
           />
           {/* CA-3-70: mostrar só quem está esperando */}
           <Button
@@ -602,7 +602,7 @@ export default function Conversas() {
           >
             Só sem resposta
             {contagemNaoLidas > 0 && (
-              <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
+              <span className="ml-1.5 rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-medium tabular">
                 {contagemNaoLidas}
               </span>
             )}
@@ -626,7 +626,7 @@ export default function Conversas() {
                     'rounded-full border px-3 py-1 text-xs transition-colors ' +
                     (filtroNumero === n.id
                       ? 'border-foreground bg-foreground text-background'
-                      : 'border-border bg-background text-muted-foreground hover:text-foreground')
+                      : 'border-border bg-card text-muted-foreground hover:text-foreground')
                   }
                 >
                   {n.nome}
@@ -659,27 +659,34 @@ export default function Conversas() {
                 onClick={() => abrir(c)}
                 className={
                   'flex w-full items-start gap-3 border-b px-3 py-3 text-left last:border-0 hover:bg-muted/50 ' +
-                  (aberta === c.id
-                    ? 'bg-emerald-50 dark:bg-emerald-950/20'
-                    : c.nao_lida
-                      ? 'bg-red-50/60 dark:bg-red-950/10'
-                      : '')
+                  (aberta === c.id ? 'bg-muted' : '')
                 }
               >
                 <span
                   className={
-                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ' +
-                    corDoNome(c.contato_nome || c.contato_telefone || '?')
+                    'relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ' +
+                    AVATAR
                   }
                 >
                   {iniciais(c.contato_nome, c.contato_telefone)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span
-                      className={'truncate text-sm ' + (c.nao_lida ? 'font-bold' : 'font-semibold')}
-                    >
-                      {c.contato_nome || telefoneBonito(c.contato_telefone)}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {c.nao_lida && (
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full bg-marca-1"
+                          aria-label="Sem resposta"
+                        />
+                      )}
+                      <span
+                        className={
+                          'truncate text-sm ' +
+                          (c.nao_lida ? 'font-semibold text-foreground' : 'font-medium')
+                        }
+                      >
+                        {c.contato_nome || telefoneBonito(c.contato_telefone)}
+                      </span>
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {horaCurta(c.ultima_mensagem_em)}
@@ -692,7 +699,7 @@ export default function Conversas() {
                     {/* CA-3-70: tempo de espera quando a última é do cliente */}
                     {c.nao_lida && (c.espera_min ?? -1) >= 0 && (
                       <DicaNumero texto="Há quanto tempo o cliente espera resposta">
-                        <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular text-foreground">
                           {tempoEspera(c.espera_min || 0)}
                         </span>
                       </DicaNumero>
@@ -734,8 +741,8 @@ export default function Conversas() {
               <div className="flex items-center gap-3 border-b px-4 py-3">
                 <span
                   className={
-                    'flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-white ' +
-                    corDoNome(convAberta.contato_nome || convAberta.contato_telefone || '?')
+                    'flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ' +
+                    AVATAR
                   }
                 >
                   {iniciais(convAberta.contato_nome, convAberta.contato_telefone)}
@@ -756,7 +763,7 @@ export default function Conversas() {
                     href={linkChamarWhatsapp(convAberta.contato_telefone) as string}
                     target="_blank"
                     rel="noreferrer"
-                    className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                    className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
                   >
                     Chamar no WhatsApp
                   </a>
@@ -777,7 +784,7 @@ export default function Conversas() {
                     className="mb-1 flex items-center gap-1.5 text-xs font-semibold"
                     style={{ color: 'hsl(var(--interna-foreground))' }}
                   >
-                    <span>🔒</span>
+                    <Lock className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>Interna — o cliente NÃO vê, só o vendedor deste atendimento</span>
                   </div>
                   <div className="max-h-24 overflow-y-auto overscroll-contain">
@@ -931,7 +938,8 @@ export default function Conversas() {
                     disabled={sugerindo}
                     title="A IA escreve a resposta certa para esta etapa"
                   >
-                    {sugerindo ? 'Pensando…' : '✨ Sugerir resposta'}
+                    <Sparkles className="text-marca-1" aria-hidden="true" />
+                    {sugerindo ? 'Pensando…' : 'Sugerir resposta'}
                   </Button>
                   {sugestao !== '' && (
                     <>
@@ -948,7 +956,7 @@ export default function Conversas() {
                     </>
                   )}
                   {copiado !== '' && (
-                    <span className="text-xs font-medium text-emerald-700">{copiado}</span>
+                    <span className="text-xs font-medium text-marca-1">{copiado}</span>
                   )}
                 </div>
                 {avisoEnvio && <p className="mb-1 text-xs text-muted-foreground">{avisoEnvio}</p>}
@@ -969,17 +977,31 @@ export default function Conversas() {
                     title="Anexar foto, vídeo ou documento"
                     onClick={() => fileRef.current?.click()}
                     disabled={enviando}
+                    aria-label="Anexar arquivo"
                   >
-                    📎
+                    <Paperclip aria-hidden="true" />
                   </Button>
                   <Button
                     size="sm"
-                    variant={gravando ? 'destructive' : 'outline'}
+                    variant="outline"
+                    className={
+                      gravando
+                        ? 'border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/15'
+                        : ''
+                    }
                     title={gravando ? 'Parar e enviar áudio' : 'Gravar áudio'}
+                    aria-label={gravando ? 'Parar e enviar áudio' : 'Gravar áudio'}
                     onClick={() => (gravando ? pararGravacao() : void comecarGravacao())}
                     disabled={enviando}
                   >
-                    {gravando ? '⏹ ' + duracao(segundosGrav) : '🎤'}
+                    {gravando ? (
+                      <>
+                        <Square aria-hidden="true" />
+                        <span className="tabular">{duracao(segundosGrav)}</span>
+                      </>
+                    ) : (
+                      <Mic aria-hidden="true" />
+                    )}
                   </Button>
                   <textarea
                     value={rascunho}
@@ -997,7 +1019,7 @@ export default function Conversas() {
                         ? 'Envio bloqueado pela Meta — responda pelo celular'
                         : 'Escreva a resposta… (Enter envia, Shift+Enter quebra linha)'
                     }
-                    className="min-h-[38px] flex-1 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    className="min-h-[38px] flex-1 resize-y rounded-md border border-input bg-card px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                   />
                   <Button
                     size="sm"

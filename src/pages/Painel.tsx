@@ -136,21 +136,21 @@ function FaixaFontes({ estadosPb }: { estadosPb: Record<string, FonteEstadoRecor
               className={
                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ' +
                 (conectado
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  ? 'border-border bg-card text-foreground'
                   : erro
-                    ? 'border-destructive/30 bg-destructive/5 text-destructive'
-                    : 'border-border bg-muted text-muted-foreground')
+                    ? 'border-transparent bg-destructive/10 text-destructive'
+                    : 'border-transparent bg-muted text-muted-foreground')
               }
             >
               {conectado ? (
-                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                <CheckCircle2 className="h-3 w-3 text-marca-1" aria-hidden="true" />
               ) : erro ? (
                 <AlertTriangle className="h-3 w-3" aria-hidden="true" />
               ) : (
                 <Database className="h-3 w-3" aria-hidden="true" />
               )}
               {LABEL_CANAL[canal]}
-              <span className="font-normal">
+              <span className="font-normal text-muted-foreground">
                 {conectado
                   ? quando
                     ? `· atualizado às ${quando}`
@@ -531,7 +531,7 @@ export default function PainelPage() {
       <FaixaFontes estadosPb={estadosFontes} />
 
       {escopoAviso && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-800">
+        <div className="rounded-lg border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
           {escopoAviso}
         </div>
       )}
@@ -848,7 +848,7 @@ export default function PainelPage() {
                 "—" significa indisponível (a fonte não fornece a métrica) — diferente de zero.
               </p>
               {visao.cobertura.motivo && (
-                <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <p className="mt-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
                   {visao.cobertura.motivo}
                 </p>
               )}

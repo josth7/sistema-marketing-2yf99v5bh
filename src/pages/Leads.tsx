@@ -5,6 +5,7 @@
  * com trilha de eventos, importação por CSV colado (planilha da agência).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Calendar, Phone, User } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -78,11 +79,11 @@ const ROTULO_STATUS: Record<string, string> = {
 // perfil). Antes o card mostrava `temperatura`, que era só um espelho do
 // status — ou seja, não informava nada sobre a chance real de venda.
 function corNota(n: number | null): string {
-  if (n === null || n === undefined) return 'bg-gray-100 text-gray-500'
-  if (n >= 80) return 'bg-emerald-600 text-white'
-  if (n >= 60) return 'bg-emerald-100 text-emerald-800'
-  if (n >= 40) return 'bg-amber-100 text-amber-800'
-  return 'bg-gray-100 text-gray-600'
+  // visual sóbrio: só a nota alta ganha o acento; o resto fica em cinza
+  if (n === null || n === undefined) return 'bg-muted text-muted-foreground'
+  if (n >= 80) return 'bg-marca-1/10 text-marca-1'
+  if (n >= 40) return 'bg-muted text-foreground'
+  return 'bg-muted text-muted-foreground'
 }
 
 function rotuloNota(n: number | null): string {
@@ -90,35 +91,35 @@ function rotuloNota(n: number | null): string {
   return String(n)
 }
 
+// Humor em selo suave com o nome escrito (sem emoji). Vermelho só para
+// raiva/ameaça, e em tom de fundo /10.
 const COR_HUMOR: Record<string, string> = {
-  positivo: 'bg-emerald-100 text-emerald-800',
-  neutro: 'bg-gray-100 text-gray-600',
-  negativo: 'bg-amber-100 text-amber-800',
-  raiva: 'bg-orange-100 text-orange-800',
-  ameaca: 'bg-red-600 text-white',
+  positivo: 'bg-marca-1/10 text-marca-1',
+  neutro: 'bg-muted text-muted-foreground',
+  negativo: 'bg-muted text-foreground',
+  raiva: 'bg-destructive/10 text-destructive',
+  ameaca: 'bg-destructive/10 font-medium text-destructive',
 }
 
-const EMOJI_HUMOR: Record<string, string> = {
-  positivo: '🙂',
-  neutro: '😐',
-  negativo: '🙁',
-  raiva: '😠',
-  ameaca: '🚨',
-}
+// Etapas em no máximo 4 famílias: neutro, andamento, ganho (acento) e perdido.
+const ETAPA_NEUTRA = 'bg-muted text-muted-foreground'
+const ETAPA_ANDAMENTO = 'bg-foreground/[0.07] text-foreground'
+const ETAPA_GANHO = 'bg-marca-1/10 text-marca-1'
+const ETAPA_PERDIDA = 'border-border bg-transparent text-muted-foreground'
 
 const COR_STATUS: Record<string, string> = {
-  entrada_lead: 'bg-slate-100 text-slate-800',
-  pre_atendimento_ia: 'bg-indigo-100 text-indigo-800',
-  mql: 'bg-amber-100 text-amber-800',
-  negociacao: 'bg-blue-100 text-blue-800',
-  aguardando_pagamento: 'bg-orange-100 text-orange-800',
-  venda_realizada: 'bg-emerald-100 text-emerald-800',
-  producao: 'bg-cyan-100 text-cyan-800',
-  finalizado: 'bg-emerald-200 text-emerald-900',
-  descartado: 'bg-red-100 text-red-800',
-  orcamento: 'bg-purple-100 text-purple-800',
-  fechado: 'bg-emerald-100 text-emerald-800',
-  perdido: 'bg-gray-200 text-gray-700',
+  entrada_lead: ETAPA_NEUTRA,
+  pre_atendimento_ia: ETAPA_NEUTRA,
+  mql: ETAPA_ANDAMENTO,
+  negociacao: ETAPA_ANDAMENTO,
+  aguardando_pagamento: ETAPA_ANDAMENTO,
+  venda_realizada: ETAPA_GANHO,
+  producao: ETAPA_ANDAMENTO,
+  finalizado: ETAPA_GANHO,
+  descartado: ETAPA_PERDIDA,
+  orcamento: ETAPA_ANDAMENTO,
+  fechado: ETAPA_GANHO,
+  perdido: ETAPA_PERDIDA,
 }
 
 const ROTULO_ORIGEM: Record<string, string> = {
@@ -723,7 +724,8 @@ export default function Leads() {
       )}
 
       {msg && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+        <p className="flex items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm text-foreground">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-marca-1" aria-hidden="true" />
           {msg}
         </p>
       )}
@@ -740,7 +742,7 @@ export default function Leads() {
           Vale para a Lista e para o Funil. Os campos existiam no código mas
           tinham sumido da tela na troca do visual. */}
       {!carregando && !erro && itens.length > 0 && (
-        <div className="flex flex-wrap items-end gap-2 rounded-cartao bg-muted p-3">
+        <div className="flex flex-wrap items-end gap-2 rounded-cartao border bg-card p-3">
           <div className="min-w-[220px] flex-1 space-y-1">
             <Label className="text-xs">Buscar</Label>
             <Input
@@ -850,7 +852,7 @@ export default function Leads() {
               s.cor === 'verde'
                 ? 'hsl(var(--destaque-escuro))'
                 : s.cor === 'vermelho'
-                  ? 'hsl(var(--destructive))'
+                  ? 'hsl(var(--muted-foreground) / 0.45)'
                   : 'hsl(var(--muted-foreground))'
             return (
               <div key={s.valor} className="rounded-cartao bg-muted p-2">
@@ -863,7 +865,7 @@ export default function Leads() {
                     />
                     {s.rotulo}
                   </span>
-                  <span className="shrink-0 rounded-full bg-background px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
+                  <span className="shrink-0 rounded-full bg-card px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
                     {coluna.length}
                   </span>
                 </p>
@@ -877,12 +879,12 @@ export default function Leads() {
                     <p className="px-1 py-3 text-center text-xs text-muted-foreground">vazio</p>
                   )}
                   {coluna.slice(0, LIMITE_COLUNA).map((l) => (
-                    <div key={l.id} className="rounded-md border bg-background p-2 shadow-sm">
+                    <div key={l.id} className="rounded-md border bg-card p-2">
                       <div className="flex items-center justify-between gap-1">
                         <p className="truncate text-sm font-medium">{l.nome}</p>
                         <span
                           className={
-                            'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ' +
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums ' +
                             corNota(l.ia_nota)
                           }
                           title={
@@ -903,17 +905,18 @@ export default function Leads() {
                       {l.ia_humor && (
                         <span
                           className={
-                            'mt-0.5 inline-block rounded px-1 py-0.5 text-xs ' +
-                            (COR_HUMOR[l.ia_humor] || 'bg-gray-100 text-gray-600')
+                            'mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-xs ' +
+                            (COR_HUMOR[l.ia_humor] || 'bg-muted text-muted-foreground')
                           }
                           title="Humor da última mensagem do cliente"
                         >
-                          {(EMOJI_HUMOR[l.ia_humor] || '') + ' ' + l.ia_humor}
+                          {l.ia_humor}
                         </span>
                       )}
                       {l.owner_nome && (
-                        <p className="mt-0.5 truncate text-xs text-emerald-700">
-                          👤 {l.owner_nome}
+                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                          <User className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          <span className="truncate">{l.owner_nome}</span>
                         </p>
                       )}
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -1009,7 +1012,10 @@ export default function Leads() {
                   {/* nota da IA em destaque: é o que diz quem atacar primeiro */}
                   <div className="mt-1 flex items-center gap-2">
                     <span
-                      className={'rounded-full px-2 py-0.5 text-sm font-bold ' + corNota(l.ia_nota)}
+                      className={
+                        'rounded-full px-2 py-0.5 text-sm font-semibold tabular-nums ' +
+                        corNota(l.ia_nota)
+                      }
                       title={
                         l.ia_justificativa ||
                         'Nota da IA pela conversa (0 a 100). — = conversa ainda não analisada.'
@@ -1020,14 +1026,14 @@ export default function Leads() {
                     {l.ia_humor && (
                       <span
                         className={
-                          'rounded px-1.5 py-0.5 text-xs ' +
-                          (COR_HUMOR[l.ia_humor] || 'bg-gray-100 text-gray-600')
+                          'rounded-full px-1.5 py-0.5 text-xs ' +
+                          (COR_HUMOR[l.ia_humor] || 'bg-muted text-muted-foreground')
                         }
                       >
-                        {(EMOJI_HUMOR[l.ia_humor] || '') + ' ' + l.ia_humor}
+                        {l.ia_humor}
                       </span>
                     )}
-                    <span className="ml-auto text-base font-bold tabular-nums text-foreground">
+                    <span className="ml-auto text-base font-semibold tabular-nums text-foreground">
                       R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -1042,13 +1048,16 @@ export default function Leads() {
 
                   {/* telefone com atalho de WhatsApp */}
                   <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                    <p className="truncate">📞 {l.telefone || l.email || '—'}</p>
+                    <p className="flex items-center gap-1.5 truncate">
+                      <Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{l.telefone || l.email || '—'}</span>
+                    </p>
                     <p className="truncate">
                       {ROTULO_ORIGEM[l.origem] || l.origem}
                       {l.campanha ? ' · ' + l.campanha : ''}
                     </p>
-                    <p className="truncate">
-                      📅{' '}
+                    <p className="flex items-center gap-1.5 truncate">
+                      <Calendar className="h-3 w-3 shrink-0" aria-hidden="true" />
                       {(l.data_lead || l.criado_em || '')
                         .slice(0, 10)
                         .split('-')
@@ -1059,8 +1068,9 @@ export default function Leads() {
 
                   {/* responsável */}
                   <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-                    <p className="min-w-0 flex-1 truncate text-xs text-emerald-700">
-                      {l.owner_nome ? '👤 ' + l.owner_nome : '—'}
+                    <p className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-xs text-muted-foreground">
+                      <User className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span className="truncate text-foreground">{l.owner_nome || '—'}</span>
                     </p>
                     <Button
                       size="sm"
@@ -1258,7 +1268,7 @@ export default function Leads() {
                   </p>
                 </div>
               )}
-              {msg && <p className="text-sm text-amber-700">{msg}</p>}
+              {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
               {/* WhatsApp como canal de venda (fase 4, card 2) */}
               <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
                 <span className="text-sm text-muted-foreground">Venda:</span>
@@ -1267,7 +1277,7 @@ export default function Leads() {
                     href={linkWhatsapp(detalhe.telefone) as string}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-md border bg-white px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Abrir no WhatsApp ↗
                   </a>
@@ -1280,7 +1290,7 @@ export default function Leads() {
                     href={linkChamarWhatsapp(detalhe.telefone) as string}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-md border bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Chamar no WhatsApp
                   </a>
@@ -1340,7 +1350,7 @@ export default function Leads() {
                     )}
                   </div>
                 </div>
-                {transfErro && <p className="mt-2 text-xs text-red-600">{transfErro}</p>}
+                {transfErro && <p className="mt-2 text-xs text-destructive">{transfErro}</p>}
                 {transf && (
                   <div className="mt-2 space-y-1 text-xs">
                     <p>
@@ -1416,9 +1426,7 @@ export default function Leads() {
                           key={msg.id}
                           className={
                             'min-w-0 rounded-md px-3 py-2 text-sm [overflow-wrap:anywhere] ' +
-                            (msg.autor === 'cliente'
-                              ? 'bg-muted/60'
-                              : 'ml-6 bg-emerald-50 dark:bg-emerald-950/30')
+                            (msg.autor === 'cliente' ? 'bg-muted/60' : 'ml-6 bg-accent')
                           }
                         >
                           <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">

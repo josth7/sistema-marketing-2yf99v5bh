@@ -296,26 +296,19 @@ export default function Layout({ sessao }: { sessao: Sessao }) {
                 className={
                   'flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ' +
                   (ativo
-                    ? 'bg-card font-medium text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground')
+                    ? 'border border-border bg-card font-medium text-foreground'
+                    : 'border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground')
                 }
               >
                 <span
                   className={
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ' +
-                    (ativo ? 'bg-foreground text-background' : 'bg-muted text-foreground/70')
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ' +
+                    (ativo ? 'bg-foreground text-background' : 'text-muted-foreground')
                   }
                 >
                   <Icone className="h-4 w-4" aria-hidden="true" />
                 </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate">{rotulo}</span>
-                  {descricao !== '' && (
-                    <span className="truncate text-[11px] font-normal leading-tight text-muted-foreground">
-                      {descricao}
-                    </span>
-                  )}
-                </span>
+                <span className="min-w-0 truncate">{rotulo}</span>
               </Link>
             </li>
           )

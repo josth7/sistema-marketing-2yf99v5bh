@@ -184,12 +184,15 @@ export default function Esperando() {
       type="button"
       onClick={() => setFaixa(valor)}
       className={
-        'rounded-cartao border p-3 text-left transition hover:bg-muted/60 ' +
-        (faixa === valor ? 'ring-2 ring-primary' : '')
+        'rounded-cartao border bg-card p-3 text-left transition hover:bg-muted/60 ' +
+        (faixa === valor ? 'border-foreground' : 'border-border')
       }
     >
-      <p className="text-xs text-muted-foreground">{rotulo}</p>
-      <p className={'text-2xl font-semibold ' + cor}>{numero}</p>
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {cor !== '' && <span className={'h-1.5 w-1.5 rounded-full ' + cor} aria-hidden="true" />}
+        {rotulo}
+      </p>
+      <p className="tabular text-2xl font-semibold text-foreground">{numero}</p>
     </button>
   )
 
@@ -207,18 +210,13 @@ export default function Esperando() {
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {cartaoFaixa('todas', 'Esperando', dados.total, '')}
-            {cartaoFaixa(
-              'ate_24h',
-              'Até 24h',
-              dados.faixas.ate_1h + dados.faixas.ate_24h,
-              'text-amber-600',
-            )}
-            {cartaoFaixa('ate_7d', 'De 1 a 7 dias', dados.faixas.ate_7d, 'text-red-600')}
-            {cartaoFaixa('mais_7d', 'Mais de 7 dias', dados.faixas.mais_7d, 'text-red-700')}
+            {cartaoFaixa('ate_24h', 'Até 24h', dados.faixas.ate_1h + dados.faixas.ate_24h, '')}
+            {cartaoFaixa('ate_7d', 'De 1 a 7 dias', dados.faixas.ate_7d, '')}
+            {cartaoFaixa('mais_7d', 'Mais de 7 dias', dados.faixas.mais_7d, 'bg-destructive/70')}
           </div>
 
           {dados.escopo === 'gestao' && (
-            <div className="rounded-cartao border bg-muted/40 p-3">
+            <div className="rounded-cartao border bg-card p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Avisar os vendedores no WhatsApp</p>
@@ -246,7 +244,7 @@ export default function Esperando() {
                     {Object.keys(previaAviso.por_vendedor).map((v) => {
                       const p = previaAviso.por_vendedor[v]
                       return (
-                        <p key={v} className="rounded-md border bg-background px-2 py-1 text-xs">
+                        <p key={v} className="rounded-md bg-muted px-2 py-1 text-xs">
                           <strong>{v}</strong>: {p.agora} agora
                           {p.aguardando_bom_dia > 0
                             ? ' · ' + p.aguardando_bom_dia + ' após o bom dia'
@@ -277,25 +275,26 @@ export default function Esperando() {
           )}
 
           {msg && (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+            <p className="flex items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm text-foreground">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-marca-1" aria-hidden="true" />
               {msg}
             </p>
           )}
 
-          <div className="flex flex-wrap items-end gap-2 rounded-cartao bg-muted p-3">
+          <div className="flex flex-wrap items-end gap-2 rounded-cartao border bg-card p-3">
             <div className="min-w-[200px] flex-1 space-y-1">
               <Label className="text-xs">Buscar</Label>
               <Input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Nome, telefone ou mensagem"
-                className="h-9 bg-background"
+                className="h-9 bg-card"
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Vendedor</Label>
               <Select value={filtroVend} onValueChange={setFiltroVend}>
-                <SelectTrigger className="h-9 w-[200px] bg-background">
+                <SelectTrigger className="h-9 w-[200px] bg-card">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -311,7 +310,7 @@ export default function Esperando() {
             <div className="space-y-1">
               <Label className="text-xs">Onde o cliente escreveu</Label>
               <Select value={filtroNumero} onValueChange={setFiltroNumero}>
-                <SelectTrigger className="h-9 w-[220px] bg-background">
+                <SelectTrigger className="h-9 w-[220px] bg-card">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -373,7 +372,7 @@ export default function Esperando() {
             {itens.map((i) => (
               <div
                 key={i.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card px-3 py-2"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
@@ -395,14 +394,14 @@ export default function Esperando() {
                       href={linkChamarWhatsapp(i.telefone) as string}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                      className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
                     >
                       Chamar no WhatsApp
                     </a>
                   )}
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     onClick={async () => {
                       try {
                         await pb.send('/backend/v1/gestao/esperando/resolver', {
